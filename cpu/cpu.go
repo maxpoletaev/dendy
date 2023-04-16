@@ -49,7 +49,6 @@ type Memory interface {
 }
 
 type operand struct {
-	mode      AddrMode
 	addr      Word
 	val       Byte
 	pageCross bool
@@ -74,8 +73,6 @@ type CPU struct {
 	SP Byte  // Stack pointer
 	PC Word  // Program counter
 
-	instr  instruction
-	arg    operand
 	cycles int
 }
 
@@ -125,13 +122,10 @@ func (cpu *CPU) fetchOpcode(mem Memory) Byte {
 func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 	switch mode {
 	case AddrModeImp:
-		return operand{
-			mode: mode,
-		}
+		return operand{}
 	case AddrModeAcc:
 		return operand{
-			mode: mode,
-			val:  cpu.A,
+			val: cpu.A,
 		}
 	case AddrModeImm:
 		val := mem.Read(cpu.PC)
@@ -139,7 +133,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		cpu.PC++
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -149,7 +142,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		cpu.PC++
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -159,7 +151,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		cpu.PC++
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -169,7 +160,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		cpu.PC++
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -182,7 +172,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		val := mem.Read(addr)
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -201,7 +190,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		}
 
 		return operand{
-			mode:      mode,
 			addr:      addrX,
 			val:       val,
 			pageCross: pageCross,
@@ -221,7 +209,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		}
 
 		return operand{
-			mode:      mode,
 			addr:      addrY,
 			val:       val,
 			pageCross: cross,
@@ -246,7 +233,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		val := mem.Read(addr)
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -261,7 +247,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		val := mem.Read(addr)
 
 		return operand{
-			mode: mode,
 			addr: addr,
 			val:  val,
 		}
@@ -278,7 +263,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		val := mem.Read(addrY)
 
 		return operand{
-			mode:      mode,
 			addr:      addrY,
 			val:       val,
 			pageCross: pageCross,
@@ -296,7 +280,6 @@ func (cpu *CPU) fetchOperand(mem Memory, mode AddrMode) operand {
 		pageCross := addr&0xFF00 != cpu.PC&0xFF00
 
 		return operand{
-			mode:      mode,
 			addr:      addr,
 			val:       value,
 			pageCross: pageCross,
@@ -318,7 +301,7 @@ func (cpu *CPU) Reset(mem Memory) {
 }
 
 func (cpu *CPU) runOpcode(mem Memory, instr instruction, arg operand) {
-	switch instr.code {
+	switch instr.name {
 	case "NOP":
 		// do nothing
 	case "LDA":
@@ -432,13 +415,8 @@ func (cpu *CPU) runOpcode(mem Memory, instr instruction, arg operand) {
 	case "RTS":
 		cpu.rts(mem, arg)
 	default:
-		panic(fmt.Sprintf("unhandled instruction: %s", instr.code))
+		panic(fmt.Sprintf("unhandled instruction: %s", instr.name))
 	}
-}
-
-func (cpu *CPU) PrintState() {
-	fmt.Printf("PC:%04X SP:%02X A:%02X X:%02X Y: %02X\n", cpu.PC, cpu.SP, cpu.A, cpu.X, cpu.Y)
-	fmt.Printf("C:%t Z:%t I:%t D:%t B:%t V:%t N:%t\n", cpu.getFlag(FlagCarry), cpu.getFlag(FlagZero), cpu.getFlag(FlagIntDisable), cpu.getFlag(FlagDecimal), cpu.getFlag(FlagBreak), cpu.getFlag(FlagOverflow), cpu.getFlag(FlagNegative))
 }
 
 // Tick executes a single CPU cycle, returning true if the CPU has finished executing the current instruction.

@@ -259,8 +259,9 @@ func (cpu *CPU) jmp(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) jsr(mem Memory, arg operand) {
-	cpu.pushStack(mem, Byte(cpu.PC>>8))
-	cpu.pushStack(mem, Byte(cpu.PC))
+	retAddr := cpu.PC - 1
+	cpu.pushStack(mem, Byte(retAddr>>8))
+	cpu.pushStack(mem, Byte(retAddr))
 	cpu.PC = arg.addr
 }
 

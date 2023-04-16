@@ -1,7 +1,7 @@
 package cpu
 
 type instruction struct {
-	code   string
+	name   string
 	opcode Byte
 	mode   AddrMode
 	size   int
