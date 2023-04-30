@@ -8,23 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type memory [65536]Byte
+type memory [65536]uint8
 
-func (m *memory) Write(addr Word, data Byte) {
+func (m *memory) Write(addr uint16, data uint8) {
 	m[addr] = data
 }
 
-func (m *memory) Read(addr Word) Byte {
+func (m *memory) Read(addr uint16) uint8 {
 	return m[addr]
 }
 
-func (m *memory) ReadWord(addr Word) Word {
-	return Word(m[addr]) | Word(m[addr+1])<<8
-}
-
 type InstructionTest struct {
-	opcode      Byte
-	operand     Word
+	opcode      uint8
+	operand     uint16
 	wantCycles  int
 	prepareFunc func(*testing.T, *CPU, *memory)
 	assertFunc  func(*testing.T, *CPU, *memory)
@@ -35,7 +31,7 @@ func (i *InstructionTest) Exec(t *testing.T) {
 
 	var (
 		mem = new(memory)
-		cpu = NewCPU()
+		cpu = New()
 	)
 
 	cpu.Reset(mem)
@@ -44,8 +40,8 @@ func (i *InstructionTest) Exec(t *testing.T) {
 	mem[0xFFFD] = 0x50
 
 	mem[0x5000] = i.opcode
-	mem[0x5001] = Byte(i.operand)
-	mem[0x5002] = Byte(i.operand >> 8)
+	mem[0x5001] = uint8(i.operand)
+	mem[0x5002] = uint8(i.operand >> 8)
 
 	t.Cleanup(func() {
 		if t.Failed() {
@@ -85,11 +81,11 @@ func (i *InstructionTest) Exec(t *testing.T) {
 
 func TestNOP(t *testing.T) {
 	(&InstructionTest{
-		opcode:      OpNopImp,
+		opcode:      NOP_Imp,
 		wantCycles:  2,
 		prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {},
 		assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-			require.Equal(t, Word(0x5001), cpu.PC)
+			require.Equal(t, uint16(0x5001), cpu.PC)
 		},
 	}).Exec(t)
 }
@@ -97,29 +93,29 @@ func TestNOP(t *testing.T) {
 func TestLDA(t *testing.T) {
 	tests := map[string]InstructionTest{
 		"Imm": {
-			opcode:      OpLdaImm,
+			opcode:      LDA_Imm,
 			operand:     0x42,
 			wantCycles:  2,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Byte(0x42), cpu.A)
-				require.Equal(t, Word(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
+				require.Equal(t, uint16(0x5002), cpu.PC)
 			},
 		},
 		"Zp": {
-			opcode:     OpLdaZp,
+			opcode:     LDA_Zp,
 			operand:    0x42,
 			wantCycles: 3,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 				mem[0x42] = 0x42
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5002), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 		"ZpX": {
-			opcode:     OpLdaZpX,
+			opcode:     LDA_ZpX,
 			operand:    0x41,
 			wantCycles: 4,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -127,24 +123,24 @@ func TestLDA(t *testing.T) {
 				cpu.X = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5002), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 		"Abs": {
-			opcode:     OpLdaAbs,
+			opcode:     LDA_Abs,
 			operand:    0x4242,
 			wantCycles: 4,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 				mem[0x4242] = 0x42
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5003), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5003), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 		"AbsX": {
-			opcode:     OpLdaAbsX,
+			opcode:     LDA_AbsX,
 			operand:    0x4241,
 			wantCycles: 4,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -152,12 +148,12 @@ func TestLDA(t *testing.T) {
 				cpu.X = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5003), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5003), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 		"AbsY": {
-			opcode:     OpLdaAbsY,
+			opcode:     LDA_AbsY,
 			operand:    0x4241,
 			wantCycles: 4,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -165,12 +161,12 @@ func TestLDA(t *testing.T) {
 				cpu.Y = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5003), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5003), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 		"IndX": {
-			opcode:     OpLdaIndX,
+			opcode:     LDA_IndX,
 			operand:    0xA0,
 			wantCycles: 6,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -180,12 +176,12 @@ func TestLDA(t *testing.T) {
 				cpu.X = 0x02
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5002), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 		"IndY": {
-			opcode:     OpLdaIndY,
+			opcode:     LDA_IndY,
 			operand:    0xA0,
 			wantCycles: 6,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -195,8 +191,8 @@ func TestLDA(t *testing.T) {
 				cpu.Y = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5002), cpu.PC)
-				require.Equal(t, Byte(0x42), cpu.A)
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
 			},
 		},
 	}
@@ -209,19 +205,19 @@ func TestLDA(t *testing.T) {
 func TestSTA(t *testing.T) {
 	tests := map[string]InstructionTest{
 		"Zp": {
-			opcode:     OpStaZp,
+			opcode:     STA_Zp,
 			operand:    0x42,
 			wantCycles: 3,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 				cpu.A = 0x42
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5002), cpu.PC)
-				require.Equal(t, Byte(0x42), mem[0x42])
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), mem[0x42])
 			},
 		},
 		"ZpX": {
-			opcode:     OpStaZpX,
+			opcode:     STA_ZpX,
 			operand:    0x41,
 			wantCycles: 4,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -229,24 +225,24 @@ func TestSTA(t *testing.T) {
 				cpu.X = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5002), cpu.PC)
-				require.Equal(t, Byte(0x42), mem[0x42])
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), mem[0x42])
 			},
 		},
 		"Abs": {
-			opcode:     OpStaAbs,
+			opcode:     STA_Abs,
 			operand:    0x4242,
 			wantCycles: 4,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 				cpu.A = 0x42
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5003), cpu.PC)
-				require.Equal(t, Byte(0x42), mem[0x4242])
+				require.Equal(t, uint16(0x5003), cpu.PC)
+				require.Equal(t, uint8(0x42), mem[0x4242])
 			},
 		},
 		"AbsX": {
-			opcode:     OpStaAbsX,
+			opcode:     STA_AbsX,
 			operand:    0x4241,
 			wantCycles: 5,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -254,12 +250,12 @@ func TestSTA(t *testing.T) {
 				cpu.X = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5003), cpu.PC)
-				require.Equal(t, Byte(0x42), mem[0x4242])
+				require.Equal(t, uint16(0x5003), cpu.PC)
+				require.Equal(t, uint8(0x42), mem[0x4242])
 			},
 		},
 		"AbsY": {
-			opcode:     OpStaAbsY,
+			opcode:     STA_Ind,
 			operand:    0x4241,
 			wantCycles: 5,
 			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
@@ -267,8 +263,8 @@ func TestSTA(t *testing.T) {
 				cpu.Y = 0x01
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-				require.Equal(t, Word(0x5003), cpu.PC)
-				require.Equal(t, Byte(0x42), mem[0x4242])
+				require.Equal(t, uint16(0x5003), cpu.PC)
+				require.Equal(t, uint8(0x42), mem[0x4242])
 			},
 		},
 	}
@@ -280,43 +276,43 @@ func TestSTA(t *testing.T) {
 
 func TestTAX(t *testing.T) {
 	(&InstructionTest{
-		opcode:     OpTaxImp,
+		opcode:     TAX_Imp,
 		wantCycles: 2,
 		prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 			cpu.A = 0x42
 		},
 		assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-			require.Equal(t, Word(0x5001), cpu.PC)
-			require.Equal(t, Byte(0x42), cpu.X)
+			require.Equal(t, uint16(0x5001), cpu.PC)
+			require.Equal(t, uint8(0x42), cpu.X)
 		},
 	}).Exec(t)
 }
 
 func TestTXA(t *testing.T) {
 	(&InstructionTest{
-		opcode:     OpTxaImp,
+		opcode:     TXA_Imp,
 		wantCycles: 2,
 		prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 			cpu.X = 0x42
 		},
 		assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-			require.Equal(t, Word(0x5001), cpu.PC)
-			require.Equal(t, Byte(0x42), cpu.A)
+			require.Equal(t, uint16(0x5001), cpu.PC)
+			require.Equal(t, uint8(0x42), cpu.A)
 		},
 	}).Exec(t)
 }
 
 func TestJSR(t *testing.T) {
 	(&InstructionTest{
-		opcode:      OpJsrAbs,
+		opcode:      JSR_Abs,
 		operand:     0x4242,
 		wantCycles:  6,
 		prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {},
 		assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
-			require.Equal(t, Word(0x4242), cpu.PC)
-			require.Equal(t, Byte(0xFD), cpu.SP)
-			require.Equal(t, Byte(0x50), mem[0x01FF])
-			require.Equal(t, Byte(0x02), mem[0x01FE])
+			require.Equal(t, uint16(0x4242), cpu.PC)
+			require.Equal(t, uint8(0xFD), cpu.SP)
+			require.Equal(t, uint8(0x50), mem[0x01FF])
+			require.Equal(t, uint8(0x02), mem[0x01FE])
 		},
 	}).Exec(t)
 }

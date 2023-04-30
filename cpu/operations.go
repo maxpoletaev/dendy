@@ -3,7 +3,7 @@ package cpu
 func (cpu *CPU) lda(mem Memory, arg operand) {
 	cpu.A = arg.val
 	if arg.pageCross {
-		cpu.cycles++
+		cpu.Halt++
 	}
 
 	cpu.setZN(arg.val)
@@ -16,7 +16,7 @@ func (cpu *CPU) sta(mem Memory, arg operand) {
 func (cpu *CPU) ldx(mem Memory, arg operand) {
 	cpu.X = arg.val
 	if arg.pageCross {
-		cpu.cycles++
+		cpu.Halt++
 	}
 
 	cpu.setZN(arg.val)
@@ -29,7 +29,7 @@ func (cpu *CPU) stx(mem Memory, arg operand) {
 func (cpu *CPU) ldy(mem Memory, arg operand) {
 	cpu.Y = arg.val
 	if arg.pageCross {
-		cpu.cycles++
+		cpu.Halt++
 	}
 
 	cpu.setZN(arg.val)
@@ -69,20 +69,20 @@ func (cpu *CPU) txs(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) pha(mem Memory, arg operand) {
-	cpu.pushStack(mem, cpu.A)
+	cpu.pushByte(mem, cpu.A)
 }
 
 func (cpu *CPU) pla(mem Memory, arg operand) {
-	cpu.A = cpu.popStack(mem)
+	cpu.A = cpu.popByte(mem)
 	cpu.setZN(cpu.A)
 }
 
 func (cpu *CPU) php(mem Memory, arg operand) {
-	cpu.pushStack(mem, Byte(cpu.P))
+	cpu.pushByte(mem, uint8(cpu.P)|0x10)
 }
 
 func (cpu *CPU) plp(mem Memory, arg operand) {
-	cpu.P = Flags(cpu.popStack(mem))
+	cpu.P = Flags(cpu.popByte(mem))&0xEF | 0x20
 }
 
 func (cpu *CPU) inc(mem Memory, arg operand) {
@@ -118,28 +118,28 @@ func (cpu *CPU) dey(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) adc(mem Memory, arg operand) {
-	val := Word(cpu.A) + Word(arg.val)
+	val := uint16(cpu.A) + uint16(arg.val)
 	if cpu.getFlag(FlagCarry) {
 		val++
 	}
 
 	cpu.setFlag(FlagCarry, val > 0xFF)
-	cpu.setFlag(FlagOverflow, (val^Word(cpu.A))&(val^Word(arg.val))&0x80 != 0)
+	cpu.setFlag(FlagOverflow, (val^uint16(cpu.A))&(val^uint16(arg.val))&0x80 != 0)
 
-	cpu.A = Byte(val)
+	cpu.A = uint8(val)
 	cpu.setZN(cpu.A)
 }
 
 func (cpu *CPU) sbc(mem Memory, arg operand) {
-	val := Word(cpu.A) - Word(arg.val)
+	val := uint16(cpu.A) - uint16(arg.val)
 	if !cpu.getFlag(FlagCarry) {
 		val--
 	}
 
 	cpu.setFlag(FlagCarry, val < 0x100)
-	cpu.setFlag(FlagOverflow, (val^Word(cpu.A))&(val^Word(arg.val))&0x80 != 0)
+	cpu.setFlag(FlagOverflow, (val^uint16(cpu.A))&(val^uint16(arg.val))&0x80 != 0)
 
-	cpu.A = Byte(val)
+	cpu.A = uint8(val)
 	cpu.setZN(cpu.A)
 }
 
@@ -225,32 +225,32 @@ func (cpu *CPU) bit(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) cmp(mem Memory, arg operand) {
-	val := Word(cpu.A) - Word(arg.val)
+	val := uint16(cpu.A) - uint16(arg.val)
 	cpu.setFlag(FlagCarry, val < 0x100)
-	cpu.setZN(Byte(val))
+	cpu.setZN(uint8(val))
 
 	if arg.pageCross {
-		cpu.cycles++
+		cpu.Halt++
 	}
 }
 
 func (cpu *CPU) cpx(mem Memory, arg operand) {
-	val := Word(cpu.X) - Word(arg.val)
+	val := uint16(cpu.X) - uint16(arg.val)
 	cpu.setFlag(FlagCarry, val < 0x100)
-	cpu.setZN(Byte(val))
+	cpu.setZN(uint8(val))
 
 	if arg.pageCross {
-		cpu.cycles++
+		cpu.Halt++
 	}
 }
 
 func (cpu *CPU) cpy(mem Memory, arg operand) {
-	val := Word(cpu.Y) - Word(arg.val)
+	val := uint16(cpu.Y) - uint16(arg.val)
 	cpu.setFlag(FlagCarry, val < 0x100)
-	cpu.setZN(Byte(val))
+	cpu.setZN(uint8(val))
 
 	if arg.pageCross {
-		cpu.cycles++
+		cpu.Halt++
 	}
 }
 
@@ -260,14 +260,14 @@ func (cpu *CPU) jmp(mem Memory, arg operand) {
 
 func (cpu *CPU) jsr(mem Memory, arg operand) {
 	retAddr := cpu.PC - 1
-	cpu.pushStack(mem, Byte(retAddr>>8))
-	cpu.pushStack(mem, Byte(retAddr))
+	cpu.pushByte(mem, uint8(retAddr>>8))
+	cpu.pushByte(mem, uint8(retAddr))
 	cpu.PC = arg.addr
 }
 
 func (cpu *CPU) rts(mem Memory, arg operand) {
-	lo := Word(cpu.popStack(mem))
-	hi := Word(cpu.popStack(mem))
+	lo := uint16(cpu.popByte(mem))
+	hi := uint16(cpu.popByte(mem))
 	addr := hi<<8 | lo
 	cpu.PC = addr + 1
 }
@@ -275,10 +275,10 @@ func (cpu *CPU) rts(mem Memory, arg operand) {
 func (cpu *CPU) bcc(mem Memory, arg operand) {
 	if !cpu.getFlag(FlagCarry) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -286,10 +286,10 @@ func (cpu *CPU) bcc(mem Memory, arg operand) {
 func (cpu *CPU) bcs(mem Memory, arg operand) {
 	if cpu.getFlag(FlagCarry) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -297,10 +297,10 @@ func (cpu *CPU) bcs(mem Memory, arg operand) {
 func (cpu *CPU) beq(mem Memory, arg operand) {
 	if cpu.getFlag(FlagZero) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -308,10 +308,10 @@ func (cpu *CPU) beq(mem Memory, arg operand) {
 func (cpu *CPU) bmi(mem Memory, arg operand) {
 	if cpu.getFlag(FlagNegative) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -319,10 +319,10 @@ func (cpu *CPU) bmi(mem Memory, arg operand) {
 func (cpu *CPU) bne(mem Memory, arg operand) {
 	if !cpu.getFlag(FlagZero) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -330,10 +330,10 @@ func (cpu *CPU) bne(mem Memory, arg operand) {
 func (cpu *CPU) bpl(mem Memory, arg operand) {
 	if !cpu.getFlag(FlagNegative) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -341,10 +341,10 @@ func (cpu *CPU) bpl(mem Memory, arg operand) {
 func (cpu *CPU) bvc(mem Memory, arg operand) {
 	if !cpu.getFlag(FlagOverflow) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
@@ -352,20 +352,20 @@ func (cpu *CPU) bvc(mem Memory, arg operand) {
 func (cpu *CPU) bvs(mem Memory, arg operand) {
 	if cpu.getFlag(FlagOverflow) {
 		cpu.PC = arg.addr
-		cpu.cycles += 2
+		cpu.Halt += 2
 
 		if arg.pageCross {
-			cpu.cycles += 2
+			cpu.Halt += 2
 		}
 	}
 }
 
 func (cpu *CPU) brk(mem Memory, arg operand) {
-	cpu.pushStack(mem, Byte(cpu.PC>>8))
-	cpu.pushStack(mem, Byte(cpu.PC))
-	cpu.pushStack(mem, Byte(cpu.P))
+	cpu.pushByte(mem, uint8(cpu.PC>>8))
+	cpu.pushByte(mem, uint8(cpu.PC))
+	cpu.pushByte(mem, uint8(cpu.P))
 	cpu.setFlag(FlagBreak, true)
-	cpu.PC = mem.ReadWord(VecIRQ)
+	cpu.PC = cpu.readWord(mem, VecIRQ)
 }
 
 func (cpu *CPU) clc(mem Memory, arg operand) {
@@ -377,7 +377,7 @@ func (cpu *CPU) cld(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) cli(mem Memory, arg operand) {
-	cpu.setFlag(FlagIntDisable, false)
+	cpu.setFlag(FlagInterrupt, false)
 }
 
 func (cpu *CPU) clv(mem Memory, arg operand) {
@@ -393,10 +393,10 @@ func (cpu *CPU) sed(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) sei(mem Memory, arg operand) {
-	cpu.setFlag(FlagIntDisable, true)
+	cpu.setFlag(FlagInterrupt, true)
 }
 
 func (cpu *CPU) rti(mem Memory, arg operand) {
-	cpu.P = Flags(cpu.popStack(mem))
-	cpu.PC = Word(cpu.popStack(mem)) | Word(cpu.popStack(mem))<<8
+	cpu.P = Flags(cpu.popByte(mem))&0xEF | 0x20
+	cpu.PC = cpu.popWord(mem)
 }
