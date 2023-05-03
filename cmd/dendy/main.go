@@ -13,7 +13,7 @@ import (
 
 type Bus struct {
 	screen *display.Display
-	cart   *ines.Cartridge
+	cart   ines.Cartridge
 	ram    [2048]uint8
 	cpu    *cpu.CPU
 	ppu    *ppu.PPU
@@ -71,6 +71,7 @@ func (b *Bus) transferOAM(addr uint8) {
 }
 
 func (b *Bus) Reset() {
+	b.cart.Reset()
 	b.cpu.Reset(b)
 	b.ppu.Reset()
 	b.cycles = 0
@@ -86,7 +87,7 @@ func (b *Bus) Tick() {
 
 	if b.ppu.RequestNMI {
 		b.ppu.RequestNMI = false
-		b.cpu.Interrupt(b)
+		b.cpu.TriggerNMI()
 	}
 
 	if b.ppu.FrameComplete {
@@ -110,7 +111,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cart, err := ines.OpenROM(flag.Arg(0))
+	cart, err := ines.Load(flag.Arg(0))
 	if err != nil {
 		fmt.Println(fmt.Sprintf("failed to open rom: %s", err))
 		os.Exit(1)
@@ -134,6 +135,7 @@ func main() {
 	}
 
 	bus.Reset()
+	d.Refresh()
 
 	for d.IsRunning() {
 		bus.Tick()
