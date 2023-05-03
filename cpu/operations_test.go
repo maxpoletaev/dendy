@@ -46,8 +46,10 @@ func (i *InstructionTest) Exec(t *testing.T) {
 	t.Cleanup(func() {
 		if t.Failed() {
 			var b strings.Builder
+			cpu.PC = 0x5000
+
 			b.WriteString(fmt.Sprintf("0x%04X\t\t", 0x5000))
-			b.WriteString(disassemble(mem, 0x5000))
+			b.WriteString(disassemble(cpu, mem))
 			b.WriteString("\t\t")
 			b.WriteString(fmt.Sprintf(" A:%02X", cpu.A))
 			b.WriteString(fmt.Sprintf(" X:%02X", cpu.X))
@@ -174,6 +176,23 @@ func TestLDA(t *testing.T) {
 				mem[0x00A2] = 0xFF
 				mem[0x00A3] = 0x01
 				cpu.X = 0x02
+			},
+			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
+				require.Equal(t, uint16(0x5002), cpu.PC)
+				require.Equal(t, uint8(0x42), cpu.A)
+			},
+		},
+		"IndX_Overflow": {
+			opcode:     LDA_IndX,
+			operand:    0xA0,
+			wantCycles: 6,
+			prepareFunc: func(t *testing.T, cpu *CPU, mem *memory) {
+				mem[0xA0] = 0xFF
+				mem[0xA1] = 0xAA
+				mem[0xAAFF] = 0x42
+
+				cpu.X = 0x01
+				cpu.A = 0x00
 			},
 			assertFunc: func(t *testing.T, cpu *CPU, mem *memory) {
 				require.Equal(t, uint16(0x5002), cpu.PC)
