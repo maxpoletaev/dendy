@@ -13,6 +13,11 @@ help:  ## print help (this message)
 build: ## build dendy
 	go build -o bin/dendy ./cmd/dendy
 
+@PHONY: test
+test: ## run tests
+	@go test -v $(TEST_PACKAGE)
+
 .PHONY: nestest
-nestest: ## run dendy
-	go test -v ./nestest | tee nestest.log
+nestest: ## run nestest rom
+	@go test -tags testrom -v ./nestest | tee nestest.log
+	@sed -i '' '1d' nestest.log # remove the first line to match the good log

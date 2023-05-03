@@ -1,3 +1,5 @@
+//go:build testrom
+
 package nestest
 
 import (
@@ -10,8 +12,8 @@ import (
 )
 
 type Memory struct {
+	rom ines.Cartridge
 	ram [2048]byte
-	rom *ines.Cartridge
 }
 
 func (r *Memory) Read(addr uint16) byte {
@@ -32,7 +34,7 @@ func (r *Memory) Write(addr uint16, value byte) {
 	}
 }
 
-var failureCodes = map[byte]string{
+var failCodes = map[byte]string{
 	// branch tests
 	0x01: "BCS failed to branch",
 	0x02: "BCS branched when it shouldn't have",
@@ -298,33 +300,36 @@ var failureCodes = map[byte]string{
 	0xFE: "CMP failure",
 }
 
-func TestCPU(t *testing.T) {
-	rom, err := ines.OpenROM("nestest.nes")
+func TestNestestROM(t *testing.T) {
+	cart, err := ines.Load("nestest.nes")
 	require.NoError(t, err, "failed to open nestest rom")
 
 	c := cpu.New()
-	mem := &Memory{rom: rom}
+	mem := &Memory{rom: cart}
 
 	c.Reset(mem)
 	c.PC = 0xC000
+	c.Cycles = 6 // Set the cycles to 6 to match the nestest's good.log.
 	c.EnableDisasm = true
 	c.AllowIllegal = true
 
 	for {
 		if c.Tick(mem) {
+			// Nestest ends at 0xC66E.
 			if c.PC == 0xC66E {
 				break
 			}
 		}
 	}
 
+	// The result for the official instruction is stored in 0x0002. If it's not 0x00,
+	// then the test failed, and we should decode the failure code.
 	if code := mem.Read(0x0002); code != 0x00 {
-		reason, ok := failureCodes[code]
+		reason, ok := failCodes[code]
 		if !ok {
 			t.Fatalf("unknown failure code: 0x%02X", code)
 		}
 
 		t.Fatalf("%s (0x%02X)", reason, code)
 	}
-
 }
