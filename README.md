@@ -7,36 +7,36 @@ performance or accuracy as well as unlikely to ever be finished.
 
 ## Status
 
-**CPU**
+### CPU
 
  * [x] Official opcodes
  * [x] Unofficial opcodes
  * [x] Runtime disassembly
  * [x] Cycle-accurate emulation
  * [ ] Accurate clock speed
- * [ ] Interrupts
+ * [x] Interrupts
 
-**Graphics**
+### Graphics
 
  * [ ] Background rendering
  * [ ] Sprite rendering
  * [ ] Scrolling
 
-**Input/Output**
+### Input/Output
 
 * [x] Graphics output
 * [ ] Controller 1
 * [ ] Controller 2
 * [ ] Zapper
 
-**Sound**
+### Sound
 
  * [ ] Pulse
  * [ ] Triangle
  * [ ] Noise
  * [ ] DMC
 
-**Cartridges**
+### Cartridges
 
 The goal is to support top 7 mappers covering the majority of games. The
 percentage indicates the number of games that use the mapper according to
@@ -50,7 +50,7 @@ nescartdb.com.
  * [ ] MMC5 (Mapper 5) - 1%
  * [ ] AxROM (Mapper 7) - 3%
 
-**Test ROMs**
+### Test ROMs
 
 The checked items are the ones that pass the tests completely or with minor
 inaccuracies (that might be caused by the test ROMs themselves).
