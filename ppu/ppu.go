@@ -36,14 +36,14 @@ const (
 )
 
 const (
-	MaskGrayscale       MaskFlags = 1 << 0
-	MaskShowLeftBg      MaskFlags = 1 << 1
-	MaskShowLeftSprites MaskFlags = 1 << 2
-	MaskShowBg          MaskFlags = 1 << 3
-	MaskShowSprites     MaskFlags = 1 << 4
-	MaskEmphasizeRed    MaskFlags = 1 << 5
-	MaskEmphasizeGreen  MaskFlags = 1 << 6
-	MaskEmphasizeBlue   MaskFlags = 1 << 7
+	MaskGrayscale          MaskFlags = 1 << 0
+	MaskShowLeftBackground MaskFlags = 1 << 1
+	MaskShowLeftSprites    MaskFlags = 1 << 2
+	MaskShowBackground     MaskFlags = 1 << 3
+	MaskShowSprites        MaskFlags = 1 << 4
+	MaskEmphasizeRed       MaskFlags = 1 << 5
+	MaskEmphasizeGreen     MaskFlags = 1 << 6
+	MaskEmphasizeBlue      MaskFlags = 1 << 7
 )
 
 const (
@@ -53,21 +53,19 @@ const (
 )
 
 type PPU struct {
-	cart         *ines.Cartridge // $0000-$1FFF (CHR-ROM)
-	Ctrl         CtrlFlags       // $2000
-	Mask         MaskFlags       // $2001
-	Status       StatusFlags     // $2002
-	OAMAddr      uint8           // $2003
-	OAMData      [256]byte       // $2004
-	NameTable    [2][1024]byte   // $2000-$2FFF
-	PaletteTable [32]byte        // $3F00-$3FFF
-	RequestNMI   bool
+	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
+	Ctrl         CtrlFlags      // $2000
+	Mask         MaskFlags      // $2001
+	Status       StatusFlags    // $2002
+	OAMAddr      uint8          // $2003
+	OAMData      [256]byte      // $2004
+	NameTable    [2][1024]byte  // $2000-$2FFF
+	PaletteTable [32]byte       // $3F00-$3FFF
 	VRAMAddr     uint16
-	VBlank       bool
 
-	// Current frame and if it is ready to be rendered.
 	Frame         [256][240]color.RGBA
 	FrameComplete bool
+	RequestNMI    bool
 
 	cycle        int
 	scanline     int
@@ -76,53 +74,55 @@ type PPU struct {
 	vramBuffer   uint8
 }
 
-func New(cart *ines.Cartridge) *PPU {
+func New(cart ines.Cartridge) *PPU {
 	return &PPU{
 		cart: cart,
 	}
 }
 
-func (p *PPU) getCtrlFlag(flag CtrlFlags) bool {
-	return p.Ctrl&flag != 0
-}
-
-func (p *PPU) setCtrlFlag(flag CtrlFlags, value bool) {
-	if value {
-		p.Ctrl |= flag
-		return
+func (p *PPU) getFlag(flag any) bool {
+	switch f := flag.(type) {
+	case CtrlFlags:
+		return p.Ctrl&f != 0
+	case MaskFlags:
+		return p.Mask&f != 0
+	case StatusFlags:
+		return p.Status&f != 0
+	default:
+		panic(fmt.Sprintf("unknown flag type %T", f))
 	}
-
-	p.Ctrl &= ^flag
 }
 
-func (p *PPU) getMaskFlag(flag MaskFlags) bool {
-	return p.Mask&flag != 0
-}
+func (p *PPU) setFlag(flag any, value bool) {
+	switch f := flag.(type) {
+	case CtrlFlags:
+		if value {
+			p.Ctrl |= f
+			return
+		}
 
-func (p *PPU) setMaskFlag(flag MaskFlags, value bool) {
-	if value {
-		p.Mask |= flag
-		return
+		p.Ctrl &= ^f
+	case MaskFlags:
+		if value {
+			p.Mask |= f
+			return
+		}
+
+		p.Mask &= ^f
+	case StatusFlags:
+		if value {
+			p.Status |= f
+			return
+		}
+
+		p.Status &= ^f
+	default:
+		panic(fmt.Sprintf("unknown flag type %T", f))
 	}
-
-	p.Mask &= ^flag
-}
-
-func (p *PPU) getStatusFlag(flag StatusFlags) bool {
-	return p.Status&flag != 0
-}
-
-func (p *PPU) setStatusFlag(flag StatusFlags, value bool) {
-	if value {
-		p.Status |= flag
-		return
-	}
-
-	p.Status &= ^flag
 }
 
 func (p *PPU) incrementVRAMAddr() {
-	if p.getCtrlFlag(CtrlIncrementMode) {
+	if p.getFlag(CtrlIncrementMode) {
 		p.VRAMAddr += 32
 	} else {
 		p.VRAMAddr += 1
@@ -135,7 +135,6 @@ func (p *PPU) Reset() {
 	p.Status = 0
 	p.OAMAddr = 0
 	p.VRAMAddr = 0
-	p.VBlank = false
 	p.RequestNMI = false
 
 	p.FrameComplete = false
@@ -149,23 +148,36 @@ func (p *PPU) Reset() {
 func (p *PPU) Read(addr uint16) uint8 {
 	switch addr % 0x2008 {
 	case statusRegAddr:
-		p.VBlank = false
+		// We only use the top 3 bits of the status register, and the rest are filled
+		// with noise from the bottom 5 bits of the vram buffer. It also clears the
+		// address latch and vblank flag.
+		status := p.Status
 		p.addressLatch = false
-		return uint8(p.Status)
+		p.setFlag(StatusVBlank, false)
+		return uint8(status)&0xE0 | p.vramBuffer&0x1F
+
 	case oamDataRegAddr:
 		data := p.OAMData[p.OAMAddr]
 		if p.OAMAddr&0x03 == 0x02 {
 			data &= 0xE3
 		}
 		return data
+
 	case vramDataRegAddr:
-		data := p.vramBuffer
+		// Palette reads are not delayed.
 		if p.VRAMAddr >= 0x3F00 {
-			data = p.readVRAM(p.VRAMAddr)
+			data := p.readVRAM(p.VRAMAddr)
+			p.vramBuffer = p.readVRAM(p.VRAMAddr - 0x1000)
+			p.incrementVRAMAddr()
+			return data
 		}
+
+		// Reads from pattern tables are delayed by one cycle.
+		data := p.vramBuffer
 		p.vramBuffer = p.readVRAM(p.VRAMAddr)
 		p.incrementVRAMAddr()
 		return data
+
 	default:
 		return 0
 	}
@@ -184,22 +196,23 @@ func (p *PPU) Write(addr uint16, data uint8) {
 		p.OAMAddr++
 	case vramAddrRegAddr:
 		if !p.addressLatch {
-			p.tmpVRAMAddr = uint16(data&0x3F) << 8
+			p.tmpVRAMAddr = uint16(data)
 			p.addressLatch = true
 			break
 		}
 
-		p.tmpVRAMAddr |= uint16(data)
-		p.VRAMAddr = p.tmpVRAMAddr
+		p.VRAMAddr = p.tmpVRAMAddr<<8 | uint16(data)
 		p.addressLatch = false
+		p.tmpVRAMAddr = 0
 	case vramDataRegAddr:
 		p.writeVRAM(p.VRAMAddr, data)
 		p.incrementVRAMAddr()
 	}
 }
 
-func (p *PPU) resolveNametableIdx(addr uint16) int {
-	if p.cart.Mirror == ines.Horizontal {
+func (p *PPU) NameTableIdx(addr uint16) int {
+	switch p.cart.MirrorMode() {
+	case ines.MirrorHorizontal:
 		switch {
 		case addr >= 0x2000 && addr <= 0x23FF: // Nametable 0
 			return 0
@@ -210,9 +223,7 @@ func (p *PPU) resolveNametableIdx(addr uint16) int {
 		case addr >= 0x2C00 && addr <= 0x2FFF: // Nametable 3
 			return 1
 		}
-	}
-
-	if p.cart.Mirror == ines.Vertical {
+	case ines.MirrorVertical:
 		switch {
 		case addr >= 0x2000 && addr <= 0x23FF: // Nametable 0
 			return 0
@@ -223,14 +234,16 @@ func (p *PPU) resolveNametableIdx(addr uint16) int {
 		case addr >= 0x2C00 && addr <= 0x2FFF: // Nametable 3
 			return 1
 		}
+	default:
+		mode := p.cart.MirrorMode()
+		panic(fmt.Sprintf("invalid mirroring mode: %d", mode))
 	}
 
-	// Should never happen, only in case there is a bug in the code above.
-	panic(fmt.Sprintf("mirroring error: addr=%04X, mode=%d", addr, p.cart.Mirror))
+	panic(fmt.Sprintf("invalid nametable address: %04X", addr))
 }
 
 func (p *PPU) applyGrayscaleIfSet(v uint8) uint8 {
-	if p.Mask&MaskGrayscale != 0 {
+	if p.getFlag(MaskGrayscale) {
 		return v & 0x30
 	}
 
@@ -243,8 +256,8 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 	}
 
 	if addr <= 0x3EFF {
-		addr = addr % 0x2FFF
-		idx := p.resolveNametableIdx(addr)
+		addr = addr & 0x2FFF
+		idx := p.NameTableIdx(addr)
 		return p.NameTable[idx][addr%1024]
 	}
 
@@ -264,8 +277,8 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 	}
 
 	if addr <= 0x3EFF {
-		addr = addr % 0x2FFF
-		idx := p.resolveNametableIdx(addr)
+		addr = addr & 0x2FFF
+		idx := p.NameTableIdx(addr)
 		p.NameTable[idx][addr%1024] = data
 		return
 	}
@@ -280,19 +293,27 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 }
 
 func (p *PPU) Tick() {
-	// End of vblank, start of visible scanline.
-	if p.scanline == -1 && p.cycle == 1 {
-		p.setStatusFlag(StatusVBlank, false)
-	}
-
-	// End of visible scanline, start of vblank.
+	// End of visible scanlines, start of vblank.
 	if p.scanline == 241 && p.cycle == 1 {
-		p.setStatusFlag(StatusVBlank, true)
+		p.setFlag(StatusVBlank, true)
 
-		// Trigger the CPU interrupt.
-		if p.getCtrlFlag(CtrlNMI) {
+		if p.getFlag(CtrlNMI) {
 			p.RequestNMI = true
 		}
+
+		if p.getFlag(MaskShowBackground) {
+			p.clearFrame(color.RGBA{0, 0, 0, 0xFF})
+			p.renderBackground()
+		}
+
+		p.FrameComplete = true
+	}
+
+	// End of vblank, start of pre-render scanline.
+	if p.scanline == -1 && p.cycle == 1 {
+		p.setFlag(StatusSpriteOverflow, false)
+		p.setFlag(StatusSprite0Hit, false)
+		p.setFlag(StatusVBlank, false)
 	}
 
 	if p.cycle++; p.cycle >= 341 {
@@ -301,9 +322,6 @@ func (p *PPU) Tick() {
 
 		if p.scanline >= 261 {
 			p.scanline = -1
-			p.FrameComplete = true
-			p.renderBackground()
-			p.printNamenable()
 		}
 	}
 }

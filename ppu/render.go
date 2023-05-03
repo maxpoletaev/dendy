@@ -1,32 +1,39 @@
 package ppu
 
-import "fmt"
+import (
+	"fmt"
+	"image/color"
+)
 
 type Tile struct {
 	Pixels    [8][8]uint8
 	PaletteID uint8
 }
 
-func (p *PPU) getNameTableOffset() uint16 {
+func (p *PPU) nameTableOffset() uint16 {
 	return 0x2000 + uint16(p.Ctrl&0x03)*0x400
 }
 
-func (p *PPU) getPatternTableOffset() uint16 {
-	return 0x1000 * uint16(p.Ctrl&CtrlPatternTableSelect>>4)
+func (p *PPU) patternTableOffset() uint16 {
+	if p.getFlag(CtrlPatternTableSelect) {
+		return 0x1000
+	}
+
+	return 0
 }
 
-func (p *PPU) getTileID(tileX, tileY int) uint8 {
-	return p.readVRAM(p.getNameTableOffset() + uint16(tileY)*30 + uint16(tileX))
+func (p *PPU) tileID(tileX, tileY int) uint8 {
+	return p.readVRAM(p.nameTableOffset() + uint16(tileY)*32 + uint16(tileX))
 }
 
-func (p *PPU) getTileAttribute(tileX, tileY int) uint8 {
-	return p.readVRAM(p.getNameTableOffset() + 0x03C0 + uint16(tileX)/32*8 + uint16(tileY)/32)
+func (p *PPU) tileAttr(tileX, tileY int) uint8 {
+	return p.readVRAM(p.nameTableOffset() + 0x03C0 + uint16(tileY)/32*8 + uint16(tileX)/32)
 }
 
 func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
-	id := p.getTileID(tileX, tileY)
-	attr := p.getTileAttribute(tileX, tileY)
-	addr := p.getPatternTableOffset() + uint16(id)*16
+	id := p.tileID(tileX, tileY)
+	attr := p.tileAttr(tileX, tileY)
+	addr := p.patternTableOffset() + uint16(id)*16
 
 	for y := 0; y < 8; y++ {
 		plane1 := p.readVRAM(addr + uint16(y) + 0)
@@ -35,43 +42,34 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 		for x := 0; x < 8; x++ {
 			px := plane1 & (0x80 >> x) >> (7 - x) << 0
 			px |= (plane2 & (0x80 >> x) >> (7 - x)) << 1
-			tile.Pixels[x][y] = px // 0, 1, 2, 3
+			tile.Pixels[x][y] = px // two-bit pixel value (0-3)
 		}
 	}
 
+	// two-bit palette ID (0-3)
 	tile.PaletteID = attr & 0x03
 
 	return tile
 }
 
 func (p *PPU) renderTile(tile Tile, tileX, tileY int) {
-	var (
-		rgb uint32
-		px  uint8
-	)
-
 	for x := 0; x < 8; x++ {
 		for y := 0; y < 8; y++ {
-			px = tile.Pixels[x][y]
+			px := tile.Pixels[x][y]
 			if px == 0 {
 				continue
 			}
 
-			switch px {
-			case 0:
-				rgb = Colors[1]
-			case 1:
-				rgb = Colors[4]
-			case 2:
-				rgb = Colors[7]
-			case 3:
-				rgb = Colors[10]
-			default:
-				panic("invalid pixel")
-			}
+			rgb := Colors[p.PaletteTable[px+tile.PaletteID*4]]
+			p.Frame[tileX*8+x][tileY*8+y] = rgb
+		}
+	}
+}
 
-			//clr := Palette[p.PaletteTable[px+tile.PaletteID*4]]
-			p.Frame[tileX*8+x][tileY*8+y] = toRGBA(rgb)
+func (p *PPU) clearFrame(c color.RGBA) {
+	for x := 0; x < 256; x++ {
+		for y := 0; y < 240; y++ {
+			p.Frame[x][y] = c
 		}
 	}
 }
@@ -86,9 +84,9 @@ func (p *PPU) renderBackground() {
 }
 
 func (p *PPU) printNamenable() {
-	for tileY := 0; tileY < 30; tileY++ {
+	for tileY := 0; tileY < 32; tileY++ {
 		for tileX := 0; tileX < 32; tileX++ {
-			tileID := p.getTileID(tileX, tileY)
+			tileID := p.NameTable[0][tileY*32+tileX]
 			fmt.Printf("%02X ", tileID)
 		}
 
