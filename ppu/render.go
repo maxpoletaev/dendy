@@ -185,6 +185,9 @@ func (p *PPU) prepareSprites() {
 
 func (p *PPU) renderSpriteScanline() {
 	frameY := p.scanline
+	if frameY > 239 {
+		return
+	}
 
 	for i := 0; i < p.spriteCount; i++ {
 		sprite := p.spriteScanline[i]
@@ -197,6 +200,9 @@ func (p *PPU) renderSpriteScanline() {
 
 		for pixelX := 0; pixelX < 8; pixelX++ {
 			frameX := int(sprite.X) + pixelX
+			if frameX > 255 {
+				continue
+			}
 
 			px := pixels[pixelX][pixelY]
 			if px == 0 {

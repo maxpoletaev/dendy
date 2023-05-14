@@ -8,12 +8,14 @@ import (
 	"github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/display"
 	"github.com/maxpoletaev/dendy/ines"
+	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/ppu"
 )
 
 type Bus struct {
 	screen *display.Display
 	cart   ines.Cartridge
+	joy1   *input.Joystick
 	ram    [2048]uint8
 	cpu    *cpu.CPU
 	ppu    *ppu.PPU
@@ -29,6 +31,8 @@ func (b *Bus) Read(addr uint16) uint8 {
 		return b.ppu.Read(addr)
 	case addr == 0x4014: // PPU OAM DMA.
 		return b.ppu.Read(addr)
+	case addr == 0x4016: // Controller 1.
+		return b.joy1.Read()
 	case addr <= 0x4017: // APU and I/O registers.
 		return 0
 	case addr <= 0x401F: // APU and I/O functionality.
@@ -47,6 +51,8 @@ func (b *Bus) Write(addr uint16, data uint8) {
 		b.ppu.Write(addr, data)
 	case addr == 0x4014: // PPU OAM direct access.
 		b.transferOAM(data)
+	case addr == 0x4016: // Controller strobe.
+		b.joy1.Write(data)
 	case addr <= 0x4017: // APU and I/O registers.
 		return
 	case addr <= 0x401F: // APU and I/O functionality.
@@ -92,6 +98,7 @@ func (b *Bus) Tick() {
 
 	if b.ppu.FrameComplete {
 		b.ppu.FrameComplete = false
+		b.screen.HandleInput()
 		b.screen.Refresh()
 	}
 }
@@ -120,7 +127,8 @@ func main() {
 	var (
 		c = cpu.New()
 		p = ppu.New(cart)
-		d = display.New(&p.Frame, 2)
+		j = input.NewJoystick()
+		d = display.New(&p.Frame, j, 2)
 	)
 
 	bus := &Bus{
@@ -128,6 +136,7 @@ func main() {
 		screen: d,
 		cpu:    c,
 		ppu:    p,
+		joy1:   j,
 	}
 
 	if disasm {

@@ -5,6 +5,8 @@ import (
 	"image/color"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
+
+	"github.com/maxpoletaev/dendy/input"
 )
 
 const (
@@ -16,6 +18,7 @@ const (
 type Display struct {
 	frame   *[256][240]color.RGBA
 	texture rl.RenderTexture2D
+	joy1    *input.Joystick
 	pixels  []color.RGBA
 	scale   int
 
@@ -23,7 +26,7 @@ type Display struct {
 	destRec   rl.Rectangle
 }
 
-func New(frame *[256][240]color.RGBA, scale int) *Display {
+func New(frame *[256][240]color.RGBA, joy1 *input.Joystick, scale int) *Display {
 	rl.SetTraceLog(rl.LogError)
 	rl.SetTargetFPS(60)
 
@@ -44,6 +47,7 @@ func New(frame *[256][240]color.RGBA, scale int) *Display {
 		texture:   texture,
 		frame:     frame,
 		scale:     scale,
+		joy1:      joy1,
 		sourceRec: sourceRec,
 		destRec:   destRec,
 	}
@@ -65,6 +69,27 @@ func (s *Display) updateTexture() {
 	}
 
 	rl.UpdateTexture(s.texture.Texture, s.pixels)
+}
+
+func (s *Display) HandleInput() {
+	inputMap := map[int32]input.Button{
+		rl.KeyW:          input.ButtonUp,
+		rl.KeyS:          input.ButtonDown,
+		rl.KeyA:          input.ButtonLeft,
+		rl.KeyD:          input.ButtonRight,
+		rl.KeyK:          input.ButtonA,
+		rl.KeyJ:          input.ButtonB,
+		rl.KeyEnter:      input.ButtonStart,
+		rl.KeyRightShift: input.ButtonSelect,
+	}
+
+	for key, button := range inputMap {
+		if rl.IsKeyDown(key) {
+			s.joy1.Press(button)
+		} else if rl.IsKeyUp(key) {
+			s.joy1.Release(button)
+		}
+	}
 }
 
 func (s *Display) Refresh() {

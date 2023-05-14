@@ -28,7 +28,7 @@ performance or accuracy as well as unlikely to ever be finished.
 ### Input/Output
 
 * [x] Graphics output
-* [ ] Controller 1
+* [x] Controller 1
 * [ ] Controller 2
 * [ ] Zapper
 
@@ -59,6 +59,20 @@ inaccuracies (that might be caused by the test ROMs themselves).
  * [ ] Blargg’s CPU tests
  * [ ] Blargg’s PPU tests
  * [ ] Blargg’s APU tests
+
+## Controller 1
+
+```
+                   ┆┆
+┌───────────────────────────────────────┐
+│                                       │
+│    [W]                                │
+│ [A]   [D]                             │
+│    [S]                       [J] [K]  │
+│           [Enter] [RShift]            │
+│                                       │
+└───────────────────────────────────────┘
+```
 
 ## Resources
 
