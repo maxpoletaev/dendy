@@ -18,9 +18,12 @@ performance or accuracy as well as unlikely to ever be finished.
 
 ### Graphics
 
- * [ ] Background rendering
- * [ ] Sprite rendering
+ * [x] Background rendering
+ * [x] Sprite rendering
+ * [ ] 8×16 sprites
+ * [ ] Palettes
  * [ ] Scrolling
+ * [ ] Cycle-accurate emulation
 
 ### Input/Output
 
@@ -31,10 +34,7 @@ performance or accuracy as well as unlikely to ever be finished.
 
 ### Sound
 
- * [ ] Pulse
- * [ ] Triangle
- * [ ] Noise
- * [ ] DMC
+Needs research.
 
 ### Cartridges
 

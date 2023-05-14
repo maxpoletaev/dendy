@@ -99,10 +99,10 @@ func (b *Bus) Tick() {
 func main() {
 	var (
 		stepMode bool
-		cpuDebug bool
+		disasm   bool
 	)
 
-	flag.BoolVar(&cpuDebug, "cpu-debug", false, "cpu debug mode")
+	flag.BoolVar(&disasm, "disasm", false, "enable cpu disassembler")
 	flag.BoolVar(&stepMode, "step", false, "step mode")
 	flag.Parse()
 
@@ -130,7 +130,7 @@ func main() {
 		ppu:    p,
 	}
 
-	if cpuDebug {
+	if disasm {
 		bus.cpu.EnableDisasm = true
 	}
 

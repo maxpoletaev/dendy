@@ -167,6 +167,7 @@ const (
 )
 
 var instrTable = []instrInfo{
+	// Official 6502 instructions.
 	{"NOP", NOP_Imp, AddrModeImp, 1, 2},
 	{"BRK", BRK_Imp, AddrModeImp, 1, 7},
 	{"LDA", LDA_Imm, AddrModeImm, 2, 2},
@@ -319,7 +320,7 @@ var instrTable = []instrInfo{
 	{"CLV", CLV_Imp, AddrModeImp, 1, 2},
 	{"CLD", CLD_Imp, AddrModeImp, 1, 2},
 
-	// Some of the illegal opcodes used in games.
+	// The unofficial opcodes, used by some games and nestest.
 	// https://www.masswerk.at/nowgobang/2021/6502-illegal-opcodes
 	{"*SBC", 0xEB, AddrModeImm, 2, 2},
 	{"*DCP", 0xC7, AddrModeZp, 2, 5},
@@ -402,7 +403,8 @@ var instrTable = []instrInfo{
 	{"*ISB", 0xE3, AddrModeIndX, 2, 8},
 	{"*ISB", 0xF3, AddrModeIndY, 2, 8},
 
-	// The rest of the illegal opcodes are not emulated.
+	// The rest of the illegal opcodes are not emulated, but are
+	// included here for disassembly just in case.
 	{"???", 0x0B, AddrModeImm, 2, 2},
 	{"???", 0x2B, AddrModeImm, 2, 2},
 	{"???", 0x4B, AddrModeImm, 2, 2},

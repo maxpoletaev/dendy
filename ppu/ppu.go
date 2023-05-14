@@ -67,6 +67,9 @@ type PPU struct {
 	FrameComplete bool
 	RequestNMI    bool
 
+	spriteCount    int
+	spriteScanline [8]Sprite
+
 	cycle        int
 	scanline     int
 	addressLatch bool
@@ -293,7 +296,34 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 }
 
 func (p *PPU) Tick() {
-	// End of visible scanlines, start of vblank.
+	if p.scanline == -1 {
+		// Start of pre-render scanline, clear the frame and reset the status flags.
+		if p.cycle == 1 {
+			p.clearFrame(color.RGBA{0, 0, 0, 0xFF})
+			p.setFlag(StatusSpriteOverflow, false)
+			p.setFlag(StatusSprite0Hit, false)
+			p.setFlag(StatusVBlank, false)
+		}
+
+		// End of pre-render scanline, prepare the sprites for the first visible scanline.
+		if p.cycle == 340 {
+			p.prepareSprites()
+		}
+	}
+
+	// Visible scanlines. At the end of each scanline, render the tiles and sprites,
+	// and prepare the sprites for the next scanline. This is not how the real PPU
+	// works, but it's good enough for now.
+	if p.scanline >= 0 && p.scanline <= 239 {
+		if p.cycle == 340 {
+			p.renderTileScanline()
+			p.renderSpriteScanline()
+			p.prepareSprites()
+		}
+	}
+
+	// End of visible scanlines and start of vertical blank. Set the vblank flag and
+	// trigger the CPU interrupt if the NMI flag is set.
 	if p.scanline == 241 && p.cycle == 1 {
 		p.setFlag(StatusVBlank, true)
 
@@ -301,21 +331,10 @@ func (p *PPU) Tick() {
 			p.RequestNMI = true
 		}
 
-		if p.getFlag(MaskShowBackground) {
-			p.clearFrame(color.RGBA{0, 0, 0, 0xFF})
-			p.renderBackground()
-		}
-
 		p.FrameComplete = true
 	}
 
-	// End of vblank, start of pre-render scanline.
-	if p.scanline == -1 && p.cycle == 1 {
-		p.setFlag(StatusSpriteOverflow, false)
-		p.setFlag(StatusSprite0Hit, false)
-		p.setFlag(StatusVBlank, false)
-	}
-
+	// Endless loop of scanlines and cycles.
 	if p.cycle++; p.cycle >= 341 {
 		p.cycle = 0
 		p.scanline++

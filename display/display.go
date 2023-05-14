@@ -10,6 +10,7 @@ import (
 const (
 	ScreenWidth  = 256
 	ScreenHeight = 240
+	WindowTitle  = "Dendy Emulator"
 )
 
 type Display struct {
@@ -23,9 +24,14 @@ type Display struct {
 }
 
 func New(frame *[256][240]color.RGBA, scale int) *Display {
-	rl.SetTargetFPS(60)
 	rl.SetTraceLog(rl.LogError)
-	rl.InitWindow(ScreenWidth*int32(scale), ScreenHeight*int32(scale), "Dendy Emulator")
+	rl.SetTargetFPS(60)
+
+	rl.InitWindow(
+		ScreenWidth*int32(scale),
+		ScreenHeight*int32(scale),
+		WindowTitle,
+	)
 
 	texture := rl.LoadRenderTexture(ScreenWidth, ScreenHeight)
 	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
@@ -59,27 +65,6 @@ func (s *Display) updateTexture() {
 	}
 
 	rl.UpdateTexture(s.texture.Texture, s.pixels)
-}
-
-func (s *Display) drawDirect() {
-	rl.BeginDrawing()
-	defer rl.EndDrawing()
-
-	rl.ClearBackground(rl.Black)
-	for x := 0; x < ScreenWidth; x++ {
-		for y := 0; y < ScreenHeight; y++ {
-			rl.DrawPixel(int32(x), int32(y), rl.Color{
-				R: s.frame[x][y].R,
-				G: s.frame[x][y].G,
-				B: s.frame[x][y].B,
-				A: s.frame[x][y].A,
-			})
-		}
-	}
-
-	fps := fmt.Sprintf("%d fps", rl.GetFPS())
-	rl.DrawText(fps, 6, 6, 10, rl.Black)
-	rl.DrawText(fps, 5, 5, 10, rl.White)
 }
 
 func (s *Display) Refresh() {

@@ -1,7 +1,6 @@
 package ppu
 
 import (
-	"fmt"
 	"image/color"
 )
 
@@ -10,12 +9,68 @@ type Tile struct {
 	PaletteID uint8
 }
 
+type Sprite struct {
+	Pixels    [8][8]uint8
+	PaletteID uint8
+	X, Y      uint8
+	FlipX     bool
+	FlipY     bool
+	BehindBG  bool
+}
+
+const (
+	spriteAttrPalette  = 0x03 // two bits
+	spriteAttrPriority = 1 << 5
+	spriteAttrFlipX    = 1 << 6
+	spriteAttrFlipY    = 1 << 7
+)
+
+func flipPixels(pixels [8][8]uint8, flipX, flipY bool) (flipped [8][8]uint8) {
+	if !flipX && !flipY {
+		return pixels
+	}
+
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			fx, fy := x, y
+
+			if flipX {
+				fx = 7 - x
+			}
+
+			if flipY {
+				fy = 7 - y
+			}
+
+			flipped[fx][fy] = pixels[x][y]
+		}
+	}
+
+	return flipped
+}
+
+func (p *PPU) clearFrame(c color.RGBA) {
+	for x := 0; x < 256; x++ {
+		for y := 0; y < 240; y++ {
+			p.Frame[x][y] = c
+		}
+	}
+}
+
 func (p *PPU) nameTableOffset() uint16 {
 	return 0x2000 + uint16(p.Ctrl&0x03)*0x400
 }
 
-func (p *PPU) patternTableOffset() uint16 {
+func (p *PPU) tilePatternTableOffset() uint16 {
 	if p.getFlag(CtrlPatternTableSelect) {
+		return 0x1000
+	}
+
+	return 0
+}
+
+func (p *PPU) spritePatternTableOffset() uint16 {
+	if p.getFlag(CtrlSpritePatternAddr) {
 		return 0x1000
 	}
 
@@ -33,15 +88,15 @@ func (p *PPU) tileAttr(tileX, tileY int) uint8 {
 func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 	id := p.tileID(tileX, tileY)
 	attr := p.tileAttr(tileX, tileY)
-	addr := p.patternTableOffset() + uint16(id)*16
+	addr := p.tilePatternTableOffset() + uint16(id)*16
 
 	for y := 0; y < 8; y++ {
-		plane1 := p.readVRAM(addr + uint16(y) + 0)
-		plane2 := p.readVRAM(addr + uint16(y) + 8)
+		p1 := p.readVRAM(addr + uint16(y) + 0)
+		p2 := p.readVRAM(addr + uint16(y) + 8)
 
 		for x := 0; x < 8; x++ {
-			px := plane1 & (0x80 >> x) >> (7 - x) << 0
-			px |= (plane2 & (0x80 >> x) >> (7 - x)) << 1
+			px := p1 & (0x80 >> x) >> (7 - x) << 0
+			px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
 			tile.Pixels[x][y] = px // two-bit pixel value (0-3)
 		}
 	}
@@ -52,46 +107,108 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 	return tile
 }
 
-func (p *PPU) renderTile(tile Tile, tileX, tileY int) {
-	for x := 0; x < 8; x++ {
-		for y := 0; y < 8; y++ {
-			px := tile.Pixels[x][y]
+func (p *PPU) renderTileScanline() {
+	y := p.scanline
+	tileY := int(y) / 8
+	offsetY := int(y) % 8
+
+	for tileX := 0; tileX < 32; tileX++ {
+		tile := p.fetchTile(tileX, tileY)
+
+		for x := 0; x < 8; x++ {
+			offsetX := tileX*8 + x
+
+			px := tile.Pixels[x][offsetY]
 			if px == 0 {
 				continue
 			}
 
-			rgb := Colors[p.PaletteTable[px+tile.PaletteID*4]]
-			p.Frame[tileX*8+x][tileY*8+y] = rgb
+			paletteID := tile.PaletteID
+			p.Frame[offsetX][y] = Colors[p.PaletteTable[paletteID*4+px]]
 		}
 	}
 }
 
-func (p *PPU) clearFrame(c color.RGBA) {
-	for x := 0; x < 256; x++ {
-		for y := 0; y < 240; y++ {
-			p.Frame[x][y] = c
+func (p *PPU) fetchSpritePixels(id uint8) (pixels [8][8]uint8) {
+	addr := p.spritePatternTableOffset() + uint16(id)*16
+
+	for y := 0; y < 8; y++ {
+		p1 := p.readVRAM(addr + uint16(y) + 0)
+		p2 := p.readVRAM(addr + uint16(y) + 8)
+
+		for x := 0; x < 8; x++ {
+			px := p1 & (0x80 >> x) >> (7 - x) << 0
+			px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
+			pixels[x][y] = px // two-bit pixel value (0-3)
 		}
+	}
+
+	return pixels
+}
+
+func (p *PPU) prepareSprites() {
+	scanline := p.scanline + 1
+	p.spriteCount = 0
+
+	for i := 0; i < 64; i++ {
+		var (
+			id   = p.OAMData[i*4+1]
+			x    = p.OAMData[i*4+3]
+			y    = p.OAMData[i*4+0]
+			attr = p.OAMData[i*4+2]
+		)
+
+		if scanline < int(y) || scanline >= int(y)+8 {
+			continue
+		}
+
+		if p.spriteCount < 8 {
+			p.spriteScanline[p.spriteCount] = Sprite{
+				Pixels:    p.fetchSpritePixels(id),
+				PaletteID: attr & spriteAttrPalette,
+				BehindBG:  attr&spriteAttrPriority != 0,
+				FlipX:     attr&spriteAttrFlipX != 0,
+				FlipY:     attr&spriteAttrFlipY != 0,
+				Y:         y,
+				X:         x,
+			}
+		}
+
+		p.spriteCount++
+	}
+
+	if p.spriteCount > 8 {
+		p.setFlag(StatusSpriteOverflow, true)
+		p.spriteCount = 8
 	}
 }
 
-func (p *PPU) renderBackground() {
-	for tileY := 0; tileY < 30; tileY++ {
-		for tileX := 0; tileX < 32; tileX++ {
-			tile := p.fetchTile(tileX, tileY)
-			p.renderTile(tile, tileX, tileY)
-		}
-	}
-}
+func (p *PPU) renderSpriteScanline() {
+	frameY := p.scanline
 
-func (p *PPU) printNamenable() {
-	for tileY := 0; tileY < 32; tileY++ {
-		for tileX := 0; tileX < 32; tileX++ {
-			tileID := p.NameTable[0][tileY*32+tileX]
-			fmt.Printf("%02X ", tileID)
+	for i := 0; i < p.spriteCount; i++ {
+		sprite := p.spriteScanline[i]
+		if sprite.Y > 239 || sprite.Y == 0 {
+			continue
 		}
 
-		fmt.Println()
-	}
+		pixels := flipPixels(sprite.Pixels, sprite.FlipX, sprite.FlipY)
+		pixelY := p.scanline - int(sprite.Y)
 
-	fmt.Println()
+		for pixelX := 0; pixelX < 8; pixelX++ {
+			frameX := int(sprite.X) + pixelX
+
+			px := pixels[pixelX][pixelY]
+			if px == 0 {
+				continue
+			}
+
+			if sprite.BehindBG && p.Frame[frameX][frameY].A != 0 {
+				continue
+			}
+
+			paletteIdx := sprite.PaletteID*4 + px
+			p.Frame[frameX][frameY] = Colors[p.PaletteTable[paletteIdx]]
+		}
+	}
 }
