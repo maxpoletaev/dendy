@@ -224,6 +224,10 @@ func (p *PPU) renderSpriteScanline() {
 		return
 	}
 
+	var (
+		bgColor = Colors[p.readVRAM(0x3F00)]
+	)
+
 	for i := 0; i < p.spriteCount; i++ {
 		sprite := p.spriteScanline[i]
 		if sprite.Y > 239 || sprite.Y == 0 {
@@ -245,7 +249,7 @@ func (p *PPU) renderSpriteScanline() {
 			}
 
 			// Sprite is behind the background, so don't render.
-			if sprite.Back && p.Frame[frameX][frameY].A != 0 {
+			if sprite.Back && p.Frame[frameX][frameY] != bgColor {
 				continue
 			}
 
