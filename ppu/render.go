@@ -108,7 +108,8 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 	}
 
 	// two-bit palette ID (0-3)
-	tile.PaletteID = attr & 0x03
+	blockId := uint16(tileX%4/2) + uint16(tileY%4/2)*2
+	tile.PaletteID = (attr >> (blockId * 2)) & 0x03
 
 	return tile
 }
@@ -128,8 +129,8 @@ func (p *PPU) renderTileScanline() {
 		for pixelX := 0; pixelX < 8; pixelX++ {
 			frameX := tileX*8 + pixelX
 
-			px := tile.Pixels[pixelX][pixelY]
-			if px == 0 {
+			pixel := tile.Pixels[pixelX][pixelY]
+			if pixel == 0 {
 				continue
 			}
 
@@ -140,7 +141,7 @@ func (p *PPU) renderTileScanline() {
 				continue
 			}
 
-			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(px)
+			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(pixel)
 			p.Frame[x][y] = Colors[p.readVRAM(addr)]
 		}
 	}
@@ -152,13 +153,13 @@ func (p *PPU) renderTileScanline() {
 		tile := p.fetchTile(32, tileY)
 
 		for pixelX := 0; pixelX < fineX; pixelX++ {
-			px := tile.Pixels[pixelX][pixelY]
-			if px == 0 {
+			pixel := tile.Pixels[pixelX][pixelY]
+			if pixel == 0 {
 				continue
 			}
 
 			offsetX := 32*8 - fineX + pixelX
-			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(px)
+			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(pixel)
 			p.Frame[offsetX][frameY] = Colors[p.readVRAM(addr)]
 		}
 	}
