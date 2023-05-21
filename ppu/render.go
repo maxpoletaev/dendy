@@ -133,15 +133,33 @@ func (p *PPU) renderTileScanline() {
 				continue
 			}
 
-			x := frameX - fineX
-			y := frameY - fineY
+			// To simulate scrolling, we need to offset the tile's position by the fine
+			// scroll values. This is not how the PPU does it, but it seems to work.
+			x, y := frameX-fineX, frameY-fineY
 			if x < 0 || y < 0 {
 				continue
 			}
 
 			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(px)
-
 			p.Frame[x][y] = Colors[p.readVRAM(addr)]
+		}
+	}
+
+	// Simulate the smooth wrap-around effect by rendering the first 8 pixels of the
+	// tiles from the next name table for the rightmost 8 pixels of the frame, if we
+	// are scrolling horizontally. This is a hack, but it works for most games.
+	if fineX > 0 {
+		tile := p.fetchTile(32, tileY)
+
+		for pixelX := 0; pixelX < fineX; pixelX++ {
+			px := tile.Pixels[pixelX][pixelY]
+			if px == 0 {
+				continue
+			}
+
+			offsetX := 32*8 - fineX + pixelX
+			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(px)
+			p.Frame[offsetX][frameY] = Colors[p.readVRAM(addr)]
 		}
 	}
 }

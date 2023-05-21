@@ -175,7 +175,6 @@ func (p *PPU) Read(addr uint16) uint8 {
 		// Palette reads are not delayed.
 		if p.VRAMAddr >= 0x3F00 {
 			data := p.readVRAM(p.VRAMAddr)
-			p.vramBuffer = p.readVRAM(p.VRAMAddr - 0x1000)
 			p.incrementVRAMAddr()
 			return data
 		}
@@ -257,14 +256,6 @@ func (p *PPU) NameTableIdx(addr uint16) int {
 	panic(fmt.Sprintf("invalid nametable address: %04X", addr))
 }
 
-func (p *PPU) applyGrayscaleIfSet(v uint8) uint8 {
-	if p.getFlag(MaskGrayscale) {
-		return v & 0x30
-	}
-
-	return v
-}
-
 func (p *PPU) readVRAM(addr uint16) uint8 {
 	if addr <= 0x1FFF {
 		return p.cart.ReadCHR(addr)
@@ -284,7 +275,11 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 		idx := (addr - 0x3F00) % 32
 		value := p.PaletteTable[idx]
 
-		return p.applyGrayscaleIfSet(value)
+		if p.getFlag(MaskGrayscale) {
+			value &= 0x30
+		}
+
+		return value
 	}
 
 	panic(fmt.Sprintf("invalid vram address: %04X", addr))
@@ -332,7 +327,8 @@ func (p *PPU) spriteZeroHit() bool {
 
 func (p *PPU) Tick() {
 	if p.scanline == -1 {
-		// Start of pre-render scanline, clear the frame and reset the status flags.
+		// Start of pre-render scanline, clear the frame with the backdrop color and
+		// reset the PPU status flags.
 		if p.cycle == 1 {
 			p.clearFrame(Colors[p.readVRAM(0x3F00)])
 			p.setFlag(StatusSpriteOverflow, false)
@@ -346,14 +342,15 @@ func (p *PPU) Tick() {
 		}
 	}
 
-	// Visible scanlines. At the end of each scanline, render the tiles and sprites,
-	// and prepare the sprites for the next scanline. This is not how the real PPU
-	// works, but it's good enough for now.
 	if p.scanline >= 0 && p.scanline <= 239 {
 		if p.spriteZeroHit() {
 			p.setFlag(StatusSprite0Hit, true)
 		}
 
+		// End of visible scanline, render the tiles and sprites, and prepare the sprites
+		// for the next scanline. This is a simplification of the PPU's behaviour, but
+		// should produce visually identical results for most games that don't rely on
+		// mid-scanline changes to scroll values, etc.
 		if p.cycle == 340 {
 			if p.getFlag(MaskShowBackground) {
 				p.renderTileScanline()
