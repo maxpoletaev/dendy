@@ -25,8 +25,7 @@ type (
 )
 
 const (
-	CtrlNameTableSelect0   CtrlFlags = 1 << 0
-	CtrlNameTableSelect1   CtrlFlags = 1 << 1
+	CtrlNameTableSelect              = 0x03 // two bits
 	CtrlIncrementMode      CtrlFlags = 1 << 2
 	CtrlSpritePatternAddr  CtrlFlags = 1 << 3
 	CtrlPatternTableSelect CtrlFlags = 1 << 4
@@ -282,7 +281,9 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 			addr -= 0x10 // mirrors $3F00/$3F04/$3F08/$3F0C
 		}
 
-		value := p.PaletteTable[addr%32]
+		idx := (addr - 0x3F00) % 32
+		value := p.PaletteTable[idx]
+
 		return p.applyGrayscaleIfSet(value)
 	}
 
@@ -299,6 +300,7 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 		addr = addr & 0x2FFF
 		idx := p.NameTableIdx(addr)
 		p.NameTable[idx][addr%1024] = data
+
 		return
 	}
 
@@ -307,7 +309,9 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 			addr -= 0x10 // mirrors $3F00/$3F04/$3F08/$3F0C
 		}
 
-		p.PaletteTable[addr%32] = data
+		idx := (addr - 0x3F00) % 32
+		p.PaletteTable[idx] = data
+
 		return
 	}
 
@@ -316,9 +320,8 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 
 func (p *PPU) spriteZeroHit() bool {
 	if p.getFlag(MaskShowSprites) && p.getFlag(MaskShowBackground) {
-		spriteY := int(p.OAMData[0])
+		spriteY := int(p.OAMData[0]) + 8
 
-		// TODO: This mostly works, but we should also check if the colors are opaque.
 		if p.scanline == spriteY {
 			return true
 		}
@@ -331,7 +334,7 @@ func (p *PPU) Tick() {
 	if p.scanline == -1 {
 		// Start of pre-render scanline, clear the frame and reset the status flags.
 		if p.cycle == 1 {
-			p.clearFrame(color.RGBA{0, 0, 0, 0xFF})
+			p.clearFrame(Colors[p.readVRAM(0x3F00)])
 			p.setFlag(StatusSpriteOverflow, false)
 			p.setFlag(StatusSprite0Hit, false)
 			p.setFlag(StatusVBlank, false)

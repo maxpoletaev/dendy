@@ -58,7 +58,7 @@ func (p *PPU) clearFrame(c color.RGBA) {
 }
 
 func (p *PPU) nameTableAddr() uint16 {
-	return 0x2000 + uint16(p.Ctrl&0x03)*0x400
+	return 0x2000 + uint16(p.Ctrl&CtrlNameTableSelect)*0x400
 }
 
 func (p *PPU) tilePatternTableAddr() uint16 {
@@ -101,9 +101,9 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 		p2 := p.readVRAM(addr + uint16(y) + 8)
 
 		for x := 0; x < 8; x++ {
-			px := p1 & (0x80 >> x) >> (7 - x) << 0
-			px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
-			tile.Pixels[x][y] = px // two-bit pixel value (0-3)
+			pixel := p1 & (0x80 >> x) >> (7 - x) << 0
+			pixel |= (p2 & (0x80 >> x) >> (7 - x)) << 1
+			tile.Pixels[x][y] = pixel // two-bit pixel value (0-3)
 		}
 	}
 
@@ -140,6 +140,7 @@ func (p *PPU) renderTileScanline() {
 			}
 
 			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(px)
+
 			p.Frame[x][y] = Colors[p.readVRAM(addr)]
 		}
 	}
