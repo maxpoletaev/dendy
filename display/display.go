@@ -16,6 +16,7 @@ const (
 )
 
 type Display struct {
+	keyMap  map[int32]input.Button
 	frame   *[256][240]color.RGBA
 	texture rl.RenderTexture2D
 	joy1    *input.Joystick
@@ -42,37 +43,7 @@ func New(frame *[256][240]color.RGBA, joy1 *input.Joystick, scale int) *Display 
 	sourceRec := rl.NewRectangle(0, 0, ScreenWidth, ScreenHeight)
 	destRec := rl.NewRectangle(0, 0, float32(ScreenWidth*scale), float32(ScreenHeight*scale))
 
-	return &Display{
-		pixels:    make([]color.RGBA, ScreenWidth*ScreenHeight),
-		texture:   texture,
-		frame:     frame,
-		scale:     scale,
-		joy1:      joy1,
-		sourceRec: sourceRec,
-		destRec:   destRec,
-	}
-}
-
-func (s *Display) Close() {
-	rl.CloseWindow()
-}
-
-func (s *Display) IsRunning() bool {
-	return !rl.WindowShouldClose()
-}
-
-func (s *Display) updateTexture() {
-	for x := 0; x < ScreenWidth; x++ {
-		for y := 0; y < ScreenHeight; y++ {
-			s.pixels[x+y*ScreenWidth] = s.frame[x][y]
-		}
-	}
-
-	rl.UpdateTexture(s.texture.Texture, s.pixels)
-}
-
-func (s *Display) HandleInput() {
-	inputMap := map[int32]input.Button{
+	keyMap := map[int32]input.Button{
 		rl.KeyW:          input.ButtonUp,
 		rl.KeyS:          input.ButtonDown,
 		rl.KeyA:          input.ButtonLeft,
@@ -83,23 +54,54 @@ func (s *Display) HandleInput() {
 		rl.KeyRightShift: input.ButtonSelect,
 	}
 
-	for key, button := range inputMap {
+	return &Display{
+		pixels:    make([]color.RGBA, ScreenWidth*ScreenHeight),
+		texture:   texture,
+		frame:     frame,
+		scale:     scale,
+		joy1:      joy1,
+		sourceRec: sourceRec,
+		keyMap:    keyMap,
+		destRec:   destRec,
+	}
+}
+
+func (d *Display) Close() {
+	rl.CloseWindow()
+}
+
+func (d *Display) IsRunning() bool {
+	return !rl.WindowShouldClose()
+}
+
+func (d *Display) updateTexture() {
+	for x := 0; x < ScreenWidth; x++ {
+		for y := 0; y < ScreenHeight; y++ {
+			d.pixels[x+y*ScreenWidth] = d.frame[x][y]
+		}
+	}
+
+	rl.UpdateTexture(d.texture.Texture, d.pixels)
+}
+
+func (d *Display) HandleInput() {
+	for key, button := range d.keyMap {
 		if rl.IsKeyDown(key) {
-			s.joy1.Press(button)
+			d.joy1.Press(button)
 		} else if rl.IsKeyUp(key) {
-			s.joy1.Release(button)
+			d.joy1.Release(button)
 		}
 	}
 }
 
-func (s *Display) Refresh() {
-	s.updateTexture()
+func (d *Display) Refresh() {
+	d.updateTexture()
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 
 	origin := rl.NewVector2(0, 0)
 	rl.ClearBackground(rl.Black)
-	rl.DrawTexturePro(s.texture.Texture, s.sourceRec, s.destRec, origin, 0, rl.White)
+	rl.DrawTexturePro(d.texture.Texture, d.sourceRec, d.destRec, origin, 0, rl.White)
 
 	fps := fmt.Sprintf("%d fps", rl.GetFPS())
 	rl.DrawText(fps, 6, 6, 10, rl.Black)

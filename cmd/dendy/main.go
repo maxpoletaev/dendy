@@ -131,16 +131,18 @@ func main() {
 		d = display.New(&p.Frame, j, 2)
 	)
 
+	c.AllowIllegal = true
+
+	if disasm {
+		c.EnableDisasm = true
+	}
+
 	bus := &Bus{
 		cart:   cart,
 		screen: d,
 		cpu:    c,
 		ppu:    p,
 		joy1:   j,
-	}
-
-	if disasm {
-		bus.cpu.EnableDisasm = true
 	}
 
 	bus.Reset()

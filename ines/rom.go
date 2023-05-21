@@ -78,6 +78,7 @@ func loadROM(filename string) (*ROM, error) {
 		return nil, fmt.Errorf("failed to read chr ROM: %w", err)
 	}
 
+	// If CHR-ROM is empty, allocate 8KB of CHR-RAM.
 	if chrSize == 0 {
 		chr = make([]uint8, 8192)
 		chrSize = 8192

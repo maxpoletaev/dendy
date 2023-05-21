@@ -22,7 +22,7 @@ performance or accuracy as well as unlikely to ever be finished.
  * [x] Sprite rendering
  * [ ] 8×16 sprites
  * [ ] Palettes
- * [ ] Scrolling
+ * [x] Scrolling
  * [ ] Cycle-accurate emulation
 
 ### Input/Output

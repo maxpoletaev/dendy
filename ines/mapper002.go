@@ -54,5 +54,5 @@ func (m *Mapper2) ReadCHR(addr uint16) byte {
 }
 
 func (m *Mapper2) WriteCHR(addr uint16, data byte) {
-	//m.rom.CHR[addr] = data
+	m.rom.CHR[addr] = data
 }

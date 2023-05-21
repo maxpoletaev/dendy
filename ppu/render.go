@@ -15,7 +15,7 @@ type Sprite struct {
 	X, Y      uint8
 	FlipX     bool
 	FlipY     bool
-	BehindBG  bool
+	Back      bool
 }
 
 const (
@@ -57,11 +57,11 @@ func (p *PPU) clearFrame(c color.RGBA) {
 	}
 }
 
-func (p *PPU) nameTableOffset() uint16 {
+func (p *PPU) nameTableAddr() uint16 {
 	return 0x2000 + uint16(p.Ctrl&0x03)*0x400
 }
 
-func (p *PPU) tilePatternTableOffset() uint16 {
+func (p *PPU) tilePatternTableAddr() uint16 {
 	if p.getFlag(CtrlPatternTableSelect) {
 		return 0x1000
 	}
@@ -69,7 +69,7 @@ func (p *PPU) tilePatternTableOffset() uint16 {
 	return 0
 }
 
-func (p *PPU) spritePatternTableOffset() uint16 {
+func (p *PPU) spritePatternTableAddr() uint16 {
 	if p.getFlag(CtrlSpritePatternAddr) {
 		return 0x1000
 	}
@@ -77,18 +77,24 @@ func (p *PPU) spritePatternTableOffset() uint16 {
 	return 0
 }
 
-func (p *PPU) tileID(tileX, tileY int) uint8 {
-	return p.readVRAM(p.nameTableOffset() + uint16(tileY)*32 + uint16(tileX))
-}
-
-func (p *PPU) tileAttr(tileX, tileY int) uint8 {
-	return p.readVRAM(p.nameTableOffset() + 0x03C0 + uint16(tileY)/32*8 + uint16(tileX)/32)
-}
-
 func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
-	id := p.tileID(tileX, tileY)
-	attr := p.tileAttr(tileX, tileY)
-	addr := p.tilePatternTableOffset() + uint16(id)*16
+	offset := p.nameTableAddr()
+
+	tileX += int(p.ScrollX / 8)
+	if tileX >= 32 {
+		offset += 0x0400
+		tileX -= 32
+	}
+
+	tileY += int(p.ScrollY / 8)
+	if tileY >= 30 {
+		offset += 0x0800
+		tileY -= 30
+	}
+
+	attr := p.readVRAM(offset + 0x03C0 + uint16(tileX)/4 + uint16(tileY)/4*8)
+	id := p.readVRAM(offset + uint16(tileY)*32 + uint16(tileX))
+	addr := p.tilePatternTableAddr() + uint16(id)*16
 
 	for y := 0; y < 8; y++ {
 		p1 := p.readVRAM(addr + uint16(y) + 0)
@@ -108,29 +114,39 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 }
 
 func (p *PPU) renderTileScanline() {
-	y := p.scanline
-	tileY := int(y) / 8
-	offsetY := int(y) % 8
+	var (
+		frameY = p.scanline
+		tileY  = int(frameY) / 8
+		pixelY = int(frameY) % 8
+		fineX  = int(p.ScrollX) % 8
+		fineY  = int(p.ScrollY) % 8
+	)
 
 	for tileX := 0; tileX < 32; tileX++ {
 		tile := p.fetchTile(tileX, tileY)
 
-		for x := 0; x < 8; x++ {
-			offsetX := tileX*8 + x
+		for pixelX := 0; pixelX < 8; pixelX++ {
+			frameX := tileX*8 + pixelX
 
-			px := tile.Pixels[x][offsetY]
+			px := tile.Pixels[pixelX][pixelY]
 			if px == 0 {
 				continue
 			}
 
-			paletteID := tile.PaletteID
-			p.Frame[offsetX][y] = Colors[p.PaletteTable[paletteID*4+px]]
+			x := frameX - fineX
+			y := frameY - fineY
+			if x < 0 || y < 0 {
+				continue
+			}
+
+			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(px)
+			p.Frame[x][y] = Colors[p.readVRAM(addr)]
 		}
 	}
 }
 
 func (p *PPU) fetchSpritePixels(id uint8) (pixels [8][8]uint8) {
-	addr := p.spritePatternTableOffset() + uint16(id)*16
+	addr := p.spritePatternTableAddr() + uint16(id)*16
 
 	for y := 0; y < 8; y++ {
 		p1 := p.readVRAM(addr + uint16(y) + 0)
@@ -152,10 +168,10 @@ func (p *PPU) prepareSprites() {
 
 	for i := 0; i < 64; i++ {
 		var (
-			id   = p.OAMData[i*4+1]
-			x    = p.OAMData[i*4+3]
 			y    = p.OAMData[i*4+0]
+			id   = p.OAMData[i*4+1]
 			attr = p.OAMData[i*4+2]
+			x    = p.OAMData[i*4+3]
 		)
 
 		if scanline < int(y) || scanline >= int(y)+8 {
@@ -166,7 +182,7 @@ func (p *PPU) prepareSprites() {
 			p.spriteScanline[p.spriteCount] = Sprite{
 				Pixels:    p.fetchSpritePixels(id),
 				PaletteID: attr & spriteAttrPalette,
-				BehindBG:  attr&spriteAttrPriority != 0,
+				Back:      attr&spriteAttrPriority != 0,
 				FlipX:     attr&spriteAttrFlipX != 0,
 				FlipY:     attr&spriteAttrFlipY != 0,
 				Y:         y,
@@ -209,12 +225,13 @@ func (p *PPU) renderSpriteScanline() {
 				continue
 			}
 
-			if sprite.BehindBG && p.Frame[frameX][frameY].A != 0 {
+			// Sprite is behind the background, so don't render.
+			if sprite.Back && p.Frame[frameX][frameY].A != 0 {
 				continue
 			}
 
-			paletteIdx := sprite.PaletteID*4 + px
-			p.Frame[frameX][frameY] = Colors[p.PaletteTable[paletteIdx]]
+			addr := 0x3F10 + uint16(sprite.PaletteID)*4 + uint16(px)
+			p.Frame[frameX][frameY] = Colors[p.readVRAM(addr)]
 		}
 	}
 }

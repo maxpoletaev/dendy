@@ -61,7 +61,14 @@ type PPU struct {
 	OAMData      [256]byte      // $2004
 	NameTable    [2][1024]byte  // $2000-$2FFF
 	PaletteTable [32]byte       // $3F00-$3FFF
-	VRAMAddr     uint16
+
+	VRAMAddr      uint16
+	vramTmpAddr   uint16
+	vramAddrLatch bool
+
+	ScrollX     uint8 // $2005 (first write)
+	ScrollY     uint8 // $2005 (second write)
+	scrollLatch bool
 
 	Frame         [256][240]color.RGBA
 	FrameComplete bool
@@ -70,11 +77,9 @@ type PPU struct {
 	spriteCount    int
 	spriteScanline [8]Sprite
 
-	cycle        int
-	scanline     int
-	addressLatch bool
-	tmpVRAMAddr  uint16
-	vramBuffer   uint8
+	cycle      int
+	scanline   int
+	vramBuffer uint8
 }
 
 func New(cart ines.Cartridge) *PPU {
@@ -141,8 +146,8 @@ func (p *PPU) Reset() {
 	p.RequestNMI = false
 
 	p.FrameComplete = false
-	p.addressLatch = false
-	p.tmpVRAMAddr = 0
+	p.vramAddrLatch = false
+	p.vramTmpAddr = 0
 	p.vramBuffer = 0
 	p.scanline = 0
 	p.cycle = 0
@@ -155,7 +160,8 @@ func (p *PPU) Read(addr uint16) uint8 {
 		// with noise from the bottom 5 bits of the vram buffer. It also clears the
 		// address latch and vblank flag.
 		status := p.Status
-		p.addressLatch = false
+		p.scrollLatch = false
+		p.vramAddrLatch = false
 		p.setFlag(StatusVBlank, false)
 		return uint8(status)&0xE0 | p.vramBuffer&0x1F
 
@@ -198,15 +204,22 @@ func (p *PPU) Write(addr uint16, data uint8) {
 		p.OAMData[p.OAMAddr] = data
 		p.OAMAddr++
 	case vramAddrRegAddr:
-		if !p.addressLatch {
-			p.tmpVRAMAddr = uint16(data)
-			p.addressLatch = true
-			break
+		if !p.vramAddrLatch {
+			p.vramTmpAddr = uint16(data)
+			p.vramAddrLatch = true
+		} else {
+			p.VRAMAddr = p.vramTmpAddr<<8 | uint16(data)
+			p.vramAddrLatch = false
+			p.vramTmpAddr = 0
 		}
-
-		p.VRAMAddr = p.tmpVRAMAddr<<8 | uint16(data)
-		p.addressLatch = false
-		p.tmpVRAMAddr = 0
+	case scrollRegAddr:
+		if !p.scrollLatch {
+			p.ScrollX = data
+			p.scrollLatch = true
+		} else {
+			p.ScrollY = data
+			p.scrollLatch = false
+		}
 	case vramDataRegAddr:
 		p.writeVRAM(p.VRAMAddr, data)
 		p.incrementVRAMAddr()
@@ -265,7 +278,10 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 	}
 
 	if addr <= 0x3FFF {
-		addr = addr % 0x3F1F
+		if addr == 0x3F10 || addr == 0x3F14 || addr == 0x3F18 || addr == 0x3F1C {
+			addr -= 0x10 // mirrors $3F00/$3F04/$3F08/$3F0C
+		}
+
 		value := p.PaletteTable[addr%32]
 		return p.applyGrayscaleIfSet(value)
 	}
@@ -287,12 +303,28 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 	}
 
 	if addr <= 0x3FFF {
-		addr = addr % 0x3F1F
+		if addr == 0x3F10 || addr == 0x3F14 || addr == 0x3F18 || addr == 0x3F1C {
+			addr -= 0x10 // mirrors $3F00/$3F04/$3F08/$3F0C
+		}
+
 		p.PaletteTable[addr%32] = data
 		return
 	}
 
 	panic(fmt.Sprintf("invalid vram address: %04X", addr))
+}
+
+func (p *PPU) spriteZeroHit() bool {
+	if p.getFlag(MaskShowSprites) && p.getFlag(MaskShowBackground) {
+		spriteY := int(p.OAMData[0])
+
+		// TODO: This mostly works, but we should also check if the colors are opaque.
+		if p.scanline == spriteY {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *PPU) Tick() {
@@ -315,9 +347,19 @@ func (p *PPU) Tick() {
 	// and prepare the sprites for the next scanline. This is not how the real PPU
 	// works, but it's good enough for now.
 	if p.scanline >= 0 && p.scanline <= 239 {
+		if p.spriteZeroHit() {
+			p.setFlag(StatusSprite0Hit, true)
+		}
+
 		if p.cycle == 340 {
-			p.renderTileScanline()
-			p.renderSpriteScanline()
+			if p.getFlag(MaskShowBackground) {
+				p.renderTileScanline()
+			}
+
+			if p.getFlag(MaskShowSprites) {
+				p.renderSpriteScanline()
+			}
+
 			p.prepareSprites()
 		}
 	}

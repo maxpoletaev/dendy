@@ -2,7 +2,6 @@ package cpu
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -45,18 +44,8 @@ func (i *InstructionTest) Exec(t *testing.T) {
 
 	t.Cleanup(func() {
 		if t.Failed() {
-			var b strings.Builder
 			cpu.PC = 0x5000
-
-			b.WriteString(fmt.Sprintf("0x%04X\t\t", 0x5000))
-			b.WriteString(disassemble(cpu, mem))
-			b.WriteString("\t\t")
-			b.WriteString(fmt.Sprintf(" A:%02X", cpu.A))
-			b.WriteString(fmt.Sprintf(" X:%02X", cpu.X))
-			b.WriteString(fmt.Sprintf(" Y:%02X", cpu.Y))
-			b.WriteString(fmt.Sprintf(" P:%08b", cpu.P))
-			b.WriteString(fmt.Sprintf(" SP:%02X", cpu.SP))
-			fmt.Println(b.String())
+			fmt.Println(debugStep(mem, cpu))
 		}
 	})
 
