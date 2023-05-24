@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/maxpoletaev/dendy/cpu"
+	cpupkg "github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/display"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
-	"github.com/maxpoletaev/dendy/ppu"
+	ppupkg "github.com/maxpoletaev/dendy/ppu"
 )
 
 type Bus struct {
@@ -17,8 +17,8 @@ type Bus struct {
 	cart   ines.Cartridge
 	joy1   *input.Joystick
 	ram    [2048]uint8
-	cpu    *cpu.CPU
-	ppu    *ppu.PPU
+	cpu    *cpupkg.CPU
+	ppu    *ppupkg.PPU
 	cycles uint64
 }
 
@@ -105,12 +105,12 @@ func (b *Bus) Tick() {
 
 func main() {
 	var (
-		stepMode bool
-		disasm   bool
+		disasm  bool
+		showFPS bool
 	)
 
 	flag.BoolVar(&disasm, "disasm", false, "enable cpu disassembler")
-	flag.BoolVar(&stepMode, "step", false, "step mode")
+	flag.BoolVar(&showFPS, "fps", false, "show fps")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
@@ -125,30 +125,31 @@ func main() {
 	}
 
 	var (
-		c = cpu.New()
-		p = ppu.New(cart)
-		j = input.NewJoystick()
-		d = display.New(&p.Frame, j, 2)
+		cpu  = cpupkg.New()
+		ppu  = ppupkg.New(cart)
+		joy  = input.NewJoystick()
+		disp = display.New(&ppu.Frame, joy, 2)
 	)
 
-	c.AllowIllegal = true
+	disp.ShowFPS = showFPS
+	cpu.AllowIllegal = true
 
 	if disasm {
-		c.EnableDisasm = true
+		cpu.EnableDisasm = true
 	}
 
 	bus := &Bus{
 		cart:   cart,
-		screen: d,
-		cpu:    c,
-		ppu:    p,
-		joy1:   j,
+		screen: disp,
+		cpu:    cpu,
+		ppu:    ppu,
+		joy1:   joy,
 	}
 
 	bus.Reset()
-	d.Refresh()
+	disp.Refresh()
 
-	for d.IsRunning() {
+	for disp.IsRunning() {
 		bus.Tick()
 	}
 }

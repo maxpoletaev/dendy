@@ -82,13 +82,13 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 
 	tileX += int(p.ScrollX / 8)
 	if tileX >= 32 {
-		offset += 0x0400
+		offset ^= 0x0400
 		tileX -= 32
 	}
 
 	tileY += int(p.ScrollY / 8)
 	if tileY >= 30 {
-		offset += 0x0800
+		offset ^= 0x0800
 		tileY -= 30
 	}
 
@@ -116,11 +116,14 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 
 func (p *PPU) renderTileScanline() {
 	var (
-		frameY = p.scanline
+		fineX = int(p.ScrollX % 8)
+		fineY = int(p.ScrollY % 8)
+	)
+
+	var (
+		frameY = (p.scanline + fineY) % 248
 		tileY  = int(frameY) / 8
 		pixelY = int(frameY) % 8
-		fineX  = int(p.ScrollX) % 8
-		fineY  = int(p.ScrollY) % 8
 	)
 
 	for tileX := 0; tileX < 32; tileX++ {
@@ -137,7 +140,7 @@ func (p *PPU) renderTileScanline() {
 			// To simulate scrolling, we need to offset the tile's position by the fine
 			// scroll values. This is not how the PPU does it, but it seems to work.
 			x, y := frameX-fineX, frameY-fineY
-			if x < 0 || y < 0 {
+			if x < 0 || y < 0 || x >= 256 || y >= 240 {
 				continue
 			}
 
@@ -158,9 +161,15 @@ func (p *PPU) renderTileScanline() {
 				continue
 			}
 
-			offsetX := 32*8 - fineX + pixelX
 			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(pixel)
-			p.Frame[offsetX][frameY] = Colors[p.readVRAM(addr)]
+			offsetX := 32*8 - fineX + pixelX
+
+			x, y := offsetX, frameY-fineY
+			if x < 0 || y < 0 || x >= 256 || y >= 240 {
+				continue
+			}
+
+			p.Frame[x][y] = Colors[p.readVRAM(addr)]
 		}
 	}
 }
