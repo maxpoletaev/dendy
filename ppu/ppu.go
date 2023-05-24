@@ -47,7 +47,7 @@ const (
 
 const (
 	StatusSpriteOverflow StatusFlags = 1 << 5
-	StatusSprite0Hit     StatusFlags = 1 << 6
+	StatusSpriteZeroHit  StatusFlags = 1 << 6
 	StatusVBlank         StatusFlags = 1 << 7
 )
 
@@ -315,14 +315,21 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 
 func (p *PPU) spriteZeroHit() bool {
 	if p.getFlag(MaskShowSprites) && p.getFlag(MaskShowBackground) {
-		spriteY := int(p.OAMData[0]) + 8
-
-		if p.scanline == spriteY {
+		spriteY := int(p.OAMData[0])
+		if p.scanline == spriteY+8 {
 			return true
 		}
 	}
 
 	return false
+}
+
+func (p *PPU) clearFrame(c color.RGBA) {
+	for x := 0; x < 256; x++ {
+		for y := 0; y < 240; y++ {
+			p.Frame[x][y] = c
+		}
+	}
 }
 
 func (p *PPU) Tick() {
@@ -332,7 +339,7 @@ func (p *PPU) Tick() {
 		if p.cycle == 1 {
 			p.clearFrame(Colors[p.readVRAM(0x3F00)])
 			p.setFlag(StatusSpriteOverflow, false)
-			p.setFlag(StatusSprite0Hit, false)
+			p.setFlag(StatusSpriteZeroHit, false)
 			p.setFlag(StatusVBlank, false)
 		}
 
@@ -344,7 +351,7 @@ func (p *PPU) Tick() {
 
 	if p.scanline >= 0 && p.scanline <= 239 {
 		if p.spriteZeroHit() {
-			p.setFlag(StatusSprite0Hit, true)
+			p.setFlag(StatusSpriteZeroHit, true)
 		}
 
 		// End of visible scanline, render the tiles and sprites, and prepare the sprites
