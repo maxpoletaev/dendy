@@ -16,6 +16,8 @@ const (
 )
 
 type Display struct {
+	ShowFPS bool
+
 	keyMap  map[int32]input.Button
 	frame   *[256][240]color.RGBA
 	texture rl.RenderTexture2D
@@ -103,7 +105,9 @@ func (d *Display) Refresh() {
 	rl.ClearBackground(rl.Black)
 	rl.DrawTexturePro(d.texture.Texture, d.sourceRec, d.destRec, origin, 0, rl.White)
 
-	fps := fmt.Sprintf("%d fps", rl.GetFPS())
-	rl.DrawText(fps, 6, 6, 10, rl.Black)
-	rl.DrawText(fps, 5, 5, 10, rl.White)
+	if d.ShowFPS {
+		fps := fmt.Sprintf("%d fps", rl.GetFPS())
+		rl.DrawText(fps, 6, 6, 10, rl.Black)
+		rl.DrawText(fps, 5, 5, 10, rl.White)
+	}
 }

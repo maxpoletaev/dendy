@@ -58,11 +58,11 @@ func (p *PPU) spriteHeight() int {
 
 func (p *PPU) fetchSprite(idx int) Sprite {
 	var (
-		y      = p.OAMData[idx*4+0]
-		id     = p.OAMData[idx*4+1]
-		attr   = p.OAMData[idx*4+2]
-		x      = p.OAMData[idx*4+3]
-		height = p.spriteHeight()
+		id      = p.OAMData[idx*4+1]
+		attr    = p.OAMData[idx*4+2]
+		spriteX = p.OAMData[idx*4+3]
+		spriteY = p.OAMData[idx*4+0]
+		height  = p.spriteHeight()
 	)
 
 	sprite := Sprite{
@@ -70,21 +70,22 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 		Back:      attr&spriteAttrPriority != 0,
 		FlipX:     attr&spriteAttrFlipX != 0,
 		FlipY:     attr&spriteAttrFlipY != 0,
-		Y:         y,
-		X:         x,
+		Y:         spriteY,
+		X:         spriteX,
 	}
 
-	for spriteY := 0; spriteY < height; spriteY++ {
-		addr := p.spritePatternTableAddr() + uint16(id)*16 + uint16(spriteY)
+	var addr uint16
 
+	for x := 0; x < height; x++ {
 		if height == 16 {
 			table := id & 1
 			tile := id & 0xFE
-			if spriteY >= 8 {
+			if x >= 8 {
 				tile++
 			}
-
-			addr = uint16(table)*0x1000 + uint16(tile)*16 + uint16(spriteY&7)
+			addr = uint16(table)*0x1000 + uint16(tile)*16 + uint16(x&7)
+		} else {
+			addr = p.spritePatternTableAddr() + uint16(id)*16 + uint16(x)
 		}
 
 		p1 := p.readVRAM(addr + 0)
@@ -93,7 +94,7 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 		for x := 0; x < 8; x++ {
 			px := p1 & (0x80 >> x) >> (7 - x) << 0
 			px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
-			sprite.Pixels[x][spriteY] = px // two-bit pixel value (0-3)
+			sprite.Pixels[x][x] = px // two-bit pixel value (0-3)
 		}
 	}
 

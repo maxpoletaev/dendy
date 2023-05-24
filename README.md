@@ -5,6 +5,8 @@ bootleg Dendy. It serves no practical purpose other than to be a toy project for
 me, so it’s unlikely to beat any of the existing emulators in terms of 
 performance or accuracy as well as unlikely to ever be finished.
 
+<img src="screenshots.png" alt="Screenshots">
+
 ## Status
 
 ### CPU
@@ -13,16 +15,17 @@ performance or accuracy as well as unlikely to ever be finished.
  * [x] Unofficial opcodes
  * [x] Runtime disassembly
  * [x] Cycle-accurate emulation
- * [ ] Accurate clock speed
+ * [x] Accurate clock speed
  * [x] Interrupts
 
 ### Graphics
 
  * [x] Background rendering
  * [x] Sprite rendering
- * [ ] 8×16 sprites
- * [ ] Palettes
+ * [x] 8×16 sprites
+ * [x] Palettes
  * [x] Scrolling
+ * [ ] Color emphasis
  * [ ] Cycle-accurate emulation
 
 ### Input/Output
@@ -34,7 +37,7 @@ performance or accuracy as well as unlikely to ever be finished.
 
 ### Sound
 
-Needs research.
+TODO
 
 ### Cartridges
 
@@ -42,13 +45,13 @@ The goal is to support top 7 mappers covering the majority of games. The
 percentage indicates the number of games that use the mapper according to
 nescartdb.com.
 
- * [x] NROM (Mapper 0) - 10%
  * [ ] MMC1 (Mapper 1) - 28%
- * [x] UxROM (Mapper 2) - 11%
- * [ ] CNROM (Mapper 3) - 6%
  * [ ] MMC3 (Mapper 4) - 24%
- * [ ] MMC5 (Mapper 5) - 1%
+ * [x] UxROM (Mapper 2) - 11%
+ * [x] NROM (Mapper 0) - 10%
+ * [ ] CNROM (Mapper 3) - 6%
  * [ ] AxROM (Mapper 7) - 3%
+ * [ ] MMC5 (Mapper 5) - 1%
 
 ### Test ROMs
 
@@ -60,7 +63,7 @@ inaccuracies (that might be caused by the test ROMs themselves).
  * [ ] Blargg’s PPU tests
  * [ ] Blargg’s APU tests
 
-## Controller 1
+## Controls
 
 ```
                    ┆┆
@@ -86,13 +89,14 @@ everyone who made them!
  * [MOS 6502 CPU Reference](https://web.archive.org/web/20210429110213/http://obelisk.me.uk/6502/) by Andrew Jabobs, 2009
  * [Extra Instructions of the 65xx Series CPU](http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes) by Adam Vardy, 1996
  * [NES Rendering Overview](https://austinmorlan.com/posts/nes_rendering_overview/) by Austin Morlan, 2019
+ * [Making NES Games in Assembly](https://famicom.party/book/) by Kevin Zurawel, 2021
 
 ### Videos
 
- * The [NES Emulator from Scratch](nesemu) series by David Barr covers most of
-   the topics from the CPU to the sound, but I found the two videos about the 
-   PPU to be the most useful for understanding the obscure details of the NES
-   rendering: [[1]][ppu1], [[2]][ppu2].
+ * The [NES Emulator from Scratch](nesemu) series covers most of the topics from
+   the CPU to the sound, but I found the two videos about the PPU to be the most
+   useful for understanding the obscure details of the NES rendering pipeline: 
+   [[1]][ppu1], [[2]][ppu2].
 
 [nesemu]: https://www.youtube.com/playlist?list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf
 [ppu1]: https://www.youtube.com/watch?v=-THeUXqR3zY&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=5
