@@ -27,6 +27,7 @@ type Display struct {
 	frame   *[256][240]color.RGBA
 	texture rl.RenderTexture2D
 	joy1    *input.Joystick
+	zap     *input.Zapper
 	pixels  []color.RGBA
 	scale   int
 
@@ -34,7 +35,7 @@ type Display struct {
 	destRec   rl.Rectangle
 }
 
-func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, scale int) *Display {
+func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, zap *input.Zapper, scale int) *Display {
 	rl.SetTraceLog(rl.LogNone)
 	rl.SetTargetFPS(60)
 
@@ -66,10 +67,11 @@ func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, scale int) *Display
 		texture:   texture,
 		frame:     frame,
 		scale:     scale,
-		joy1:      joy1,
 		sourceRec: sourceRec,
 		keyMap:    keyMap,
 		destRec:   destRec,
+		joy1:      joy1,
+		zap:       zap,
 	}
 }
 
@@ -91,7 +93,7 @@ func (d *Display) updateTexture() {
 	rl.UpdateTexture(d.texture.Texture, d.pixels)
 }
 
-func (d *Display) HandleInput() {
+func (d *Display) handleJoystick() {
 	for key, button := range d.keyMap {
 		if rl.IsKeyDown(key) {
 			d.joy1.Press(button)
@@ -99,6 +101,31 @@ func (d *Display) HandleInput() {
 			d.joy1.Release(button)
 		}
 	}
+}
+
+func (d *Display) handleZapper() {
+	if rl.IsMouseButtonDown(rl.MouseLeftButton) {
+		d.zap.PressTrigger()
+		return
+	}
+
+	d.zap.ReleaseTrigger()
+	pos := rl.GetMousePosition()
+
+	x, y := int(pos.X)/d.scale, int(pos.Y)/d.scale
+	if x < 0 || x >= ScreenWidth || y < 0 || y >= ScreenHeight {
+		return
+	}
+
+	rgb := d.frame[x][y]
+	hit := rgb.R > 100 && rgb.G > 100 && rgb.B > 100
+
+	d.zap.LightDetected(hit)
+}
+
+func (d *Display) HandleInput() {
+	d.handleJoystick()
+	d.handleZapper()
 }
 
 func (d *Display) NoSignal() {

@@ -42,31 +42,36 @@ func main() {
 	}
 
 	var (
-		cpu  = cpupkg.New()
-		ppu  = ppupkg.New(cart)
-		joy  = input.NewJoystick()
-		disp = display.Show(&ppu.Frame, joy, 2)
+		cpu = cpupkg.New()
+		ppu = ppupkg.New(cart)
+		joy = input.NewJoystick()
+		zap = input.NewZapper()
+	)
+
+	var (
+		window = display.Show(&ppu.Frame, joy, zap, 2)
 	)
 
 	cpu.EnableDisasm = o.disasm || o.stepMode
-	disp.ShowFPS = o.showFPS
+	window.ShowFPS = o.showFPS
 	cpu.AllowIllegal = true
 
 	bus := &Bus{
 		cart:   cart,
-		screen: disp,
+		screen: window,
 		cpu:    cpu,
 		ppu:    ppu,
 		joy1:   joy,
+		zap:    zap,
 	}
 
 	bus.Reset()
-	disp.NoSignal()
+	window.NoSignal()
 
-	for !disp.ShouldClose() {
+	for !window.ShouldClose() {
 		if o.stepMode {
 			// Each space key press will execute one cpu instruction.
-			if disp.KeyPressed(display.KeySpace) {
+			if window.KeyPressed(display.KeySpace) {
 				for {
 					instrComplete, _ := bus.Tick()
 					if instrComplete {
@@ -76,7 +81,7 @@ func main() {
 			}
 
 			// Each F key press will execute one frame.
-			if disp.KeyPressed(display.KeyF) {
+			if window.KeyPressed(display.KeyF) {
 				for {
 					_, frameComplete := bus.Tick()
 					if frameComplete {
@@ -87,7 +92,7 @@ func main() {
 			}
 
 			time.Sleep(100 * time.Millisecond)
-			disp.Noop()
+			window.Noop()
 			continue
 		}
 

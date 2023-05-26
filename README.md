@@ -30,6 +30,11 @@ $ dendy romfile.nes
 └───────────────────────────────────────┘
 ```
 
+## Zapper (Light Gun)
+
+Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
+the mouse cursor at the right position on the screen and click to shoot.
+
 ## Status
 
 ### CPU
@@ -55,8 +60,7 @@ $ dendy romfile.nes
 
 * [x] Graphics output
 * [x] Controller 1
-* [ ] Controller 2
-* [ ] Zapper
+* [x] Zapper
 
 ### Sound
 

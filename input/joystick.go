@@ -31,8 +31,7 @@ func (c *Joystick) Release(button Button) {
 	c.buttons[button] = false
 }
 
-func (c *Joystick) Read() byte {
-	value := byte(0)
+func (c *Joystick) Read() (value byte) {
 	if c.buttons[c.index] {
 		value = 1
 	}

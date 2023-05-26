@@ -12,6 +12,7 @@ type Bus struct {
 	screen *display.Display
 	cart   ines.Cartridge
 	joy1   *input.Joystick
+	zap    *input.Zapper
 	ram    [2048]uint8
 	cpu    *cpu2.CPU
 	ppu    *ppu2.PPU
@@ -45,8 +46,8 @@ func (b *Bus) Read(addr uint16) uint8 {
 		return b.ppu.Read(addr)
 	case addr == 0x4016: // Controller 1.
 		return b.joy1.Read()
-	case addr <= 0x4017: // APU and I/O registers.
-		return 0
+	case addr <= 0x4017: // Zapper.
+		return b.zap.Read()
 	case addr <= 0x401F: // APU and I/O functionality.
 		return 0
 	default: // Cartridge space.
@@ -98,8 +99,8 @@ func (b *Bus) Tick() (instrComplete, frameComplete bool) {
 
 	// Refresh the screen if a frame has completed.
 	if b.ppu.FrameComplete {
-		b.ppu.FrameComplete = false
 		frameComplete = true
+		b.ppu.FrameComplete = false
 		b.screen.HandleInput()
 		b.screen.Refresh()
 	}
