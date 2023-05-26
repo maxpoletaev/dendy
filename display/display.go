@@ -15,6 +15,11 @@ const (
 	WindowTitle  = "Dendy Emulator"
 )
 
+const (
+	KeySpace = rl.KeySpace
+	KeyF     = rl.KeyF
+)
+
 type Display struct {
 	ShowFPS bool
 
@@ -29,8 +34,8 @@ type Display struct {
 	destRec   rl.Rectangle
 }
 
-func New(frame *[256][240]color.RGBA, joy1 *input.Joystick, scale int) *Display {
-	rl.SetTraceLog(rl.LogError)
+func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, scale int) *Display {
+	rl.SetTraceLog(rl.LogNone)
 	rl.SetTargetFPS(60)
 
 	rl.InitWindow(
@@ -72,8 +77,8 @@ func (d *Display) Close() {
 	rl.CloseWindow()
 }
 
-func (d *Display) IsRunning() bool {
-	return !rl.WindowShouldClose()
+func (d *Display) ShouldClose() bool {
+	return rl.WindowShouldClose()
 }
 
 func (d *Display) updateTexture() {
@@ -96,8 +101,22 @@ func (d *Display) HandleInput() {
 	}
 }
 
+func (d *Display) NoSignal() {
+	rl.BeginDrawing()
+	defer rl.EndDrawing()
+
+	rl.ClearBackground(rl.Blue)
+	rl.DrawText("NO SIGNAL", 20, 20, 30, rl.Gold)
+}
+
+func (d *Display) Noop() {
+	rl.BeginDrawing()
+	rl.EndDrawing()
+}
+
 func (d *Display) Refresh() {
 	d.updateTexture()
+
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 
@@ -110,4 +129,8 @@ func (d *Display) Refresh() {
 		rl.DrawText(fps, 6, 6, 10, rl.Black)
 		rl.DrawText(fps, 5, 5, 10, rl.White)
 	}
+}
+
+func (d *Display) KeyPressed(key int32) bool {
+	return rl.IsKeyPressed(key)
 }

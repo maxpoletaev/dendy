@@ -90,7 +90,7 @@ func loadROM(filename string) (*ROM, error) {
 		MapperID:   mapperID,
 		Battery:    hasBattery,
 		MirrorMode: mirrorMode,
-		PRGBanks:   prgSize / 0x4000,
-		CHRBanks:   chrSize / 0x2000,
+		PRGBanks:   prgSize / 16384,
+		CHRBanks:   chrSize / 8192,
 	}, nil
 }

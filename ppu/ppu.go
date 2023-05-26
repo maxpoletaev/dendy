@@ -58,20 +58,18 @@ type PPU struct {
 	Status       StatusFlags    // $2002
 	OAMAddr      uint8          // $2003
 	OAMData      [256]byte      // $2004
+	ScrollX      uint8          // $2005 (first write)
+	ScrollY      uint8          // $2005 (second write)
 	NameTable    [2][1024]byte  // $2000-$2FFF
 	PaletteTable [32]byte       // $3F00-$3FFF
 
-	VRAMAddr      uint16
-	vramTmpAddr   uint16
-	vramAddrLatch bool
-
-	ScrollX     uint8 // $2005 (first write)
-	ScrollY     uint8 // $2005 (second write)
-	scrollLatch bool
-
 	Frame         [256][240]color.RGBA
-	FrameComplete bool
 	RequestNMI    bool
+	FrameComplete bool
+
+	VRAMAddr  uint16
+	tmpAddr   uint16
+	addrLatch bool
 
 	spriteCount    int
 	spriteScanline [8]Sprite
@@ -143,10 +141,9 @@ func (p *PPU) Reset() {
 	p.OAMAddr = 0
 	p.VRAMAddr = 0
 	p.RequestNMI = false
-
 	p.FrameComplete = false
-	p.vramAddrLatch = false
-	p.vramTmpAddr = 0
+	p.addrLatch = false
+	p.tmpAddr = 0
 	p.vramBuffer = 0
 	p.scanline = 0
 	p.cycle = 0
@@ -159,8 +156,7 @@ func (p *PPU) Read(addr uint16) uint8 {
 		// with noise from the bottom 5 bits of the vram buffer. It also clears the
 		// address latch and vblank flag.
 		status := p.Status
-		p.scrollLatch = false
-		p.vramAddrLatch = false
+		p.addrLatch = false
 		p.setFlag(StatusVBlank, false)
 		return uint8(status)&0xE0 | p.vramBuffer&0x1F
 
@@ -202,21 +198,21 @@ func (p *PPU) Write(addr uint16, data uint8) {
 		p.OAMData[p.OAMAddr] = data
 		p.OAMAddr++
 	case vramAddrRegAddr:
-		if !p.vramAddrLatch {
-			p.vramTmpAddr = uint16(data)
-			p.vramAddrLatch = true
+		if !p.addrLatch {
+			p.tmpAddr = uint16(data)
+			p.addrLatch = true
 		} else {
-			p.VRAMAddr = p.vramTmpAddr<<8 | uint16(data)
-			p.vramAddrLatch = false
-			p.vramTmpAddr = 0
+			p.VRAMAddr = p.tmpAddr<<8 | uint16(data)
+			p.addrLatch = false
+			p.tmpAddr = 0
 		}
 	case scrollRegAddr:
-		if !p.scrollLatch {
+		if !p.addrLatch {
 			p.ScrollX = data
-			p.scrollLatch = true
+			p.addrLatch = true
 		} else {
 			p.ScrollY = data
-			p.scrollLatch = false
+			p.addrLatch = false
 		}
 	case vramDataRegAddr:
 		p.writeVRAM(p.VRAMAddr, data)

@@ -1,11 +1,34 @@
 # Dendy
 
 Dendy is a NES/Famicom emulator written in Go and named after the soviet Famicom 
-bootleg Dendy. It serves no practical purpose other than to be a toy project for
-me, so it’s unlikely to beat any of the existing emulators in terms of 
-performance or accuracy as well as unlikely to ever be finished.
+bootleg. It serves no practical purpose other than to be a toy project for
+me, so do not expect it to beat any of the existing emulators in terms of 
+performance or accuracy. Yet, it is capable of running most of the games 
+I tried, so it’s not completely useless, and it's still a great learning
+experience.
 
 <img src="screenshots.png" alt="Screenshots">
+
+## Try it
+
+```
+$ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
+$ dendy romfile.nes
+```
+
+## Controls
+
+```
+                   ┆┆
+┌───────────────────────────────────────┐
+│                                       │
+│    [W]                                │
+│ [A]   [D]                             │
+│    [S]                       [J] [K]  │
+│           [Enter] [RShift]            │
+│                                       │
+└───────────────────────────────────────┘
+```
 
 ## Status
 
@@ -62,20 +85,6 @@ inaccuracies (that might be caused by the test ROMs themselves).
  * [ ] Blargg’s CPU tests
  * [ ] Blargg’s PPU tests
  * [ ] Blargg’s APU tests
-
-## Controls
-
-```
-                   ┆┆
-┌───────────────────────────────────────┐
-│                                       │
-│    [W]                                │
-│ [A]   [D]                             │
-│    [S]                       [J] [K]  │
-│           [Enter] [RShift]            │
-│                                       │
-└───────────────────────────────────────┘
-```
 
 ## Resources
 

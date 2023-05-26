@@ -76,16 +76,16 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 
 	var addr uint16
 
-	for x := 0; x < height; x++ {
+	for y := 0; y < height; y++ {
 		if height == 16 {
 			table := id & 1
 			tile := id & 0xFE
-			if x >= 8 {
+			if y >= 8 {
 				tile++
 			}
-			addr = uint16(table)*0x1000 + uint16(tile)*16 + uint16(x&7)
+			addr = uint16(table)*0x1000 + uint16(tile)*16 + uint16(y&7)
 		} else {
-			addr = p.spritePatternTableAddr() + uint16(id)*16 + uint16(x)
+			addr = p.spritePatternTableAddr() + uint16(id)*16 + uint16(y)
 		}
 
 		p1 := p.readVRAM(addr + 0)
@@ -94,7 +94,7 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 		for x := 0; x < 8; x++ {
 			px := p1 & (0x80 >> x) >> (7 - x) << 0
 			px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
-			sprite.Pixels[x][x] = px // two-bit pixel value (0-3)
+			sprite.Pixels[x][y] = px // two-bit pixel value (0-3)
 		}
 	}
 
