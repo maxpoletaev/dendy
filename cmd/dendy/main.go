@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/display"
@@ -17,21 +16,30 @@ type opts struct {
 	disasm   bool
 	showFPS  bool
 	stepMode bool
+	scale    int
 }
 
 func (o *opts) parse() *opts {
 	flag.BoolVar(&o.stepMode, "step", false, "enable step mode (press space to step cpu)")
 	flag.BoolVar(&o.disasm, "disasm", false, "enable cpu disassembler")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
+	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.Parse()
 	return o
 }
 
+func (o *opts) sanitize() {
+	if o.scale < 1 {
+		o.scale = 1
+	}
+}
+
 func main() {
 	o := new(opts).parse()
+	o.sanitize()
 
 	if flag.NArg() != 1 {
-		fmt.Println("usage: dendy [-fps] [-disasm] <rom_file.nes>")
+		fmt.Println("usage: dendy [-scale=2] [-showfps] [-disasm] <rom_file.nes>")
 		os.Exit(1)
 	}
 
@@ -49,7 +57,7 @@ func main() {
 	)
 
 	var (
-		window = display.Show(&ppu.Frame, joy, zap, 2)
+		window = display.Show(&ppu.Frame, joy, zap, o.scale)
 	)
 
 	cpu.EnableDisasm = o.disasm || o.stepMode
@@ -57,8 +65,8 @@ func main() {
 	cpu.AllowIllegal = true
 
 	bus := &Bus{
-		cart:   cart,
 		screen: window,
+		cart:   cart,
 		cpu:    cpu,
 		ppu:    ppu,
 		joy1:   joy,
@@ -66,7 +74,6 @@ func main() {
 	}
 
 	bus.Reset()
-	window.NoSignal()
 
 	for !window.ShouldClose() {
 		if o.stepMode {
@@ -80,8 +87,8 @@ func main() {
 				}
 			}
 
-			// Each F key press will execute one frame.
-			if window.KeyPressed(display.KeyF) {
+			// Each Enter key press will execute one frame (~30k instructions).
+			if window.KeyPressed(display.KeyEnter) {
 				for {
 					_, frameComplete := bus.Tick()
 					if frameComplete {
@@ -91,12 +98,19 @@ func main() {
 				}
 			}
 
-			time.Sleep(100 * time.Millisecond)
-			window.Noop()
+			window.Refresh()
 
 			continue
 		}
 
-		bus.Tick()
+		_, frameComplete := bus.Tick()
+		if frameComplete {
+			window.Refresh()
+			window.HandleInput()
+
+			if window.IsResetPressed() {
+				bus.Reset()
+			}
+		}
 	}
 }

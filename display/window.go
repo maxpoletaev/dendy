@@ -17,7 +17,7 @@ const (
 
 const (
 	KeySpace = rl.KeySpace
-	KeyF     = rl.KeyF
+	KeyEnter = rl.KeyEnter
 )
 
 type Window struct {
@@ -128,19 +128,10 @@ func (w *Window) handleZapper() {
 func (w *Window) HandleInput() {
 	w.handleJoystick()
 	w.handleZapper()
-}
 
-func (w *Window) NoSignal() {
-	rl.BeginDrawing()
-	defer rl.EndDrawing()
-
-	rl.ClearBackground(rl.Blue)
-	rl.DrawText("NO SIGNAL", 20, 20, 30, rl.Gold)
-}
-
-func (w *Window) Noop() {
-	rl.BeginDrawing()
-	rl.EndDrawing()
+	if rl.IsKeyPressed(rl.KeyF12) {
+		rl.TakeScreenshot("screenshot.png")
+	}
 }
 
 func (w *Window) Refresh() {
@@ -160,6 +151,16 @@ func (w *Window) Refresh() {
 	}
 }
 
+func (w *Window) IsResetPressed() bool {
+	super := rl.IsKeyDown(rl.KeyLeftSuper) || rl.IsKeyDown(rl.KeyRightSuper)
+	ctrl := rl.IsKeyDown(rl.KeyLeftControl) || rl.IsKeyDown(rl.KeyRightControl)
+	return (super || ctrl) && rl.IsKeyPressed(rl.KeyR)
+}
+
 func (w *Window) KeyPressed(key int32) bool {
 	return rl.IsKeyPressed(key)
+}
+
+func (w *Window) InFocus() bool {
+	return rl.IsWindowFocused()
 }

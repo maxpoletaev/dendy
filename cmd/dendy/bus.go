@@ -101,8 +101,6 @@ func (b *Bus) Tick() (instrComplete, frameComplete bool) {
 	if b.ppu.FrameComplete {
 		frameComplete = true
 		b.ppu.FrameComplete = false
-		b.screen.HandleInput()
-		b.screen.Refresh()
 	}
 
 	return instrComplete, frameComplete
