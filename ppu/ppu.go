@@ -328,12 +328,17 @@ func (p *PPU) clearFrame(c color.RGBA) {
 	}
 }
 
+func (p *PPU) backdropColor() color.RGBA {
+	idx := p.readVRAM(0x3F00)
+	return Colors[idx]
+}
+
 func (p *PPU) Tick() {
 	if p.scanline == -1 {
 		// Start of pre-render scanline, clear the frame with the backdrop color and
 		// reset the PPU status flags.
 		if p.cycle == 1 {
-			p.clearFrame(Colors[p.readVRAM(0x3F00)])
+			p.clearFrame(p.backdropColor())
 			p.setFlag(StatusSpriteOverflow, false)
 			p.setFlag(StatusSpriteZeroHit, false)
 			p.setFlag(StatusVBlank, false)

@@ -16,7 +16,10 @@ $ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
 $ dendy romfile.nes
 ```
 
-## Joysticks
+
+## Controls
+
+### Joystick
 
 Player 1 joystick is emulated using the keyboard. The default mapping is as
 follows:
@@ -33,7 +36,7 @@ follows:
 └───────────────────────────────────────┘
 ```
 
-## Zapper (Light Gun)
+### Zapper (Light Gun)
 
 Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
 the mouse cursor at the right position on the screen and click to shoot.
