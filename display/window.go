@@ -20,7 +20,7 @@ const (
 	KeyF     = rl.KeyF
 )
 
-type Display struct {
+type Window struct {
 	ShowFPS bool
 
 	keyMap  map[int32]input.Button
@@ -35,9 +35,9 @@ type Display struct {
 	destRec   rl.Rectangle
 }
 
-func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, zap *input.Zapper, scale int) *Display {
+func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, zap *input.Zapper, scale int) *Window {
 	rl.SetTraceLog(rl.LogNone)
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(60) // PAL
 
 	rl.InitWindow(
 		ScreenWidth*int32(scale),
@@ -62,7 +62,7 @@ func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, zap *input.Zapper, 
 		rl.KeyRightShift: input.ButtonSelect,
 	}
 
-	return &Display{
+	return &Window{
 		pixels:    make([]color.RGBA, ScreenWidth*ScreenHeight),
 		texture:   texture,
 		frame:     frame,
@@ -75,60 +75,62 @@ func Show(frame *[256][240]color.RGBA, joy1 *input.Joystick, zap *input.Zapper, 
 	}
 }
 
-func (d *Display) Close() {
+func (w *Window) Close() {
 	rl.CloseWindow()
 }
 
-func (d *Display) ShouldClose() bool {
+func (w *Window) ShouldClose() bool {
 	return rl.WindowShouldClose()
 }
 
-func (d *Display) updateTexture() {
+func (w *Window) updateTexture() {
 	for x := 0; x < ScreenWidth; x++ {
 		for y := 0; y < ScreenHeight; y++ {
-			d.pixels[x+y*ScreenWidth] = d.frame[x][y]
+			w.pixels[x+y*ScreenWidth] = w.frame[x][y]
 		}
 	}
 
-	rl.UpdateTexture(d.texture.Texture, d.pixels)
+	rl.UpdateTexture(w.texture.Texture, w.pixels)
 }
 
-func (d *Display) handleJoystick() {
-	for key, button := range d.keyMap {
+func (w *Window) handleJoystick() {
+	for key, button := range w.keyMap {
 		if rl.IsKeyDown(key) {
-			d.joy1.Press(button)
+			w.joy1.Press(button)
 		} else if rl.IsKeyUp(key) {
-			d.joy1.Release(button)
+			w.joy1.Release(button)
 		}
 	}
 }
 
-func (d *Display) handleZapper() {
-	if rl.IsMouseButtonDown(rl.MouseLeftButton) {
-		d.zap.PressTrigger()
-		return
-	}
-
-	d.zap.ReleaseTrigger()
+func (w *Window) handleZapper() {
 	pos := rl.GetMousePosition()
+	x, y := int(pos.X)/w.scale, int(pos.Y)/w.scale
 
-	x, y := int(pos.X)/d.scale, int(pos.Y)/d.scale
 	if x < 0 || x >= ScreenWidth || y < 0 || y >= ScreenHeight {
 		return
 	}
 
-	rgb := d.frame[x][y]
-	hit := rgb.R > 100 && rgb.G > 100 && rgb.B > 100
+	// Check if the gun is over the light spot.
+	w.zap.DetectLight(w.frame[x][y])
 
-	d.zap.LightDetected(hit)
+	// Check if the trigger is pressed. We need to reset the light sensor
+	// state for the frame when the trigger was pulled, so it doesn't
+	// catch any light from the game (say, light background).
+	if rl.IsMouseButtonDown(rl.MouseLeftButton) {
+		w.zap.ResetSensor()
+		w.zap.PullTrigger()
+	} else {
+		w.zap.ReleaseTrigger()
+	}
 }
 
-func (d *Display) HandleInput() {
-	d.handleJoystick()
-	d.handleZapper()
+func (w *Window) HandleInput() {
+	w.handleJoystick()
+	w.handleZapper()
 }
 
-func (d *Display) NoSignal() {
+func (w *Window) NoSignal() {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 
@@ -136,28 +138,28 @@ func (d *Display) NoSignal() {
 	rl.DrawText("NO SIGNAL", 20, 20, 30, rl.Gold)
 }
 
-func (d *Display) Noop() {
+func (w *Window) Noop() {
 	rl.BeginDrawing()
 	rl.EndDrawing()
 }
 
-func (d *Display) Refresh() {
-	d.updateTexture()
+func (w *Window) Refresh() {
+	w.updateTexture()
 
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 
 	origin := rl.NewVector2(0, 0)
 	rl.ClearBackground(rl.Black)
-	rl.DrawTexturePro(d.texture.Texture, d.sourceRec, d.destRec, origin, 0, rl.White)
+	rl.DrawTexturePro(w.texture.Texture, w.sourceRec, w.destRec, origin, 0, rl.White)
 
-	if d.ShowFPS {
+	if w.ShowFPS {
 		fps := fmt.Sprintf("%d fps", rl.GetFPS())
 		rl.DrawText(fps, 6, 6, 10, rl.Black)
 		rl.DrawText(fps, 5, 5, 10, rl.White)
 	}
 }
 
-func (d *Display) KeyPressed(key int32) bool {
+func (w *Window) KeyPressed(key int32) bool {
 	return rl.IsKeyPressed(key)
 }

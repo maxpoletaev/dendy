@@ -1,5 +1,7 @@
 package input
 
+import "image/color"
+
 type Zapper struct {
 	lightDetected  bool
 	triggerPressed bool
@@ -11,20 +13,22 @@ func NewZapper() *Zapper {
 	}
 }
 
-func (z *Zapper) PressTrigger() {
+func (z *Zapper) PullTrigger() {
 	z.triggerPressed = true
-}
-
-func (z *Zapper) TriggerPressed() bool {
-	return z.triggerPressed
 }
 
 func (z *Zapper) ReleaseTrigger() {
 	z.triggerPressed = false
 }
 
-func (z *Zapper) LightDetected(lightDetected bool) {
-	z.lightDetected = lightDetected
+func (z *Zapper) DetectLight(rgb color.RGBA) bool {
+	hit := rgb.R > 250 && rgb.G > 250 && rgb.B > 250
+	z.lightDetected = hit
+	return hit
+}
+
+func (z *Zapper) ResetSensor() {
+	z.lightDetected = false
 }
 
 func (z *Zapper) Read() (value byte) {

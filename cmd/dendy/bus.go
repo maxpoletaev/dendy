@@ -9,7 +9,7 @@ import (
 )
 
 type Bus struct {
-	screen *display.Display
+	screen *display.Window
 	cart   ines.Cartridge
 	joy1   *input.Joystick
 	zap    *input.Zapper

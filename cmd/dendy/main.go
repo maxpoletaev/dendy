@@ -22,7 +22,7 @@ type opts struct {
 func (o *opts) parse() *opts {
 	flag.BoolVar(&o.stepMode, "step", false, "enable step mode (press space to step cpu)")
 	flag.BoolVar(&o.disasm, "disasm", false, "enable cpu disassembler")
-	flag.BoolVar(&o.showFPS, "fps", false, "show fps")
+	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.Parse()
 	return o
 }
@@ -93,6 +93,7 @@ func main() {
 
 			time.Sleep(100 * time.Millisecond)
 			window.Noop()
+
 			continue
 		}
 

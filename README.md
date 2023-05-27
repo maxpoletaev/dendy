@@ -16,7 +16,10 @@ $ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
 $ dendy romfile.nes
 ```
 
-## Controls
+## Joysticks
+
+Player 1 joystick is emulated using the keyboard. The default mapping is as
+follows:
 
 ```
                    ┆┆
