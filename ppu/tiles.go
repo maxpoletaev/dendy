@@ -14,19 +14,19 @@ func (p *PPU) tilePatternTableAddr() uint16 {
 }
 
 func (p *PPU) nameTableAddr() uint16 {
-	return 0x2000 + uint16(p.Ctrl&CtrlNameTableSelect)*0x400
+	return 0x2000 + uint16(p.ctrl&CtrlNameTableSelect)*0x400
 }
 
 func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 	offset := p.nameTableAddr()
 
-	tileX += int(p.ScrollX / 8)
+	tileX += int(p.scrollX / 8)
 	if tileX >= 32 {
 		offset ^= 0x0400
 		tileX -= 32
 	}
 
-	tileY += int(p.ScrollY / 8)
+	tileY += int(p.scrollY / 8)
 	if tileY >= 30 {
 		offset ^= 0x0800
 		tileY -= 30
@@ -56,8 +56,8 @@ func (p *PPU) fetchTile(tileX, tileY int) (tile Tile) {
 
 func (p *PPU) renderTileScanline() {
 	var (
-		fineX = int(p.ScrollX % 8)
-		fineY = int(p.ScrollY % 8)
+		fineX = int(p.scrollX % 8)
+		fineY = int(p.scrollY % 8)
 	)
 
 	var (

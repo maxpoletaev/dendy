@@ -58,10 +58,10 @@ func (p *PPU) spriteHeight() int {
 
 func (p *PPU) fetchSprite(idx int) Sprite {
 	var (
-		id      = p.OAMData[idx*4+1]
-		attr    = p.OAMData[idx*4+2]
-		spriteX = p.OAMData[idx*4+3]
-		spriteY = p.OAMData[idx*4+0]
+		id      = p.oamData[idx*4+1]
+		attr    = p.oamData[idx*4+2]
+		spriteX = p.oamData[idx*4+3]
+		spriteY = p.oamData[idx*4+0]
 		height  = p.spriteHeight()
 	)
 
@@ -107,7 +107,7 @@ func (p *PPU) prepareSprites() {
 	p.spriteCount = 0
 
 	for i := 0; i < 64; i++ {
-		spriteY := int(p.OAMData[i*4+0])
+		spriteY := int(p.oamData[i*4+0])
 		if scanline < spriteY || scanline >= spriteY+height {
 			continue
 		}

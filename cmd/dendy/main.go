@@ -57,7 +57,7 @@ func main() {
 	)
 
 	var (
-		window = display.Show(&ppu.Frame, joy, zap, o.scale)
+		window = display.Show(&ppu.Frame, o.scale)
 	)
 
 	cpu.EnableDisasm = o.disasm || o.stepMode
@@ -80,8 +80,8 @@ func main() {
 			// Each space key press will execute one cpu instruction.
 			if window.KeyPressed(display.KeySpace) {
 				for {
-					instrComplete, _ := bus.Tick()
-					if instrComplete {
+					tick := bus.Tick()
+					if tick.InstrComplete {
 						break
 					}
 				}
@@ -90,8 +90,8 @@ func main() {
 			// Each Enter key press will execute one frame (~30k instructions).
 			if window.KeyPressed(display.KeyEnter) {
 				for {
-					_, frameComplete := bus.Tick()
-					if frameComplete {
+					tick := bus.Tick()
+					if tick.FrameComplete {
 						fmt.Println("") // Separate frames with a newline in the log.
 						break
 					}
@@ -103,10 +103,22 @@ func main() {
 			continue
 		}
 
-		_, frameComplete := bus.Tick()
-		if frameComplete {
+		tick := bus.Tick()
+
+		// Whether zapper matches the Y coordinate of the target is determined by the
+		// current scanline. So we need to handle zapper input after each scanline.
+		if tick.ScanlineComplete {
+			window.UpdateZapper(zap)
+		}
+
+		if tick.FrameComplete {
+			window.UpdateJoystick(joy)
+			window.HandleHotKeys()
 			window.Refresh()
-			window.HandleInput()
+
+			// There is no light during vblank (the electron beam is off), but the emulated
+			// screen is not black, so we need to reset the sensor value here explicitly.
+			zap.SetBrightness(0)
 
 			if window.IsResetPressed() {
 				bus.Reset()

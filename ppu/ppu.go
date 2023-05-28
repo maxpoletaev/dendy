@@ -52,22 +52,23 @@ const (
 )
 
 type PPU struct {
+	Frame            [256][240]color.RGBA
+	RequestNMI       bool
+	ScanlineComplete bool
+	FrameComplete    bool
+
 	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
-	Ctrl         CtrlFlags      // $2000
-	Mask         MaskFlags      // $2001
-	Status       StatusFlags    // $2002
-	OAMAddr      uint8          // $2003
-	OAMData      [256]byte      // $2004
-	ScrollX      uint8          // $2005 (first write)
-	ScrollY      uint8          // $2005 (second write)
-	NameTable    [2][1024]byte  // $2000-$2FFF
-	PaletteTable [32]byte       // $3F00-$3FFF
+	ctrl         CtrlFlags      // $2000
+	mask         MaskFlags      // $2001
+	status       StatusFlags    // $2002
+	oamAddr      uint8          // $2003
+	oamData      [256]byte      // $2004
+	scrollX      uint8          // $2005 (first write)
+	scrollY      uint8          // $2005 (second write)
+	nameTable    [2][1024]byte  // $2000-$2FFF
+	paletteTable [32]byte       // $3F00-$3FFF
 
-	Frame         [256][240]color.RGBA
-	RequestNMI    bool
-	FrameComplete bool
-
-	VRAMAddr  uint16
+	vramAddr  uint16
 	tmpAddr   uint16
 	addrLatch bool
 
@@ -88,11 +89,11 @@ func New(cart ines.Cartridge) *PPU {
 func (p *PPU) getFlag(flag any) bool {
 	switch f := flag.(type) {
 	case CtrlFlags:
-		return p.Ctrl&f != 0
+		return p.ctrl&f != 0
 	case MaskFlags:
-		return p.Mask&f != 0
+		return p.mask&f != 0
 	case StatusFlags:
-		return p.Status&f != 0
+		return p.status&f != 0
 	default:
 		panic(fmt.Sprintf("unknown flag type %T", f))
 	}
@@ -102,25 +103,25 @@ func (p *PPU) setFlag(flag any, value bool) {
 	switch f := flag.(type) {
 	case CtrlFlags:
 		if value {
-			p.Ctrl |= f
+			p.ctrl |= f
 			return
 		}
 
-		p.Ctrl &= ^f
+		p.ctrl &= ^f
 	case MaskFlags:
 		if value {
-			p.Mask |= f
+			p.mask |= f
 			return
 		}
 
-		p.Mask &= ^f
+		p.mask &= ^f
 	case StatusFlags:
 		if value {
-			p.Status |= f
+			p.status |= f
 			return
 		}
 
-		p.Status &= ^f
+		p.status &= ^f
 	default:
 		panic(fmt.Sprintf("unknown flag type %T", f))
 	}
@@ -128,18 +129,18 @@ func (p *PPU) setFlag(flag any, value bool) {
 
 func (p *PPU) incrementVRAMAddr() {
 	if p.getFlag(CtrlIncrementMode) {
-		p.VRAMAddr += 32
+		p.vramAddr += 32
 	} else {
-		p.VRAMAddr += 1
+		p.vramAddr += 1
 	}
 }
 
 func (p *PPU) Reset() {
-	p.Ctrl = 0
-	p.Mask = 0
-	p.Status = 0
-	p.OAMAddr = 0
-	p.VRAMAddr = 0
+	p.ctrl = 0
+	p.mask = 0
+	p.status = 0
+	p.oamAddr = 0
+	p.vramAddr = 0
 	p.RequestNMI = false
 	p.FrameComplete = false
 	p.addrLatch = false
@@ -155,29 +156,29 @@ func (p *PPU) Read(addr uint16) uint8 {
 		// We only use the top 3 bits of the status register, and the rest are filled
 		// with noise from the bottom 5 bits of the vram buffer. It also clears the
 		// address latch and vblank flag.
-		status := p.Status
+		status := p.status
 		p.addrLatch = false
 		p.setFlag(StatusVBlank, false)
 		return uint8(status)&0xE0 | p.vramBuffer&0x1F
 
 	case oamDataRegAddr:
-		data := p.OAMData[p.OAMAddr]
-		if p.OAMAddr&0x03 == 0x02 {
+		data := p.oamData[p.oamAddr]
+		if p.oamAddr&0x03 == 0x02 {
 			data &= 0xE3
 		}
 		return data
 
 	case vramDataRegAddr:
 		// Palette reads are not delayed.
-		if p.VRAMAddr >= 0x3F00 {
-			data := p.readVRAM(p.VRAMAddr)
+		if p.vramAddr >= 0x3F00 {
+			data := p.readVRAM(p.vramAddr)
 			p.incrementVRAMAddr()
 			return data
 		}
 
 		// Reads from pattern tables are delayed by one cycle.
 		data := p.vramBuffer
-		p.vramBuffer = p.readVRAM(p.VRAMAddr)
+		p.vramBuffer = p.readVRAM(p.vramAddr)
 		p.incrementVRAMAddr()
 		return data
 
@@ -189,38 +190,43 @@ func (p *PPU) Read(addr uint16) uint8 {
 func (p *PPU) Write(addr uint16, data uint8) {
 	switch addr % 0x2008 {
 	case ctrlRegAddr:
-		p.Ctrl = CtrlFlags(data)
+		p.ctrl = CtrlFlags(data)
 	case maskRegAddr:
-		p.Mask = MaskFlags(data)
+		p.mask = MaskFlags(data)
 	case oamAddrRegAddr:
-		p.OAMAddr = data
+		p.oamAddr = data
 	case oamDataRegAddr:
-		p.OAMData[p.OAMAddr] = data
-		p.OAMAddr++
+		p.oamData[p.oamAddr] = data
+		p.oamAddr++
 	case vramAddrRegAddr:
 		if !p.addrLatch {
 			p.tmpAddr = uint16(data)
 			p.addrLatch = true
 		} else {
-			p.VRAMAddr = p.tmpAddr<<8 | uint16(data)
+			p.vramAddr = p.tmpAddr<<8 | uint16(data)
 			p.addrLatch = false
 			p.tmpAddr = 0
 		}
 	case scrollRegAddr:
 		if !p.addrLatch {
-			p.ScrollX = data
+			p.scrollX = data
 			p.addrLatch = true
 		} else {
-			p.ScrollY = data
+			p.scrollY = data
 			p.addrLatch = false
 		}
 	case vramDataRegAddr:
-		p.writeVRAM(p.VRAMAddr, data)
+		p.writeVRAM(p.vramAddr, data)
 		p.incrementVRAMAddr()
 	}
 }
 
-func (p *PPU) NameTableIdx(addr uint16) int {
+func (p *PPU) WriteOAM(data byte) {
+	p.oamData[p.oamAddr] = data
+	p.oamAddr++
+}
+
+func (p *PPU) nameTableIdx(addr uint16) int {
 	switch p.cart.MirrorMode() {
 	case ines.MirrorHorizontal:
 		switch {
@@ -259,8 +265,8 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 
 	if addr <= 0x3EFF {
 		addr = addr & 0x2FFF
-		idx := p.NameTableIdx(addr)
-		return p.NameTable[idx][addr%1024]
+		idx := p.nameTableIdx(addr)
+		return p.nameTable[idx][addr%1024]
 	}
 
 	if addr <= 0x3FFF {
@@ -269,7 +275,7 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 		}
 
 		idx := (addr - 0x3F00) % 32
-		value := p.PaletteTable[idx]
+		value := p.paletteTable[idx]
 
 		if p.getFlag(MaskGrayscale) {
 			value &= 0x30
@@ -289,8 +295,8 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 
 	if addr <= 0x3EFF {
 		addr = addr & 0x2FFF
-		idx := p.NameTableIdx(addr)
-		p.NameTable[idx][addr%1024] = data
+		idx := p.nameTableIdx(addr)
+		p.nameTable[idx][addr%1024] = data
 
 		return
 	}
@@ -301,7 +307,7 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 		}
 
 		idx := (addr - 0x3F00) % 32
-		p.PaletteTable[idx] = data
+		p.paletteTable[idx] = data
 
 		return
 	}
@@ -311,7 +317,7 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 
 func (p *PPU) spriteZeroHit() bool {
 	if p.getFlag(MaskShowSprites) && p.getFlag(MaskShowBackground) {
-		spriteY := int(p.OAMData[0])
+		spriteY := int(p.oamData[0])
 		if p.scanline == spriteY+8 {
 			return true
 		}
@@ -368,6 +374,7 @@ func (p *PPU) Tick() {
 				p.renderSpriteScanline()
 			}
 
+			p.ScanlineComplete = true
 			p.prepareSprites()
 		}
 	}

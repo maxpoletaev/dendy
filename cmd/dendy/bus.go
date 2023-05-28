@@ -1,12 +1,18 @@
 package main
 
 import (
-	cpu2 "github.com/maxpoletaev/dendy/cpu"
+	cpupkg "github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/display"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
-	ppu2 "github.com/maxpoletaev/dendy/ppu"
+	ppupkg "github.com/maxpoletaev/dendy/ppu"
 )
+
+type TickResult struct {
+	InstrComplete    bool
+	ScanlineComplete bool
+	FrameComplete    bool
+}
 
 type Bus struct {
 	screen *display.Window
@@ -14,19 +20,15 @@ type Bus struct {
 	joy1   *input.Joystick
 	zap    *input.Zapper
 	ram    [2048]uint8
-	cpu    *cpu2.CPU
-	ppu    *ppu2.PPU
+	cpu    *cpupkg.CPU
+	ppu    *ppupkg.PPU
 	cycles uint64
 }
 
 func (b *Bus) transferOAM(addr uint8) {
-	var (
-		oamAddr = uint16(b.ppu.OAMAddr)
-		memAddr = uint16(addr) << 8
-	)
-
+	memAddr := uint16(addr) << 8
 	for i := uint16(0); i < 256; i++ {
-		b.ppu.OAMData[oamAddr+i] = b.Read(memAddr + i)
+		b.ppu.WriteOAM(b.Read(memAddr + i))
 	}
 
 	b.cpu.Halt += 513
@@ -82,26 +84,29 @@ func (b *Bus) Reset() {
 	b.cycles = 0
 }
 
-func (b *Bus) Tick() (instrComplete, frameComplete bool) {
+func (b *Bus) Tick() (r TickResult) {
 	b.cycles++
 	b.ppu.Tick()
 
 	// CPU runs 3 times slower than PPU.
 	if b.cycles%3 == 0 {
-		instrComplete = b.cpu.Tick(b)
+		r.InstrComplete = b.cpu.Tick(b)
 	}
 
-	// Trigger the CPU NMI if the PPU has requested it.
 	if b.ppu.RequestNMI {
 		b.ppu.RequestNMI = false
 		b.cpu.TriggerNMI()
 	}
 
-	// Refresh the screen if a frame has completed.
-	if b.ppu.FrameComplete {
-		frameComplete = true
-		b.ppu.FrameComplete = false
+	if b.ppu.ScanlineComplete {
+		b.ppu.ScanlineComplete = false
+		r.ScanlineComplete = true
 	}
 
-	return instrComplete, frameComplete
+	if b.ppu.FrameComplete {
+		b.ppu.FrameComplete = false
+		r.FrameComplete = true
+	}
+
+	return r
 }
