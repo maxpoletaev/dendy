@@ -13,9 +13,9 @@ type (
 
 const (
 	MirrorHorizontal MirrorMode = 0
-	MirrorVertical   MirrorMode = 1
-	MirrorSingleLo   MirrorMode = 2
-	MirrorSingleHi   MirrorMode = 3
+	MirrorVertical
+	MirrorSingleLo
+	MirrorSingleHi
 )
 
 type ROM struct {

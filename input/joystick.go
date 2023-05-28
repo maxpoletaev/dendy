@@ -2,15 +2,16 @@ package input
 
 type Button int
 
+// auto increase
 const (
-	ButtonA      Button = 0
-	ButtonB      Button = 1
-	ButtonSelect Button = 2
-	ButtonStart  Button = 3
-	ButtonUp     Button = 4
-	ButtonDown   Button = 5
-	ButtonLeft   Button = 6
-	ButtonRight  Button = 7
+	ButtonA Button = iota
+	ButtonB
+	ButtonSelect
+	ButtonStart
+	ButtonUp
+	ButtonDown
+	ButtonLeft
+	ButtonRight
 )
 
 type Joystick struct {
