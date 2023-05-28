@@ -12,7 +12,7 @@ type (
 )
 
 const (
-	MirrorHorizontal MirrorMode = 0
+	MirrorHorizontal MirrorMode = iota
 	MirrorVertical
 	MirrorSingleLo
 	MirrorSingleHi
