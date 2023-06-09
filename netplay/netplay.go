@@ -5,10 +5,6 @@ import (
 	"net"
 )
 
-const (
-	inputBatchSize = 5
-)
-
 type Netplay struct {
 	game       *Game
 	toRecv     chan Message
@@ -16,9 +12,10 @@ type Netplay struct {
 	stop       chan struct{}
 	inputBatch InputBatch
 	remoteConn net.Conn
+	batchSize  int
 }
 
-func Listen(game *Game, addr string) (*Netplay, error) {
+func Listen(game *Game, addr string, opts ...Options) (*Netplay, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("netplay: failed to listen on %s: %v", addr, err)
@@ -29,28 +26,42 @@ func Listen(game *Game, addr string) (*Netplay, error) {
 		return nil, fmt.Errorf("netplay: failed to accept connection: %v", err)
 	}
 
-	return &Netplay{
-		toSend:     make(chan Message, 1000),
-		toRecv:     make(chan Message, 1000),
+	np := &Netplay{
+		toSend:     make(chan Message, 100),
+		toRecv:     make(chan Message, 100),
 		stop:       make(chan struct{}),
 		game:       game,
 		remoteConn: conn,
-	}, nil
+		batchSize:  10,
+	}
+
+	for _, opt := range opts {
+		withOptions(np, opt)
+	}
+
+	return np, nil
 }
 
-func Connect(game *Game, addr string) (*Netplay, error) {
+func Connect(game *Game, addr string, opts ...Options) (*Netplay, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("netplay: failed to connect to %s: %v", addr, err)
 	}
 
-	return &Netplay{
-		toSend:     make(chan Message, 1000),
-		toRecv:     make(chan Message, 1000),
+	np := &Netplay{
+		toSend:     make(chan Message, 100),
+		toRecv:     make(chan Message, 100),
 		stop:       make(chan struct{}),
 		game:       game,
 		remoteConn: conn,
-	}, nil
+		batchSize:  10,
+	}
+
+	for _, opt := range opts {
+		withOptions(np, opt)
+	}
+
+	return np, nil
 }
 
 func (np *Netplay) startWriter() {
@@ -110,7 +121,7 @@ func (np *Netplay) Start() {
 func (np *Netplay) resetInputBatch(startFrame uint64) {
 	np.inputBatch = InputBatch{
 		StartFrame: startFrame,
-		Input:      make([]uint8, 0, inputBatchSize),
+		Input:      make([]uint8, 0, np.batchSize),
 	}
 }
 
@@ -134,7 +145,7 @@ func (np *Netplay) SendInput(buttons uint8) {
 	np.game.AddLocalInput(buttons)
 	np.inputBatch.Add(buttons)
 
-	if np.inputBatch.Len() >= inputBatchSize {
+	if len(np.inputBatch.Input) >= np.batchSize {
 		np.toSend <- Message{
 			Type:    MsgTypeInput,
 			Payload: np.inputBatch.Input,
@@ -143,7 +154,7 @@ func (np *Netplay) SendInput(buttons uint8) {
 
 		np.inputBatch = InputBatch{
 			StartFrame: np.game.Frame() + 1,
-			Input:      make([]uint8, 0, inputBatchSize),
+			Input:      make([]uint8, 0, np.batchSize),
 		}
 	}
 }

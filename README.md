@@ -41,9 +41,9 @@ follows:
 Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
 the mouse cursor at the right position on the screen and click to shoot.
 
-## NetPlay
+## Network Multiplayer
 
-Dendy supports NetPlay, which allows you to play multiplayer games over the
+Dendy supports netplay, which allows you to play multiplayer games over the
 network. To start a NetPlay session, run the emulator with the `-listen=<host>:<port>`.
 This will start a server that will be waiting for the second player to connect
 via the `-connect=<host>:<port>` flag. Once the connection is established, the

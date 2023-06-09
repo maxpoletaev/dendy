@@ -22,6 +22,7 @@ type opts struct {
 
 	listenAddr  string
 	connectAddr string
+	batchSize   int
 }
 
 func (o *opts) parse() *opts {
@@ -30,6 +31,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 
+	flag.IntVar(&o.batchSize, "batchsize", 10, "input batch size for netplay (default: 10)")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address (default: none)")
 
@@ -87,7 +89,7 @@ func runServer(bus *nes.Bus, o *opts) {
 
 	fmt.Printf("waiting for client...\n")
 
-	server, err := netplay.Listen(game, o.listenAddr)
+	server, err := netplay.Listen(game, o.listenAddr, netplay.Options{BatchSize: o.batchSize})
 	if err != nil {
 		fmt.Printf("failed to listen: %v\n", err)
 		os.Exit(1)
@@ -128,7 +130,7 @@ func runClient(bus *nes.Bus, o *opts) {
 
 	fmt.Println("connecting to server...")
 
-	client, err := netplay.Connect(game, o.connectAddr)
+	client, err := netplay.Connect(game, o.connectAddr, netplay.Options{BatchSize: o.batchSize})
 	if err != nil {
 		fmt.Printf("failed to connect: %v\n", err)
 		os.Exit(1)
@@ -146,6 +148,10 @@ func runClient(bus *nes.Bus, o *opts) {
 	client.Start()
 
 	for !w.ShouldClose() {
+		if w.IsResetPressed() {
+			fmt.Printf("reset not supported in client mode\n")
+		}
+
 		w.HandleHotKeys()
 		w.UpdateJoystick()
 		client.RunFrame()

@@ -20,10 +20,6 @@ type InputBatch struct {
 	Input      []byte
 }
 
-func (b *InputBatch) Len() int {
-	return len(b.Input)
-}
-
 func (b *InputBatch) Add(input uint8) {
 	b.Input = append(b.Input, input)
 }
@@ -33,7 +29,6 @@ func (b *InputBatch) Add(input uint8) {
 type Game struct {
 	bus            *nes.Bus
 	frame          uint64
-	prevFrame      uint64
 	localInput     []uint8
 	checkpoint     *Checkpoint
 	remoteInput    *generic.Queue[InputBatch]
@@ -184,5 +179,6 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 		panic(fmt.Errorf("frame advanced from %d to %d", endFrame, g.frame))
 	}
 
-	g.localInput = append([]uint8(nil), g.localInput[minLen:]...)
+	newInput := make([]uint8, 0, len(g.localInput))
+	g.localInput = append(newInput, g.localInput[minLen:]...)
 }
