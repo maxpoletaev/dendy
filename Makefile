@@ -2,6 +2,7 @@
 
 TEST_PACKAGE = ./...
 GO_MODULE = github.com/maxpoletaev/dendy
+PROTO_FILES = $(shell find . -type f -name '*.proto')
 
 .PHONY: help
 help:  ## print help (this message)
@@ -11,13 +12,16 @@ help:  ## print help (this message)
 
 .PHONY: build
 build: ## build dendy
+	@echo "--------- running: $@ ---------"
 	go build -o bin/dendy ./cmd/dendy
 
 @PHONY: test
 test: ## run tests
+	@echo "--------- running: $@ ---------"
 	@go test -v $(TEST_PACKAGE)
 
 .PHONY: nestest
 nestest: ## run nestest rom
+	@echo "--------- running: $@ ---------"
 	@go test -tags testrom -v ./nestest | tee nestest.log
 	@sed -i '' '1d' nestest.log # remove the first line to match the good log

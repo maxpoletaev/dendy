@@ -5,8 +5,9 @@ import (
 )
 
 type (
-	Flags    uint8
-	AddrMode int
+	Flags     uint8
+	AddrMode  int
+	Interrupt int
 )
 
 const (
@@ -24,6 +25,11 @@ const (
 	VecNMI   uint16 = 0xFFFA // Non-maskable interrupt vector
 	VecReset uint16 = 0xFFFC // Reset vector
 	VecIRQ   uint16 = 0xFFFE // Interrupt request vector
+)
+
+const (
+	InterruptNMI Interrupt = iota + 1
+	InterruptIRQ
 )
 
 type instrInfo struct {
@@ -51,9 +57,9 @@ type CPU struct {
 	EnableDisasm bool   // Enable disassembler
 	AllowIllegal bool   // Handle illegal opcodes
 	Cycles       uint64 // Number of cycles executed
-	Halt         int    // Number of cycles to halt
+	Halt         int    // Number of cycles to wait
 
-	interrupt func(mem Memory)
+	interrupt Interrupt
 }
 
 func New() *CPU {
@@ -137,15 +143,25 @@ func (cpu *CPU) Reset(mem Memory) {
 	cpu.Halt = 6
 }
 
+func (cpu *CPU) nmi(mem Memory) {
+	cpu.pushWord(mem, cpu.PC)
+	cpu.pushByte(mem, uint8(cpu.P))
+	cpu.setFlag(FlagInterrupt, true)
+	cpu.PC = readWord(mem, VecNMI)
+	cpu.Halt += 7
+}
+
 // TriggerNMI triggers a non-maskable interrupt on the next CPU cycle.
 func (cpu *CPU) TriggerNMI() {
-	cpu.interrupt = func(mem Memory) {
-		cpu.pushWord(mem, cpu.PC)
-		cpu.pushByte(mem, uint8(cpu.P))
-		cpu.setFlag(FlagInterrupt, true)
-		cpu.PC = readWord(mem, VecNMI)
-		cpu.Halt += 7
-	}
+	cpu.interrupt = InterruptNMI
+}
+
+func (cpu *CPU) irq(mem Memory) {
+	cpu.pushWord(mem, cpu.PC)
+	cpu.pushByte(mem, uint8(cpu.P))
+	cpu.setFlag(FlagInterrupt, true)
+	cpu.PC = readWord(mem, VecIRQ)
+	cpu.Halt += 7
 }
 
 // TriggerIRQ triggers an interrupt on the next CPU cycle.
@@ -155,13 +171,7 @@ func (cpu *CPU) TriggerIRQ() {
 		return
 	}
 
-	cpu.interrupt = func(mem Memory) {
-		cpu.pushWord(mem, cpu.PC)
-		cpu.pushByte(mem, uint8(cpu.P))
-		cpu.setFlag(FlagInterrupt, true)
-		cpu.PC = readWord(mem, VecIRQ)
-		cpu.Halt += 7
-	}
+	cpu.interrupt = InterruptIRQ
 }
 
 // Tick executes a single CPU cycle, returning true if the CPU has finished
@@ -169,10 +179,13 @@ func (cpu *CPU) TriggerIRQ() {
 func (cpu *CPU) Tick(mem Memory) bool {
 	cpu.Cycles++
 
-	if cpu.interrupt != nil {
-		cpu.interrupt(mem)
-		cpu.interrupt = nil
-		return false
+	switch cpu.interrupt {
+	case InterruptIRQ:
+		cpu.irq(mem)
+		cpu.interrupt = 0
+	case InterruptNMI:
+		cpu.nmi(mem)
+		cpu.interrupt = 0
 	}
 
 	if cpu.Halt > 0 {

@@ -1,6 +1,9 @@
 package ines
 
-import "fmt"
+import (
+	"encoding/gob"
+	"fmt"
+)
 
 // Mapper0 is the simplest mapper. It has no registers, and it only supports
 // 16KB or 32KB PRG-ROM banks and 8KB CHR-ROM banks.
@@ -50,4 +53,12 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {
 
+}
+
+func (m *Mapper0) Save(enc *gob.Encoder) error {
+	return nil
+}
+
+func (m *Mapper0) Load(dec *gob.Decoder) error {
+	return nil
 }

@@ -15,20 +15,17 @@ const (
 	WindowTitle  = "Dendy Emulator"
 )
 
-const (
-	KeySpace = rl.KeySpace
-	KeyEnter = rl.KeyEnter
-)
-
 type Window struct {
-	ShowFPS bool
+	ZapperDelegate func(brightness uint8, trigger bool)
+	InputDelegate  func(buttons uint8)
+	slowMode       bool
+	ShowFPS        bool
 
-	keyMap   map[int32]input.Button
-	frame    *[256][240]color.RGBA
-	texture  rl.RenderTexture2D
-	pixels   []color.RGBA
-	slowMode bool
-	scale    int
+	keyMap  map[int32]input.Button
+	frame   *[256][240]color.RGBA
+	texture rl.RenderTexture2D
+	pixels  []color.RGBA
+	scale   int
 
 	sourceRec rl.Rectangle
 	destRec   rl.Rectangle
@@ -67,12 +64,16 @@ func Show(frame *[256][240]color.RGBA, scale int) *Window {
 		frame:     frame,
 		scale:     scale,
 		sourceRec: sourceRec,
-		keyMap:    keyMap,
 		destRec:   destRec,
+		keyMap:    keyMap,
 	}
 }
 
-func (w *Window) toggleSlowMode() {
+func (w *Window) SetTitle(title string) {
+	rl.SetWindowTitle(title)
+}
+
+func (w *Window) ToggleSlowMode() {
 	w.slowMode = !w.slowMode
 	w.ShowFPS = true
 
@@ -120,4 +121,20 @@ func (w *Window) Refresh() {
 
 func (w *Window) InFocus() bool {
 	return rl.IsWindowFocused()
+}
+
+func (w *Window) HandleHotKeys() {
+	if rl.IsKeyPressed(rl.KeyF1) {
+		w.ToggleSlowMode()
+	}
+
+	if rl.IsKeyPressed(rl.KeyF12) {
+		rl.TakeScreenshot("screenshot.png")
+	}
+}
+
+func (w *Window) IsResetPressed() bool {
+	super := rl.IsKeyDown(rl.KeyLeftSuper) || rl.IsKeyDown(rl.KeyRightSuper)
+	ctrl := rl.IsKeyDown(rl.KeyLeftControl) || rl.IsKeyDown(rl.KeyRightControl)
+	return (super || ctrl) && rl.IsKeyPressed(rl.KeyR)
 }

@@ -132,7 +132,7 @@ func (p *PPU) renderSpriteScanline() {
 	}
 
 	var (
-		bgColor = Colors[p.readVRAM(0x3F00)]
+		bgColor = p.backdropColor()
 		height  = p.spriteHeight()
 	)
 

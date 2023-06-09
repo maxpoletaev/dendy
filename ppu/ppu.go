@@ -68,16 +68,16 @@ type PPU struct {
 	nameTable    [2][1024]byte  // $2000-$2FFF
 	paletteTable [32]byte       // $3F00-$3FFF
 
-	vramAddr  uint16
-	tmpAddr   uint16
-	addrLatch bool
+	vramAddr   uint16
+	tmpAddr    uint16
+	vramBuffer uint8
+	addrLatch  bool
 
 	spriteCount    int
 	spriteScanline [8]Sprite
 
-	cycle      int
-	scanline   int
-	vramBuffer uint8
+	cycle    int
+	scanline int
 }
 
 func New(cart ines.Cartridge) *PPU {

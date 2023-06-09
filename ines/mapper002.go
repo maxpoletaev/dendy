@@ -1,6 +1,10 @@
 package ines
 
-import "fmt"
+import (
+	"encoding/gob"
+	"errors"
+	"fmt"
+)
 
 type Mapper2 struct {
 	rom      *ROM
@@ -55,4 +59,28 @@ func (m *Mapper2) ReadCHR(addr uint16) byte {
 
 func (m *Mapper2) WriteCHR(addr uint16, data byte) {
 	m.rom.CHR[addr] = data
+}
+
+func (m *Mapper2) Save(enc *gob.Encoder) error {
+	err := errors.Join(
+		enc.Encode(m.prgBank0),
+		enc.Encode(m.prgBank1),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to encode mapper state: %w", err)
+	}
+
+	return nil
+}
+
+func (m *Mapper2) Load(dec *gob.Decoder) error {
+	err := errors.Join(
+		dec.Decode(&m.prgBank0),
+		dec.Decode(&m.prgBank1),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to decode mapper state: %w", err)
+	}
+
+	return nil
 }

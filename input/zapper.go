@@ -19,8 +19,9 @@ func (z *Zapper) ReleaseTrigger() {
 	z.triggerPressed = false
 }
 
-func (z *Zapper) SetBrightness(v uint8) {
-	z.lightDetected = v > 64
+func (z *Zapper) Update(brightness uint8, trigger bool) {
+	z.lightDetected = brightness > 64
+	z.triggerPressed = trigger
 }
 
 func (z *Zapper) Read() (value byte) {

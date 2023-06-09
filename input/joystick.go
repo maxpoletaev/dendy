@@ -1,5 +1,11 @@
 package input
 
+import (
+	"encoding/gob"
+	"errors"
+	"fmt"
+)
+
 type Button int
 
 const (
@@ -14,7 +20,7 @@ const (
 )
 
 type Joystick struct {
-	buttons [8]bool
+	buttons uint8
 	index   uint8
 	reset   uint8
 }
@@ -23,19 +29,12 @@ func NewJoystick() *Joystick {
 	return &Joystick{}
 }
 
-func (c *Joystick) Press(button Button) {
-	c.buttons[button] = true
-}
-
-func (c *Joystick) Release(button Button) {
-	c.buttons[button] = false
+func (c *Joystick) SetButtons(buttons uint8) {
+	c.buttons = buttons
 }
 
 func (c *Joystick) Read() (value byte) {
-	if c.buttons[c.index] {
-		value = 1
-	}
-
+	value = (c.buttons >> c.index) & 0x01
 	c.index++
 
 	if c.reset&0x01 == 1 {
@@ -53,6 +52,30 @@ func (c *Joystick) Write(value byte) {
 	}
 }
 
-func (c *Joystick) Buttons() [8]bool {
-	return c.buttons
+func (c *Joystick) Save(enc *gob.Encoder) error {
+	err := errors.Join(
+		enc.Encode(c.buttons),
+		enc.Encode(c.index),
+		enc.Encode(c.reset),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to save joystick state: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Joystick) Load(dec *gob.Decoder) error {
+	err := errors.Join(
+		dec.Decode(&c.buttons),
+		dec.Decode(&c.index),
+		dec.Decode(&c.reset),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to load joystick state: %w", err)
+	}
+
+	return nil
 }

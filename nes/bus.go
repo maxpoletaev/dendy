@@ -1,8 +1,7 @@
-package main
+package nes
 
 import (
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
-	"github.com/maxpoletaev/dendy/display"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
@@ -15,96 +14,104 @@ type TickResult struct {
 }
 
 type Bus struct {
-	screen *display.Window
-	cart   ines.Cartridge
-	joy1   *input.Joystick
-	zap    *input.Zapper
-	ram    [2048]uint8
-	cpu    *cpupkg.CPU
-	ppu    *ppupkg.PPU
+	RAM    [2048]uint8
+	CPU    *cpupkg.CPU
+	PPU    *ppupkg.PPU
+	Cart   ines.Cartridge
+	Joy1   *input.Joystick
+	Joy2   *input.Joystick
+	Zap    *input.Zapper
 	cycles uint64
 }
 
 func (b *Bus) transferOAM(addr uint8) {
 	memAddr := uint16(addr) << 8
 	for i := uint16(0); i < 256; i++ {
-		b.ppu.WriteOAM(b.Read(memAddr + i))
+		b.PPU.WriteOAM(b.Read(memAddr + i))
 	}
 
-	b.cpu.Halt += 513
-	if b.cpu.Halt%2 == 1 {
-		b.cpu.Halt++
+	b.CPU.Halt += 513
+	if b.CPU.Halt%2 == 1 {
+		b.CPU.Halt++
 	}
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
 	switch {
 	case addr <= 0x1FFF: // Internal RAM.
-		addr = addr % 0x0800
-		return b.ram[addr]
+		return b.RAM[addr%0x0800]
 	case addr <= 0x3FFF: // PPU registers.
-		return b.ppu.Read(addr)
+		return b.PPU.Read(addr)
 	case addr == 0x4014: // PPU OAM DMA.
-		return b.ppu.Read(addr)
+		return b.PPU.Read(addr)
 	case addr == 0x4016: // Controller 1.
-		return b.joy1.Read()
-	case addr <= 0x4017: // Zapper.
-		return b.zap.Read()
+		return b.Joy1.Read()
+	case addr <= 0x4017: // Controller 2 or Zapper.
+		if b.Joy2 != nil {
+			return b.Joy2.Read()
+		} else if b.Zap != nil {
+			return b.Zap.Read()
+		}
+		return 0
 	case addr <= 0x401F: // APU and I/O functionality.
 		return 0
 	default: // Cartridge space.
-		return b.cart.ReadPRG(addr)
+		return b.Cart.ReadPRG(addr)
 	}
 }
 
 func (b *Bus) Write(addr uint16, data uint8) {
 	switch {
 	case addr <= 0x1FFF: // Internal RAM.
-		addr = addr % 0x0800
-		b.ram[addr] = data
+		b.RAM[addr%0x0800] = data
 	case addr <= 0x3FFF: // PPU registers.
-		b.ppu.Write(addr, data)
+		b.PPU.Write(addr, data)
 	case addr == 0x4014: // PPU OAM direct access.
 		b.transferOAM(data)
 	case addr == 0x4016: // Controller strobe.
-		b.joy1.Write(data)
+		if b.Joy1 != nil {
+			b.Joy1.Write(data)
+		}
+		if b.Joy2 != nil {
+			b.Joy2.Write(data)
+		}
 	case addr <= 0x4017: // APU and I/O registers.
 		return
 	case addr <= 0x401F: // APU and I/O functionality.
 		return
 	default: // Cartridge space.
-		b.cart.WritePRG(addr, data)
+		b.Cart.WritePRG(addr, data)
 	}
 }
 
 func (b *Bus) Reset() {
-	b.cart.Reset()
-	b.cpu.Reset(b)
-	b.ppu.Reset()
+	b.Cart.Reset()
+	b.CPU.Reset(b)
+	b.PPU.Reset()
 	b.cycles = 0
 }
 
 func (b *Bus) Tick() (r TickResult) {
 	b.cycles++
-	b.ppu.Tick()
+	b.PPU.Tick()
 
 	// CPU runs 3 times slower than PPU.
 	if b.cycles%3 == 0 {
-		r.InstrComplete = b.cpu.Tick(b)
+		r.InstrComplete = b.CPU.Tick(b)
 	}
 
-	if b.ppu.RequestNMI {
-		b.ppu.RequestNMI = false
-		b.cpu.TriggerNMI()
+	if b.PPU.RequestNMI {
+		b.PPU.RequestNMI = false
+		b.CPU.TriggerNMI()
 	}
 
-	if b.ppu.ScanlineComplete {
-		b.ppu.ScanlineComplete = false
+	if b.PPU.ScanlineComplete {
+		b.PPU.ScanlineComplete = false
 		r.ScanlineComplete = true
 	}
 
-	if b.ppu.FrameComplete {
-		b.ppu.FrameComplete = false
+	if b.PPU.FrameComplete {
+		b.PPU.FrameComplete = false
 		r.FrameComplete = true
 	}
 

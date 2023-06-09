@@ -1,6 +1,9 @@
 package ines
 
-import "fmt"
+import (
+	"encoding/gob"
+	"fmt"
+)
 
 type Cartridge interface {
 	Reset()
@@ -9,6 +12,8 @@ type Cartridge interface {
 	WritePRG(addr uint16, data byte)
 	ReadCHR(addr uint16) byte
 	WriteCHR(addr uint16, data byte)
+	Save(enc *gob.Encoder) error
+	Load(dec *gob.Decoder) error
 }
 
 func Load(path string) (Cartridge, error) {
@@ -20,8 +25,6 @@ func Load(path string) (Cartridge, error) {
 	switch rom.MapperID {
 	case 0:
 		return NewMapper0(rom), nil
-	case 1:
-		return NewMapper1(rom), nil
 	case 2:
 		return NewMapper2(rom), nil
 	default:
