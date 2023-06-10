@@ -3,7 +3,7 @@ package netplay
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -24,10 +24,16 @@ type Message struct {
 
 func (m *Message) Encode() ([]byte, error) {
 	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
 
-	if err := enc.Encode(m); err != nil {
-		return nil, fmt.Errorf("failed to encode message: %v", err)
+	buf.Write([]byte{byte(m.Type)})
+	err1 := binary.Write(&buf, binary.LittleEndian, m.Frame)
+	err2 := binary.Write(&buf, binary.LittleEndian, uint32(len(m.Payload)))
+	if err := errors.Join(err1, err2); err != nil {
+		return nil, fmt.Errorf("failed to encode message header: %v", err)
+	}
+
+	if _, err := buf.Write(m.Payload); err != nil {
+		return nil, fmt.Errorf("failed to encode message payload: %v", err)
 	}
 
 	return buf.Bytes(), nil
@@ -35,10 +41,18 @@ func (m *Message) Encode() ([]byte, error) {
 
 func (m *Message) Decode(data []byte) error {
 	buf := bytes.NewBuffer(data)
-	dec := gob.NewDecoder(buf)
+	m.Type = MsgType(buf.Next(1)[0])
 
-	if err := dec.Decode(m); err != nil {
-		return fmt.Errorf("failed to decode message: %v", err)
+	var payloadSize uint32
+	err1 := binary.Read(buf, binary.LittleEndian, &m.Frame)
+	err2 := binary.Read(buf, binary.LittleEndian, &payloadSize)
+	if err := errors.Join(err1, err2); err != nil {
+		return fmt.Errorf("failed to decode message header: %v", err)
+	}
+
+	m.Payload = make([]byte, payloadSize)
+	if _, err := io.ReadFull(buf, m.Payload); err != nil {
+		return fmt.Errorf("failed to decode message payload: %v", err)
 	}
 
 	return nil
