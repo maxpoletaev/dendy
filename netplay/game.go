@@ -7,16 +7,17 @@ import (
 
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/generic"
+	"github.com/maxpoletaev/dendy/internal/rolling"
 	"github.com/maxpoletaev/dendy/nes"
 )
 
 type Checkpoint struct {
-	Frame uint64
+	Frame int32
 	State []byte
 }
 
 type InputBatch struct {
-	StartFrame uint64
+	StartFrame int32
 	Input      []byte
 }
 
@@ -27,8 +28,8 @@ func (b *InputBatch) Add(input uint8) {
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
+	frame          int32
 	bus            *nes.Bus
-	frame          uint64
 	localInput     []uint8
 	checkpoint     *Checkpoint
 	remoteInput    *generic.Queue[InputBatch]
@@ -70,7 +71,7 @@ func (g *Game) Checkpoint() *Checkpoint {
 }
 
 // Frame returns the current frame number.
-func (g *Game) Frame() uint64 {
+func (g *Game) Frame() int32 {
 	return g.frame
 }
 
@@ -88,9 +89,10 @@ func (g *Game) playFrame() {
 // RunFrame runs a single frame of the game.
 func (g *Game) RunFrame() {
 	if in, ok := g.remoteInput.Peek(); ok {
-		endFrame := in.StartFrame + uint64(len(in.Input))
+		endFrame := in.StartFrame + int32(len(in.Input))
 
-		if g.frame >= endFrame {
+		switch rolling.Compare(g.frame, endFrame) {
+		case rolling.Greater, rolling.Equal:
 			g.applyRemoteInput(in)
 			g.remoteInput.Pop()
 		}
@@ -151,7 +153,7 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 	// Need to ensure that the input is not behind the checkpoint, otherwise the
 	// states will be out of sync. This should never happen, but in case it fires,
 	// something is very broken.
-	if batch.StartFrame < g.checkpoint.Frame {
+	if rolling.LessThan(batch.StartFrame, g.checkpoint.Frame) {
 		panic(fmt.Errorf("input is behind the checkpoint: %d < %d", batch.StartFrame, g.checkpoint.Frame))
 	}
 

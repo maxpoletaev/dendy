@@ -118,7 +118,7 @@ func (np *Netplay) Start() {
 	go np.startWriter()
 }
 
-func (np *Netplay) resetInputBatch(startFrame uint64) {
+func (np *Netplay) resetInputBatch(startFrame int32) {
 	np.inputBatch = InputBatch{
 		StartFrame: startFrame,
 		Input:      make([]uint8, 0, np.batchSize),
