@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/pprof"
 
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/display"
@@ -20,6 +21,7 @@ type opts struct {
 	slowMode bool
 	scale    int
 
+	cpuprof     string
 	listenAddr  string
 	connectAddr string
 	batchSize   int
@@ -30,6 +32,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.disasm, "disasm", false, "enable cpu disassembler")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
+	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
 
 	flag.IntVar(&o.batchSize, "batchsize", 10, "input batch size for netplay (default: 10)")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
@@ -59,7 +62,7 @@ func runOffline(bus *nes.Bus, o *opts) {
 		w.ToggleSlowMode()
 	}
 
-	for !w.ShouldClose() {
+	for {
 		tick := bus.Tick()
 
 		if tick.ScanlineComplete {
@@ -67,6 +70,10 @@ func runOffline(bus *nes.Bus, o *opts) {
 		}
 
 		if tick.FrameComplete {
+			if w.ShouldClose() {
+				return
+			}
+
 			if w.IsResetPressed() {
 				bus.Reset()
 			}
@@ -107,7 +114,11 @@ func runServer(bus *nes.Bus, o *opts) {
 	server.SendReset()
 	server.Start()
 
-	for !w.ShouldClose() {
+	for {
+		if w.ShouldClose() {
+			return
+		}
+
 		if w.IsResetPressed() {
 			server.SendReset()
 		}
@@ -147,7 +158,11 @@ func runClient(bus *nes.Bus, o *opts) {
 
 	client.Start()
 
-	for !w.ShouldClose() {
+	for {
+		if w.ShouldClose() {
+			return
+		}
+
 		if w.IsResetPressed() {
 			fmt.Printf("reset not supported in client mode\n")
 		}
@@ -166,6 +181,24 @@ func main() {
 	if flag.NArg() != 1 {
 		fmt.Println("usage: dendy [-scale=2] [-showfps] [-disasm] <rom_file.nes>")
 		os.Exit(1)
+	}
+
+	if o.cpuprof != "" {
+		fmt.Printf("writing cpu profile to %s\n", o.cpuprof)
+
+		f, err := os.Create(o.cpuprof)
+		if err != nil {
+			fmt.Printf("failed to create cpu profile: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			fmt.Printf("failed to start cpu profile: %v\n", err)
+			os.Exit(1)
+		}
+
+		defer pprof.StopCPUProfile()
 	}
 
 	cart, err := ines.Load(flag.Arg(0))

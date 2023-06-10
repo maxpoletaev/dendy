@@ -132,19 +132,27 @@ func (g *Game) AddLocalInput(buttons uint8) {
 	g.LocalJoy.SetButtons(buttons)
 }
 
-// AddRemoteInput adds the input from the remote player. This is where all the
-// magic happens. The remote input is usually a few frames behind the local
-// emulator state. The emulator is reset to the last checkpoint and then both
-// local and remote inputs are replayed until it catches up to the current frame.
+// AddRemoteInput adds the input from the remote player.
 func (g *Game) AddRemoteInput(batch InputBatch) {
 	g.remoteInput.Push(batch)
 }
 
+// applyRemoteInput applies the input from the remote player to the local
+// emulator when it is available. This is where all the magic happens. The remote
+// player is usually a few frames behind the local emulator state. The emulator
+// is reset to the last checkpoint and then both local and remote inputs are
+// replayed until they catch up to the current frame.
 func (g *Game) applyRemoteInput(batch InputBatch) {
+	g.simulatedInput = 0
 	if len(batch.Input) > 0 {
 		g.simulatedInput = batch.Input[len(batch.Input)-1]
-	} else {
-		g.simulatedInput = 0
+	}
+
+	// Need to ensure that the input is not behind the checkpoint, otherwise the
+	// states will be out of sync. This should never happen, but in case it fires,
+	// something is very broken.
+	if batch.StartFrame < g.checkpoint.Frame {
+		panic(fmt.Errorf("input is behind the checkpoint: %d < %d", batch.StartFrame, g.checkpoint.Frame))
 	}
 
 	endFrame := g.frame
@@ -155,6 +163,11 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 		minLen = len(batch.Input)
 	}
 
+	// Disable the rendering, as we don’t need to see the intermediate states.
+	// This makes the replay much faster.
+	g.bus.PPU.DisableRender()
+	defer g.bus.PPU.EnableRender()
+
 	// Replay the inputs until the local and remote emulators are in sync.
 	for i := 0; i < minLen; i++ {
 		g.LocalJoy.SetButtons(g.localInput[i])
@@ -162,6 +175,8 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 		g.playFrame()
 	}
 
+	// This is the last state where both emulators are in sync.
+	// Create a new checkpoint, so we can restore to this state later.
 	g.createCheckpoint()
 
 	// In case the local state is ahead (which is almost always the case), we
@@ -179,6 +194,7 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 		panic(fmt.Errorf("frame advanced from %d to %d", endFrame, g.frame))
 	}
 
+	// There might still be some local inputs left, so we need to keep them.
 	newInput := make([]uint8, 0, len(g.localInput))
 	g.localInput = append(newInput, g.localInput[minLen:]...)
 }

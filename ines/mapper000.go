@@ -34,7 +34,7 @@ func (m *Mapper0) ReadPRG(addr uint16) byte {
 		idx := addr % uint16(len(m.rom.PRG))
 		return m.rom.PRG[idx]
 	default:
-		panic(fmt.Sprintf("mapper0: unhandled read at 0x%04X", addr))
+		panic(fmt.Sprintf("mapper0: unhandled prg read at 0x%04X", addr))
 	}
 }
 
@@ -48,7 +48,7 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 		return m.rom.CHR[addr]
 	}
 
-	panic(fmt.Sprintf("mapper0: unhandled read at 0x%04X", addr))
+	panic(fmt.Sprintf("mapper0: unhandled chr read at 0x%04X", addr))
 }
 
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {

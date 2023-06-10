@@ -6,7 +6,7 @@ type Tile struct {
 }
 
 func (p *PPU) tilePatternTableAddr() uint16 {
-	if p.getFlag(CtrlPatternTableSelect) {
+	if p.getCtrl(CtrlPatternTableSelect) {
 		return 0x1000
 	}
 
@@ -79,13 +79,13 @@ func (p *PPU) renderTileScanline() {
 
 			// To simulate scrolling, we need to offset the tile's position by the fine
 			// scroll values. This is not how the PPU does it, but it seems to work.
-			x, y := frameX-fineX, frameY-fineY
-			if x < 0 || y < 0 || x >= 256 || y >= 240 {
+			adjX, adjY := frameX-fineX, frameY-fineY
+			if adjX < 0 || adjY < 0 || adjX >= 256 || adjY >= 240 {
 				continue
 			}
 
 			addr := 0x3F00 + uint16(tile.PaletteID)*4 + uint16(pixel)
-			p.Frame[x][y] = Colors[p.readVRAM(addr)]
+			p.Frame[adjX][adjY] = Colors[p.readVRAM(addr)]
 		}
 	}
 

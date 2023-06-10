@@ -209,6 +209,7 @@ func (cpu *CPU) Tick(mem Memory) bool {
 
 	opr := cpu.fetchOperand(mem, instr.mode)
 	ok = cpu.execute(mem, instr, opr)
+
 	if !ok && cpu.AllowIllegal {
 		ok = cpu.executeIllegal(mem, instr, opr)
 	}

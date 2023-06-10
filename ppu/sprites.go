@@ -41,7 +41,7 @@ func flipPixels(pixels [8][16]uint8, flipX, flipY bool, height int) (flipped [8]
 }
 
 func (p *PPU) spritePatternTableAddr() uint16 {
-	if p.getFlag(CtrlSpritePatternAddr) {
+	if p.getCtrl(CtrlSpritePatternAddr) {
 		return 0x1000
 	}
 
@@ -49,7 +49,7 @@ func (p *PPU) spritePatternTableAddr() uint16 {
 }
 
 func (p *PPU) spriteHeight() int {
-	if p.getFlag(CtrlSpriteSize) {
+	if p.getCtrl(CtrlSpriteSize) {
 		return 16
 	}
 
@@ -120,7 +120,7 @@ func (p *PPU) prepareSprites() {
 	}
 
 	if p.spriteCount > 8 {
-		p.setFlag(StatusSpriteOverflow, true)
+		p.setStatus(StatusSpriteOverflow, true)
 		p.spriteCount = 8
 	}
 }

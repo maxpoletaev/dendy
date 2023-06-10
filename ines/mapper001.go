@@ -1,6 +1,10 @@
 package ines
 
-import "fmt"
+import (
+	"encoding/gob"
+	"errors"
+	"fmt"
+)
 
 // Mapper1 implements the MMC1 mapper.
 // https://www.nesdev.org/wiki/MMC1
@@ -197,4 +201,28 @@ func (m *Mapper1) WriteCHR(addr uint16, data byte) {
 	default:
 		panic(fmt.Sprintf("mapper1: unhandled chr write at %04X", addr))
 	}
+}
+
+func (m *Mapper1) Save(enc *gob.Encoder) error {
+	return errors.Join(
+		enc.Encode(m.prgRAM),
+		enc.Encode(m.control),
+		enc.Encode(m.chrBank0),
+		enc.Encode(m.chrBank1),
+		enc.Encode(m.prgBank),
+		enc.Encode(m.shiftRegister),
+		enc.Encode(m.writeCount),
+	)
+}
+
+func (m *Mapper1) Load(dec *gob.Decoder) error {
+	return errors.Join(
+		dec.Decode(&m.prgRAM),
+		dec.Decode(&m.control),
+		dec.Decode(&m.chrBank0),
+		dec.Decode(&m.chrBank1),
+		dec.Decode(&m.prgBank),
+		dec.Decode(&m.shiftRegister),
+		dec.Decode(&m.writeCount),
+	)
 }

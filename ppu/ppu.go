@@ -76,8 +76,9 @@ type PPU struct {
 	spriteCount    int
 	spriteScanline [8]Sprite
 
-	cycle    int
-	scanline int
+	cycle      int
+	scanline   int
+	skipRender bool
 }
 
 func New(cart ines.Cartridge) *PPU {
@@ -86,49 +87,56 @@ func New(cart ines.Cartridge) *PPU {
 	}
 }
 
-func (p *PPU) getFlag(flag any) bool {
-	switch f := flag.(type) {
-	case CtrlFlags:
-		return p.ctrl&f != 0
-	case MaskFlags:
-		return p.mask&f != 0
-	case StatusFlags:
-		return p.status&f != 0
-	default:
-		panic(fmt.Sprintf("unknown flag type %T", f))
+// DisableRender disables the actual rendering of the frame but keeps the
+// other operations intact. This is useful for fast-forwarding the game
+// state where we don’t need to display the frames.
+func (p *PPU) DisableRender() {
+	p.skipRender = true
+}
+
+// EnableRender enables the rendering of the frame.
+func (p *PPU) EnableRender() {
+	p.skipRender = false
+}
+
+func (p *PPU) getStatus(flag StatusFlags) bool {
+	return p.status&flag != 0
+}
+
+func (p *PPU) setStatus(flag StatusFlags, value bool) {
+	if value {
+		p.status |= flag
+	} else {
+		p.status &= ^flag
 	}
 }
 
-func (p *PPU) setFlag(flag any, value bool) {
-	switch f := flag.(type) {
-	case CtrlFlags:
-		if value {
-			p.ctrl |= f
-			return
-		}
+func (p *PPU) getCtrl(flag CtrlFlags) bool {
+	return p.ctrl&flag != 0
+}
 
-		p.ctrl &= ^f
-	case MaskFlags:
-		if value {
-			p.mask |= f
-			return
-		}
-
-		p.mask &= ^f
-	case StatusFlags:
-		if value {
-			p.status |= f
-			return
-		}
-
-		p.status &= ^f
-	default:
-		panic(fmt.Sprintf("unknown flag type %T", f))
+func (p *PPU) setCtrl(flag CtrlFlags, value bool) {
+	if value {
+		p.ctrl |= flag
+	} else {
+		p.ctrl &= ^flag
 	}
 }
 
-func (p *PPU) incrementVRAMAddr() {
-	if p.getFlag(CtrlIncrementMode) {
+func (p *PPU) getMask(flag MaskFlags) bool {
+	return p.mask&flag != 0
+}
+
+func (p *PPU) setMask(flag MaskFlags, value bool) {
+	if value {
+		p.mask |= flag
+	} else {
+		p.mask &= ^flag
+	}
+}
+
+func (p *PPU) incrementAddr() {
+	if p.getCtrl(CtrlIncrementMode) {
 		p.vramAddr += 32
 	} else {
 		p.vramAddr += 1
@@ -158,7 +166,7 @@ func (p *PPU) Read(addr uint16) uint8 {
 		// address latch and vblank flag.
 		status := p.status
 		p.addrLatch = false
-		p.setFlag(StatusVBlank, false)
+		p.setStatus(StatusVBlank, false)
 		return uint8(status)&0xE0 | p.vramBuffer&0x1F
 
 	case oamDataRegAddr:
@@ -172,14 +180,14 @@ func (p *PPU) Read(addr uint16) uint8 {
 		// Palette reads are not delayed.
 		if p.vramAddr >= 0x3F00 {
 			data := p.readVRAM(p.vramAddr)
-			p.incrementVRAMAddr()
+			p.incrementAddr()
 			return data
 		}
 
 		// Reads from pattern tables are delayed by one cycle.
 		data := p.vramBuffer
 		p.vramBuffer = p.readVRAM(p.vramAddr)
-		p.incrementVRAMAddr()
+		p.incrementAddr()
 		return data
 
 	default:
@@ -217,7 +225,7 @@ func (p *PPU) Write(addr uint16, data uint8) {
 		}
 	case vramDataRegAddr:
 		p.writeVRAM(p.vramAddr, data)
-		p.incrementVRAMAddr()
+		p.incrementAddr()
 	}
 }
 
@@ -277,7 +285,7 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 		idx := (addr - 0x3F00) % 32
 		value := p.paletteTable[idx]
 
-		if p.getFlag(MaskGrayscale) {
+		if p.getMask(MaskGrayscale) {
 			value &= 0x30
 		}
 
@@ -316,7 +324,7 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 }
 
 func (p *PPU) spriteZeroHit() bool {
-	if p.getFlag(MaskShowSprites) && p.getFlag(MaskShowBackground) {
+	if p.getMask(MaskShowSprites) && p.getMask(MaskShowBackground) {
 		spriteY := int(p.oamData[0])
 		if p.scanline == spriteY+8 {
 			return true
@@ -345,9 +353,9 @@ func (p *PPU) Tick() {
 		// reset the PPU status flags.
 		if p.cycle == 1 {
 			p.clearFrame(p.backdropColor())
-			p.setFlag(StatusSpriteOverflow, false)
-			p.setFlag(StatusSpriteZeroHit, false)
-			p.setFlag(StatusVBlank, false)
+			p.setStatus(StatusSpriteOverflow, false)
+			p.setStatus(StatusSpriteZeroHit, false)
+			p.setStatus(StatusVBlank, false)
 		}
 
 		// End of pre-render scanline, prepare the sprites for the first visible scanline.
@@ -358,7 +366,7 @@ func (p *PPU) Tick() {
 
 	if p.scanline >= 0 && p.scanline <= 239 {
 		if p.spriteZeroHit() {
-			p.setFlag(StatusSpriteZeroHit, true)
+			p.setStatus(StatusSpriteZeroHit, true)
 		}
 
 		// End of visible scanline, render the tiles and sprites, and prepare the sprites
@@ -366,25 +374,28 @@ func (p *PPU) Tick() {
 		// should produce visually identical results for most games that don't rely on
 		// mid-scanline changes to scroll values, etc.
 		if p.cycle == 340 {
-			if p.getFlag(MaskShowBackground) {
-				p.renderTileScanline()
-			}
+			if !p.skipRender {
+				if p.getMask(MaskShowBackground) {
+					p.renderTileScanline()
+				}
 
-			if p.getFlag(MaskShowSprites) {
-				p.renderSpriteScanline()
+				if p.getMask(MaskShowSprites) {
+					p.renderSpriteScanline()
+				}
+
+				p.prepareSprites()
 			}
 
 			p.ScanlineComplete = true
-			p.prepareSprites()
 		}
 	}
 
 	// End of visible scanlines and start of vertical blank. Set the vblank flag and
 	// trigger the CPU interrupt if the NMI flag is set.
 	if p.scanline == 241 && p.cycle == 1 {
-		p.setFlag(StatusVBlank, true)
+		p.setStatus(StatusVBlank, true)
 
-		if p.getFlag(CtrlNMI) {
+		if p.getCtrl(CtrlNMI) {
 			p.RequestNMI = true
 		}
 
