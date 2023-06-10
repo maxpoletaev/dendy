@@ -3,6 +3,8 @@ package netplay
 import (
 	"fmt"
 	"net"
+
+	"github.com/maxpoletaev/dendy/internal/rolling"
 )
 
 type Netplay struct {
@@ -93,7 +95,7 @@ func (np *Netplay) startReader() {
 	}
 }
 
-func (np *Netplay) handleMessage(msg Message) bool {
+func (np *Netplay) handleMessage(msg Message) {
 	switch msg.Type {
 	case MsgTypeReset:
 		np.resetInputBatch(msg.Frame)
@@ -101,16 +103,29 @@ func (np *Netplay) handleMessage(msg Message) bool {
 			Frame: msg.Frame,
 			State: msg.Payload,
 		})
-		return false
 
 	case MsgTypeInput:
 		np.game.AddRemoteInput(InputBatch{
 			Input:      msg.Payload,
 			StartFrame: msg.Frame,
 		})
+
+		// If we're too far behind, ask the other side to wait for us.
+		endFrame := np.game.Frame() + int32(np.batchSize*10)
+		if rolling.GreaterThan(msg.Frame, endFrame) {
+			np.toSend <- Message{
+				Type:  MsgTypeSleep,
+				Frame: msg.Frame,
+			}
+		}
+
+	case MsgTypeSleep:
+		if d := int(msg.Frame - np.game.Frame()); d > 0 {
+			fmt.Printf("sleeping for %d frames\n", d)
+			np.game.Sleep(d)
+		}
 	}
 
-	return true
 }
 
 func (np *Netplay) Start() {

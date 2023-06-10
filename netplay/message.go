@@ -14,6 +14,7 @@ type MsgType uint8
 const (
 	MsgTypeReset MsgType = iota + 1
 	MsgTypeInput
+	MsgTypeSleep
 )
 
 type Message struct {
@@ -50,9 +51,11 @@ func (m *Message) Decode(data []byte) error {
 		return fmt.Errorf("failed to decode message header: %v", err)
 	}
 
-	m.Payload = make([]byte, payloadSize)
-	if _, err := io.ReadFull(buf, m.Payload); err != nil {
-		return fmt.Errorf("failed to decode message payload: %v", err)
+	if payloadSize > 0 {
+		m.Payload = make([]byte, payloadSize)
+		if _, err := io.ReadFull(buf, m.Payload); err != nil {
+			return fmt.Errorf("failed to decode message payload: %v", err)
+		}
 	}
 
 	return nil

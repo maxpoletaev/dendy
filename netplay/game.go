@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"time"
 
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/generic"
 	"github.com/maxpoletaev/dendy/internal/rolling"
 	"github.com/maxpoletaev/dendy/nes"
+)
+
+const (
+	frameDuration = time.Second / 60
 )
 
 type Checkpoint struct {
@@ -99,6 +104,11 @@ func (g *Game) RunFrame() {
 	}
 
 	g.playFrame()
+}
+
+// Sleep pauses the execution for the given number of frames.
+func (g *Game) Sleep(d int) {
+	time.Sleep(time.Duration(d) * frameDuration)
 }
 
 func (g *Game) createCheckpoint() {
