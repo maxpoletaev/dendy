@@ -7,12 +7,12 @@ import (
 	"runtime/pprof"
 
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
-	"github.com/maxpoletaev/dendy/display"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/nes"
 	"github.com/maxpoletaev/dendy/netplay"
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
+	"github.com/maxpoletaev/dendy/screen"
 )
 
 type opts struct {
@@ -53,7 +53,7 @@ func runOffline(bus *nes.Bus, o *opts) {
 	bus.Zap = input.NewZapper()
 	bus.Reset()
 
-	w := display.Show(&bus.PPU.Frame, o.scale)
+	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.InputDelegate = bus.Joy1.SetButtons
 	w.ZapperDelegate = bus.Zap.Update
 	w.ShowFPS = o.showFPS
@@ -102,8 +102,8 @@ func runServer(bus *nes.Bus, o *opts) {
 		os.Exit(1)
 	}
 
-	w := display.Show(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P1)", display.WindowTitle))
+	w := screen.Show(&bus.PPU.Frame, o.scale)
+	w.SetTitle(fmt.Sprintf("%s (P1)", screen.WindowTitle))
 	w.InputDelegate = server.SendInput
 	w.ShowFPS = o.showFPS
 
@@ -147,8 +147,8 @@ func runClient(bus *nes.Bus, o *opts) {
 		os.Exit(1)
 	}
 
-	w := display.Show(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P2)", display.WindowTitle))
+	w := screen.Show(&bus.PPU.Frame, o.scale)
+	w.SetTitle(fmt.Sprintf("%s (P2)", screen.WindowTitle))
 	w.InputDelegate = client.SendInput
 	w.ShowFPS = o.showFPS
 

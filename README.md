@@ -95,7 +95,7 @@ The goal is to support top 7 mappers covering the majority of games. The
 percentage indicates the number of games that use the mapper according to
 nescartdb.com.
 
- * [ ] MMC1 (Mapper 1) - 28%
+ * [x] MMC1 (Mapper 1) - 28%
  * [ ] MMC3 (Mapper 4) - 24%
  * [x] UxROM (Mapper 2) - 11%
  * [x] NROM (Mapper 0) - 10%

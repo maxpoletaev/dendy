@@ -1,4 +1,4 @@
-package display
+package screen
 
 import (
 	"fmt"

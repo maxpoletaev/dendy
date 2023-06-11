@@ -25,6 +25,8 @@ func Load(path string) (Cartridge, error) {
 	switch rom.MapperID {
 	case 0:
 		return NewMapper0(rom), nil
+	case 1:
+		return NewMapper1(rom), nil
 	case 2:
 		return NewMapper2(rom), nil
 	default:

@@ -99,10 +99,6 @@ func (p *PPU) EnableRender() {
 	p.skipRender = false
 }
 
-func (p *PPU) getStatus(flag StatusFlags) bool {
-	return p.status&flag != 0
-}
-
 func (p *PPU) setStatus(flag StatusFlags, value bool) {
 	if value {
 		p.status |= flag
@@ -115,24 +111,8 @@ func (p *PPU) getCtrl(flag CtrlFlags) bool {
 	return p.ctrl&flag != 0
 }
 
-func (p *PPU) setCtrl(flag CtrlFlags, value bool) {
-	if value {
-		p.ctrl |= flag
-	} else {
-		p.ctrl &= ^flag
-	}
-}
-
 func (p *PPU) getMask(flag MaskFlags) bool {
 	return p.mask&flag != 0
-}
-
-func (p *PPU) setMask(flag MaskFlags, value bool) {
-	if value {
-		p.mask |= flag
-	} else {
-		p.mask &= ^flag
-	}
 }
 
 func (p *PPU) incrementAddr() {

@@ -1,4 +1,4 @@
-package display
+package screen
 
 import "github.com/gen2brain/raylib-go/raylib"
 
