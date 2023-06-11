@@ -39,9 +39,9 @@ func (m *Mapper1) Reset() {
 func (m *Mapper1) MirrorMode() MirrorMode {
 	switch m.control & 0x03 {
 	case 0:
-		return MirrorSingleLo
+		return MirrorSingle0
 	case 1:
-		return MirrorSingleHi
+		return MirrorSingle1
 	case 2:
 		return MirrorVertical
 	case 3:

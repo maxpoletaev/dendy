@@ -238,6 +238,10 @@ func (p *PPU) nameTableIdx(addr uint16) int {
 		case addr >= 0x2C00 && addr <= 0x2FFF: // Nametable 3
 			return 1
 		}
+	case ines.MirrorSingle0:
+		return 1
+	case ines.MirrorSingle1:
+		return 0
 	default:
 		mode := p.cart.MirrorMode()
 		panic(fmt.Sprintf("invalid mirroring mode: %d", mode))
