@@ -1,9 +1,9 @@
 # Dendy
 
-Dendy is a NES/Famicom emulator written in Go and named after the soviet Famicom 
+Dendy is a NES/Famicom emulator written in Go and named after the soviet Famicom
 bootleg. It serves no practical purpose other than to be a toy project for
-me, so do not expect it to beat any of the existing emulators in terms of 
-performance or accuracy. Yet, it is capable of running most of the games 
+me, so do not expect it to beat any of the existing emulators in terms of
+performance or accuracy. Yet, it is capable of running most of the games
 I tried, so it’s not completely useless, and it's still a great learning
 experience.
 
@@ -16,6 +16,8 @@ $ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
 $ dendy romfile.nes
 ```
 
+You may need to install additional dependencies required by raylib. See
+https://github.com/gen2brain/raylib-go#requirements for more details.
 
 ## Controls
 
@@ -41,43 +43,44 @@ follows:
 Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
 the mouse cursor at the right position on the screen and click to shoot.
 
-## Network Multiplayer
+## Multiplayer
 
-Dendy supports netplay, which allows you to play multiplayer games over the
-network. To start a NetPlay session, run the emulator with the `-listen=<host>:<port>`.
-This will start a server that will be waiting for the second player to connect
-via the `-connect=<host>:<port>` flag. Once the connection is established, the
-game will start for both players. The player who started the server will be
-controlling the first joystick.
+Dendy can be played over the network with another player. Run the emulator with
+the `-listen=<host>:<port>` flag to start a netplay server that will be waiting
+for the second player to connect via the `-connect=<host>:<port>` flag. Once the
+connection is established, the game will start for both sides. The player who
+started the server will be controlling the first joystick.
 
 The feature works by synchronizing the state of the emulated NES and sending
-the controller input over the network to the other player. The algorithm allows 
+the controller input over the network to the other player. The algorithm allows
 slight drifts in the clock speed and network latency by generating fake input
-events for the other player if the state of the emulator is ahead of the other 
+events for the other player if the state of the emulator is ahead of the other
 player’s state. Theoretically, this should keep the game playable for both
-players even if the network connection is not very stable, but it is not
-very well tested.
+players even if the network connection is not very stable (e.g. over the
+Internet), but it is not very well tested.
+
+Most of the ideas for the netplay implementation were borrowed from RetroArch.
 
 ## Status
 
 ### CPU
 
- * [x] Official opcodes
- * [x] Unofficial opcodes
- * [x] Runtime disassembly
- * [x] Cycle-accurate emulation
- * [x] Accurate clock speed
- * [x] Interrupts
+* [x] Official opcodes
+* [x] Unofficial opcodes
+* [x] Runtime disassembly
+* [x] Cycle-accurate emulation
+* [x] Accurate clock speed
+* [x] Interrupts
 
 ### Graphics
 
- * [x] Background rendering
- * [x] Sprite rendering
- * [x] 8×16 sprites
- * [x] Palettes
- * [x] Scrolling
- * [ ] Color emphasis
- * [ ] Cycle-accurate emulation
+* [x] Background rendering
+* [x] Sprite rendering
+* [x] 8×16 sprites
+* [x] Palettes
+* [x] Scrolling
+* [ ] Color emphasis
+* [ ] Cycle-accurate emulation
 
 ### Input/Output
 
@@ -95,23 +98,23 @@ The goal is to support top 7 mappers covering the majority of games. The
 percentage indicates the number of games that use the mapper according to
 nescartdb.com.
 
- * [x] MMC1 (Mapper 1) - 28%
- * [ ] MMC3 (Mapper 4) - 24%
- * [x] UxROM (Mapper 2) - 11%
- * [x] NROM (Mapper 0) - 10%
- * [ ] CNROM (Mapper 3) - 6%
- * [ ] AxROM (Mapper 7) - 3%
- * [ ] MMC5 (Mapper 5) - 1%
+* [x] MMC1 (Mapper 1) - 28%
+* [ ] MMC3 (Mapper 4) - 24%
+* [x] UxROM (Mapper 2) - 11%
+* [x] NROM (Mapper 0) - 10%
+* [ ] CNROM (Mapper 3) - 6%
+* [ ] AxROM (Mapper 7) - 3%
+* [ ] MMC5 (Mapper 5) - 1%
 
 ### Test ROMs
 
 The checked items are the ones that pass the tests completely or with minor
 inaccuracies (that might be caused by the test ROMs themselves).
 
- * [x] Nestest CPU
- * [ ] Blargg’s CPU tests
- * [ ] Blargg’s PPU tests
- * [ ] Blargg’s APU tests
+* [x] Nestest CPU
+* [ ] Blargg’s CPU tests
+* [ ] Blargg’s PPU tests
+* [ ] Blargg’s APU tests
 
 ## Resources
 
@@ -122,17 +125,18 @@ everyone who made them!
 
 ### Documentation
 
- * [MOS 6502 CPU Reference](https://web.archive.org/web/20210429110213/http://obelisk.me.uk/6502/) by Andrew Jabobs, 2009
- * [Extra Instructions of the 65xx Series CPU](http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes) by Adam Vardy, 1996
- * [NES Rendering Overview](https://austinmorlan.com/posts/nes_rendering_overview/) by Austin Morlan, 2019
- * [Making NES Games in Assembly](https://famicom.party/book/) by Kevin Zurawel, 2021
+* [MOS 6502 CPU Reference](https://web.archive.org/web/20210429110213/http://obelisk.me.uk/6502/) by Andrew Jabobs, 2009
+* [Extra Instructions of the 65xx Series CPU](http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes) by Adam Vardy, 1996
+* [NES Rendering Overview](https://austinmorlan.com/posts/nes_rendering_overview/) by Austin Morlan, 2019
+* [Making NES Games in Assembly](https://famicom.party/book/) by Kevin Zurawel, 2021
+* [Retroarch Netplay README](https://github.com/libretro/RetroArch/blob/master/network/netplay/README)
 
 ### Videos
 
- * The [NES Emulator from Scratch](nesemu) series covers most of the topics from
-   the CPU to the sound, but I found the two videos about the PPU to be the most
-   useful for understanding the obscure details of the NES rendering pipeline: 
-   [[1]][ppu1], [[2]][ppu2].
+* The [NES Emulator from Scratch](nesemu) series covers most of the topics from
+  the CPU to the sound, but I found the two videos about the PPU to be the most
+  useful for understanding the obscure details of the NES rendering pipeline:
+  [[1]][ppu1], [[2]][ppu2].
 
 [nesemu]: https://www.youtube.com/playlist?list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf
 [ppu1]: https://www.youtube.com/watch?v=-THeUXqR3zY&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=5
@@ -144,6 +148,6 @@ During bad times, it’s always nice to look at other people’s code to see how
 they solved the same problems. Here are some of the emulators written by other
 people that I often referred to when I was stuck:
 
- * [github.com/OneLoneCoder/olcNES](https://github.com/OneLoneCoder/olcNES)
- * [github.com/ad-sho-loko/goones](https://github.com/ad-sho-loko/goones)
- * [github.com/fogleman/nes](https://github.com/fogleman/nes)
+* [github.com/OneLoneCoder/olcNES](https://github.com/OneLoneCoder/olcNES)
+* [github.com/ad-sho-loko/goones](https://github.com/ad-sho-loko/goones)
+* [github.com/fogleman/nes](https://github.com/fogleman/nes)
