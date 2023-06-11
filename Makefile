@@ -15,6 +15,10 @@ build: ## build dendy
 	@echo "--------- running: $@ ---------"
 	go build -o bin/dendy ./cmd/dendy
 
+build_win64: ## build dendy for windows
+	@echo "--------- running: $@ ---------"
+	CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ GOOS=windows GOARCH=amd64 CGO_LDFLAGS="-static-libgcc -static -lpthread" go build -o bin/dendy.exe ./cmd/dendy
+
 @PHONY: test
 test: ## run tests
 	@echo "--------- running: $@ ---------"
