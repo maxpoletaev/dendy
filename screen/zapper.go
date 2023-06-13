@@ -7,7 +7,7 @@ func (w *Window) getFrameMousePosition() (int, int, bool) {
 
 	x, y := int(pos.X)/w.scale, int(pos.Y)/w.scale
 
-	if x < 0 || x >= ScreenWidth || y < 0 || y >= ScreenHeight {
+	if x < 0 || x >= Width || y < 0 || y >= Height {
 		return 0, 0, false
 	}
 

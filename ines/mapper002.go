@@ -38,7 +38,7 @@ func (m *Mapper2) ReadPRG(addr uint16) byte {
 		idx := m.prgBank1*0x4000 + int(addr-0xC000)
 		return m.rom.PRG[idx]
 	default:
-		panic(fmt.Sprintf("mapper2: unhandled read at 0x%04X", addr))
+		panic(fmt.Sprintf("mapper2: unhandled prg read at 0x%04X", addr))
 	}
 }
 
@@ -53,7 +53,7 @@ func (m *Mapper2) ReadCHR(addr uint16) byte {
 	case addr >= 0x0000 && addr <= 0x1FFF:
 		return m.rom.CHR[addr]
 	default:
-		panic(fmt.Sprintf("mapper2: unhandled read at 0x%04X", addr))
+		panic(fmt.Sprintf("mapper2: unhandled chr read at 0x%04X", addr))
 	}
 }
 
@@ -62,25 +62,17 @@ func (m *Mapper2) WriteCHR(addr uint16, data byte) {
 }
 
 func (m *Mapper2) Save(enc *gob.Encoder) error {
-	err := errors.Join(
+	return errors.Join(
+		m.rom.SaveCRC(enc),
 		enc.Encode(m.prgBank0),
 		enc.Encode(m.prgBank1),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to encode mapper state: %w", err)
-	}
-
-	return nil
 }
 
 func (m *Mapper2) Load(dec *gob.Decoder) error {
-	err := errors.Join(
+	return errors.Join(
+		m.rom.LoadCRC(dec),
 		dec.Decode(&m.prgBank0),
 		dec.Decode(&m.prgBank1),
 	)
-	if err != nil {
-		return fmt.Errorf("failed to decode mapper state: %w", err)
-	}
-
-	return nil
 }

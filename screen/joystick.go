@@ -1,6 +1,21 @@
 package screen
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	rl "github.com/gen2brain/raylib-go/raylib"
+
+	"github.com/maxpoletaev/dendy/input"
+)
+
+var keyMap = map[int32]input.Button{
+	rl.KeyW:          input.ButtonUp,
+	rl.KeyS:          input.ButtonDown,
+	rl.KeyA:          input.ButtonLeft,
+	rl.KeyD:          input.ButtonRight,
+	rl.KeyK:          input.ButtonA,
+	rl.KeyJ:          input.ButtonB,
+	rl.KeyEnter:      input.ButtonStart,
+	rl.KeyRightShift: input.ButtonSelect,
+}
 
 func (w *Window) UpdateJoystick() {
 	if w.InputDelegate == nil {
@@ -8,7 +23,8 @@ func (w *Window) UpdateJoystick() {
 	}
 
 	var buttons uint8
-	for key, button := range w.keyMap {
+
+	for key, button := range keyMap {
 		if rl.IsKeyDown(key) {
 			buttons |= 1 << uint8(button)
 		}

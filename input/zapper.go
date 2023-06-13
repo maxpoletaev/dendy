@@ -11,17 +11,13 @@ func NewZapper() *Zapper {
 	}
 }
 
-func (z *Zapper) PullTrigger() {
-	z.triggerPressed = true
-}
-
-func (z *Zapper) ReleaseTrigger() {
-	z.triggerPressed = false
-}
-
 func (z *Zapper) Update(brightness uint8, trigger bool) {
 	z.lightDetected = brightness > 64
 	z.triggerPressed = trigger
+}
+
+func (z *Zapper) VBlank() {
+	z.lightDetected = false
 }
 
 func (z *Zapper) Read() (value byte) {

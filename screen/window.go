@@ -5,27 +5,26 @@ import (
 	"image/color"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
-
-	"github.com/maxpoletaev/dendy/input"
 )
 
 const (
-	ScreenWidth  = 256
-	ScreenHeight = 240
-	WindowTitle  = "Dendy Emulator"
+	Width     = 256
+	Height    = 240
+	FrameRate = 60
+	Title     = "Dendy Emulator"
 )
 
 type Window struct {
 	ZapperDelegate func(brightness uint8, trigger bool)
 	InputDelegate  func(buttons uint8)
-	slowMode       bool
+	ResetDelegate  func()
 	ShowFPS        bool
 
-	keyMap  map[int32]input.Button
-	frame   *[256][240]color.RGBA
-	texture rl.RenderTexture2D
-	pixels  []color.RGBA
-	scale   int
+	frame    *[256][240]color.RGBA
+	texture  rl.RenderTexture2D
+	pixels   []color.RGBA
+	slowMode bool
+	scale    int
 
 	sourceRec rl.Rectangle
 	destRec   rl.Rectangle
@@ -33,39 +32,22 @@ type Window struct {
 
 func Show(frame *[256][240]color.RGBA, scale int) *Window {
 	rl.SetTraceLog(rl.LogNone)
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(FrameRate)
+	rl.InitWindow(Width*int32(scale), Height*int32(scale), Title)
 
-	rl.InitWindow(
-		ScreenWidth*int32(scale),
-		ScreenHeight*int32(scale),
-		WindowTitle,
-	)
-
-	texture := rl.LoadRenderTexture(ScreenWidth, ScreenHeight)
+	texture := rl.LoadRenderTexture(Width, Height)
 	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
 
-	sourceRec := rl.NewRectangle(0, 0, ScreenWidth, ScreenHeight)
-	destRec := rl.NewRectangle(0, 0, float32(ScreenWidth*scale), float32(ScreenHeight*scale))
-
-	keyMap := map[int32]input.Button{
-		rl.KeyW:          input.ButtonUp,
-		rl.KeyS:          input.ButtonDown,
-		rl.KeyA:          input.ButtonLeft,
-		rl.KeyD:          input.ButtonRight,
-		rl.KeyK:          input.ButtonA,
-		rl.KeyJ:          input.ButtonB,
-		rl.KeyEnter:      input.ButtonStart,
-		rl.KeyRightShift: input.ButtonSelect,
-	}
+	sourceRec := rl.NewRectangle(0, 0, Width, Height)
+	destRec := rl.NewRectangle(0, 0, float32(Width*scale), float32(Height*scale))
 
 	return &Window{
-		pixels:    make([]color.RGBA, ScreenWidth*ScreenHeight),
+		pixels:    make([]color.RGBA, Width*Height),
 		texture:   texture,
 		frame:     frame,
 		scale:     scale,
 		sourceRec: sourceRec,
 		destRec:   destRec,
-		keyMap:    keyMap,
 	}
 }
 
@@ -93,9 +75,9 @@ func (w *Window) ShouldClose() bool {
 }
 
 func (w *Window) updateTexture() {
-	for x := 0; x < ScreenWidth; x++ {
-		for y := 0; y < ScreenHeight; y++ {
-			w.pixels[x+y*ScreenWidth] = w.frame[x][y]
+	for x := 0; x < Width; x++ {
+		for y := 0; y < Height; y++ {
+			w.pixels[x+y*Width] = w.frame[x][y]
 		}
 	}
 
@@ -123,18 +105,21 @@ func (w *Window) InFocus() bool {
 	return rl.IsWindowFocused()
 }
 
-func (w *Window) HandleHotKeys() {
-	if rl.IsKeyPressed(rl.KeyF1) {
-		w.ToggleSlowMode()
-	}
-
-	if rl.IsKeyPressed(rl.KeyF12) {
-		rl.TakeScreenshot("screenshot.png")
-	}
-}
-
-func (w *Window) IsResetPressed() bool {
+func (w *Window) isResetPressed() bool {
 	super := rl.IsKeyDown(rl.KeyLeftSuper) || rl.IsKeyDown(rl.KeyRightSuper)
 	ctrl := rl.IsKeyDown(rl.KeyLeftControl) || rl.IsKeyDown(rl.KeyRightControl)
 	return (super || ctrl) && rl.IsKeyPressed(rl.KeyR)
+}
+
+func (w *Window) HandleHotKeys() {
+	switch {
+	case rl.IsKeyPressed(rl.KeyF1):
+		w.ToggleSlowMode()
+	case rl.IsKeyPressed(rl.KeyF12):
+		rl.TakeScreenshot("screenshot.png")
+	case w.isResetPressed():
+		if w.ResetDelegate != nil {
+			w.ResetDelegate()
+		}
+	}
 }

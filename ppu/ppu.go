@@ -239,9 +239,9 @@ func (p *PPU) nameTableIdx(addr uint16) int {
 			return 1
 		}
 	case ines.MirrorSingle0:
-		return 1
-	case ines.MirrorSingle1:
 		return 0
+	case ines.MirrorSingle1:
+		return 1
 	default:
 		mode := p.cart.MirrorMode()
 		panic(fmt.Sprintf("invalid mirroring mode: %d", mode))
@@ -331,6 +331,16 @@ func (p *PPU) backdropColor() color.RGBA {
 	return Colors[idx]
 }
 
+func (p *PPU) render() {
+	if p.getMask(MaskShowBackground) {
+		p.renderTileScanline()
+	}
+
+	if p.getMask(MaskShowSprites) {
+		p.renderSpriteScanline()
+	}
+}
+
 func (p *PPU) Tick() {
 	if p.scanline == -1 {
 		// Start of pre-render scanline, clear the frame with the backdrop color and
@@ -344,7 +354,9 @@ func (p *PPU) Tick() {
 
 		// End of pre-render scanline, prepare the sprites for the first visible scanline.
 		if p.cycle == 340 {
-			p.prepareSprites()
+			if !p.skipRender {
+				p.prepareSprites()
+			}
 		}
 	}
 
@@ -353,24 +365,20 @@ func (p *PPU) Tick() {
 			p.setStatus(StatusSpriteZeroHit, true)
 		}
 
-		// End of visible scanline, render the tiles and sprites, and prepare the sprites
-		// for the next scanline. This is a simplification of the PPU's behaviour, but
-		// should produce visually identical results for most games that don't rely on
-		// mid-scanline changes to scroll values, etc.
+		// End of visible part of a scanline, render of what is on it.
+		if p.cycle == 257 {
+			p.ScanlineComplete = true
+
+			if !p.skipRender {
+				p.render()
+			}
+		}
+
+		// Prepare the sprites for the next scanline.
 		if p.cycle == 340 {
 			if !p.skipRender {
-				if p.getMask(MaskShowBackground) {
-					p.renderTileScanline()
-				}
-
-				if p.getMask(MaskShowSprites) {
-					p.renderSpriteScanline()
-				}
-
 				p.prepareSprites()
 			}
-
-			p.ScanlineComplete = true
 		}
 	}
 

@@ -56,6 +56,7 @@ func runOffline(bus *nes.Bus, o *opts) {
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.InputDelegate = bus.Joy1.SetButtons
 	w.ZapperDelegate = bus.Zap.Update
+	w.ResetDelegate = bus.Reset
 	w.ShowFPS = o.showFPS
 
 	if o.slowMode {
@@ -74,12 +75,9 @@ func runOffline(bus *nes.Bus, o *opts) {
 				return
 			}
 
-			if w.IsResetPressed() {
-				bus.Reset()
-			}
-
-			w.HandleHotKeys()
+			bus.Zap.VBlank()
 			w.UpdateJoystick()
+			w.HandleHotKeys()
 			w.Refresh()
 		}
 	}
@@ -103,8 +101,9 @@ func runServer(bus *nes.Bus, o *opts) {
 	}
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P1)", screen.WindowTitle))
+	w.SetTitle(fmt.Sprintf("%s (P1)", screen.Title))
 	w.InputDelegate = server.SendInput
+	w.ResetDelegate = server.SendReset
 	w.ShowFPS = o.showFPS
 
 	if o.slowMode {
@@ -117,10 +116,6 @@ func runServer(bus *nes.Bus, o *opts) {
 	for {
 		if w.ShouldClose() {
 			return
-		}
-
-		if w.IsResetPressed() {
-			server.SendReset()
 		}
 
 		w.HandleHotKeys()
@@ -148,7 +143,7 @@ func runClient(bus *nes.Bus, o *opts) {
 	}
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P2)", screen.WindowTitle))
+	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
 	w.InputDelegate = client.SendInput
 	w.ShowFPS = o.showFPS
 
@@ -161,10 +156,6 @@ func runClient(bus *nes.Bus, o *opts) {
 	for {
 		if w.ShouldClose() {
 			return
-		}
-
-		if w.IsResetPressed() {
-			fmt.Printf("reset not supported in client mode\n")
 		}
 
 		w.HandleHotKeys()

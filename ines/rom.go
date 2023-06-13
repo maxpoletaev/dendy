@@ -1,14 +1,20 @@
 package ines
 
 import (
+	"encoding/gob"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 )
 
 type (
 	MirrorMode byte
+)
+
+var (
+	ErrSavedStateMismatch = errors.New("saved state mismatch (probably different roms)")
 )
 
 const (
@@ -26,6 +32,7 @@ type ROM struct {
 	CHRBanks   int
 	PRG        []byte
 	CHR        []byte
+	crc32      uint32
 }
 
 func loadROM(filename string) (*ROM, error) {
@@ -38,9 +45,12 @@ func loadROM(filename string) (*ROM, error) {
 		_ = file.Close()
 	}()
 
+	h := crc32.NewIEEE()
+	reader := io.TeeReader(file, h)
+
 	// Read header.
 	header := make([]uint8, 16)
-	_, err = file.Read(header)
+	_, err = reader.Read(header)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +78,13 @@ func loadROM(filename string) (*ROM, error) {
 
 	// Read PRG-ROM.
 	prg := make([]uint8, prgSize)
-	if _, err = file.Read(prg); err != nil {
+	if _, err = reader.Read(prg); err != nil {
 		return nil, fmt.Errorf("failed to read PRG ROM: %w", err)
 	}
 
 	// Read CHR-ROM.
 	chr := make([]uint8, chrSize)
-	if _, err = file.Read(chr); err != nil {
+	if _, err = reader.Read(chr); err != nil {
 		return nil, fmt.Errorf("failed to read chr ROM: %w", err)
 	}
 
@@ -92,5 +102,23 @@ func loadROM(filename string) (*ROM, error) {
 		MirrorMode: mirrorMode,
 		PRGBanks:   prgSize / 16384,
 		CHRBanks:   chrSize / 8192,
+		crc32:      h.Sum32(),
 	}, nil
+}
+
+func (r *ROM) SaveCRC(enc *gob.Encoder) error {
+	return enc.Encode(r.crc32)
+}
+
+func (r *ROM) LoadCRC(dec *gob.Decoder) error {
+	var hash uint32
+	if err := dec.Decode(&hash); err != nil {
+		return err
+	}
+
+	if hash != r.crc32 {
+		return ErrSavedStateMismatch
+	}
+
+	return nil
 }

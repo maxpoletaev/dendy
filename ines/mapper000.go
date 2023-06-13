@@ -56,9 +56,9 @@ func (m *Mapper0) WriteCHR(addr uint16, data byte) {
 }
 
 func (m *Mapper0) Save(enc *gob.Encoder) error {
-	return nil
+	return m.rom.SaveCRC(enc)
 }
 
 func (m *Mapper0) Load(dec *gob.Decoder) error {
-	return nil
+	return m.rom.LoadCRC(dec)
 }
