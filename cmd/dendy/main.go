@@ -79,6 +79,13 @@ func runOffline(bus *nes.Bus, o *opts) {
 			w.UpdateJoystick()
 			w.HandleHotKeys()
 			w.Refresh()
+
+			for !w.InFocus() {
+				if w.ShouldClose() {
+					return
+				}
+				w.Refresh()
+			}
 		}
 	}
 }
