@@ -99,6 +99,10 @@ func (p *PPU) EnableRender() {
 	p.skipRender = false
 }
 
+func (p *PPU) getStatus(flag StatusFlags) bool {
+	return p.status&flag != 0
+}
+
 func (p *PPU) setStatus(flag StatusFlags, value bool) {
 	if value {
 		p.status |= flag
@@ -307,15 +311,29 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 	panic(fmt.Sprintf("invalid vram address: %04X", addr))
 }
 
-func (p *PPU) spriteZeroHit() bool {
-	if p.getMask(MaskShowSprites) && p.getMask(MaskShowBackground) {
-		spriteY := int(p.oamData[0])
-		if p.scanline == spriteY+8 {
-			return true
-		}
+func (p *PPU) checkSpriteZeroHit() bool {
+	if !p.getMask(MaskShowSprites) || !p.getMask(MaskShowBackground) || p.getStatus(StatusSpriteZeroHit) {
+		return false
 	}
 
-	return false
+	spriteX, spriteY := int(p.oamData[3]), int(p.oamData[0])
+	frameY, frameX := p.scanline, p.cycle
+	spriteY += 2 // Not sure why.
+
+	// Check if the scanline is within the sprite's horizontal range.
+	if frameX < spriteX || frameX >= spriteX+8 {
+		return false
+	}
+
+	// Check if the scanline is within the sprite's vertical range.
+	if frameY < spriteY || frameY >= spriteY+p.spriteHeight() {
+		return false
+	}
+
+	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
+	//tilePixel := p.fetchTile(frameX/8, frameY/8).Pixels[frameX%8][frameY%8]
+
+	return spritePixel != 0
 }
 
 func (p *PPU) clearFrame(c color.RGBA) {
@@ -361,8 +379,10 @@ func (p *PPU) Tick() {
 	}
 
 	if p.scanline >= 0 && p.scanline <= 239 {
-		if p.spriteZeroHit() {
-			p.setStatus(StatusSpriteZeroHit, true)
+		if p.cycle >= 1 && p.cycle <= 256 {
+			if p.checkSpriteZeroHit() {
+				p.setStatus(StatusSpriteZeroHit, true)
+			}
 		}
 
 		// End of visible part of a scanline, render of what is on it.

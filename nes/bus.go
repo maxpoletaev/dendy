@@ -7,7 +7,8 @@ import (
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
 )
 
-type TickResult struct {
+type TickInfo struct {
+	Cycle            uint64
 	InstrComplete    bool
 	ScanlineComplete bool
 	FrameComplete    bool
@@ -91,9 +92,11 @@ func (b *Bus) Reset() {
 	b.cycles = 0
 }
 
-func (b *Bus) Tick() (r TickResult) {
+func (b *Bus) Tick() (r TickInfo) {
 	b.cycles++
 	b.PPU.Tick()
+
+	r.Cycle = b.cycles
 
 	// CPU runs 3 times slower than PPU.
 	if b.cycles%3 == 0 {

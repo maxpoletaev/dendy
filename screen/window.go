@@ -105,19 +105,21 @@ func (w *Window) InFocus() bool {
 	return rl.IsWindowFocused()
 }
 
-func (w *Window) isResetPressed() bool {
-	super := rl.IsKeyDown(rl.KeyLeftSuper) || rl.IsKeyDown(rl.KeyRightSuper)
+func (w *Window) isCtrlPressed() bool {
 	ctrl := rl.IsKeyDown(rl.KeyLeftControl) || rl.IsKeyDown(rl.KeyRightControl)
-	return (super || ctrl) && rl.IsKeyPressed(rl.KeyR)
+	super := rl.IsKeyDown(rl.KeyLeftSuper) || rl.IsKeyDown(rl.KeyRightSuper)
+	return super || ctrl
 }
 
 func (w *Window) HandleHotKeys() {
 	switch {
 	case rl.IsKeyPressed(rl.KeyF1):
 		w.ToggleSlowMode()
+
 	case rl.IsKeyPressed(rl.KeyF12):
 		rl.TakeScreenshot("screenshot.png")
-	case w.isResetPressed():
+
+	case w.isCtrlPressed() && rl.IsKeyPressed(rl.KeyR):
 		if w.ResetDelegate != nil {
 			w.ResetDelegate()
 		}
