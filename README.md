@@ -99,7 +99,7 @@ percentage indicates the number of games that use the mapper according to
 nescartdb.com.
 
 * [x] MMC1 (Mapper 1) - 28%
-* [ ] MMC3 (Mapper 4) - 24%
+* [x] MMC3 (Mapper 4) - 24%
 * [x] UxROM (Mapper 2) - 11%
 * [x] NROM (Mapper 0) - 10%
 * [ ] CNROM (Mapper 3) - 6%

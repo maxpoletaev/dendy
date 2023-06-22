@@ -8,7 +8,6 @@ import (
 )
 
 type TickInfo struct {
-	Cycle            uint64
 	InstrComplete    bool
 	ScanlineComplete bool
 	FrameComplete    bool
@@ -96,10 +95,8 @@ func (b *Bus) Tick() (r TickInfo) {
 	b.cycles++
 	b.PPU.Tick()
 
-	r.Cycle = b.cycles
-
-	// CPU runs 3 times slower than PPU.
 	if b.cycles%3 == 0 {
+		// CPU runs 3x slower than PPU.
 		r.InstrComplete = b.CPU.Tick(b)
 	}
 
@@ -111,6 +108,11 @@ func (b *Bus) Tick() (r TickInfo) {
 	if b.PPU.ScanlineComplete {
 		b.PPU.ScanlineComplete = false
 		r.ScanlineComplete = true
+
+		// Some mappers require scanline IRQs.
+		if t := b.Cart.Scanline(); t.IRQ {
+			b.CPU.TriggerIRQ()
+		}
 	}
 
 	if b.PPU.FrameComplete {

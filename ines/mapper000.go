@@ -24,6 +24,10 @@ func (m *Mapper0) Reset() {
 
 }
 
+func (m *Mapper0) Scanline() TickInfo {
+	return TickInfo{}
+}
+
 func (m *Mapper0) MirrorMode() MirrorMode {
 	return m.rom.MirrorMode
 }

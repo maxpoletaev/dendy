@@ -82,9 +82,9 @@ func (g *Game) Frame() int32 {
 
 func (g *Game) playFrame() {
 	for {
-		tr := g.bus.Tick()
+		tick := g.bus.Tick()
 
-		if tr.FrameComplete {
+		if tick.FrameComplete {
 			g.frame++
 			break
 		}

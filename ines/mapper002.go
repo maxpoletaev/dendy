@@ -23,6 +23,10 @@ func (m *Mapper2) Reset() {
 	m.prgBank1 = m.rom.PRGBanks - 1
 }
 
+func (m *Mapper2) Scanline() TickInfo {
+	return TickInfo{}
+}
+
 func (m *Mapper2) MirrorMode() MirrorMode {
 	return m.rom.MirrorMode
 }

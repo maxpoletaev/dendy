@@ -1,0 +1,261 @@
+package ines
+
+import (
+	"encoding/gob"
+	"errors"
+	"fmt"
+	"log"
+)
+
+// Mapper4 implements the MMC3 mapper.
+// https://wiki.nesdev.com/w/index.php/MMC3
+type Mapper4 struct {
+	rom       *ROM
+	sram      [0x2000]byte
+	mirror    MirrorMode
+	chrBank   [8]int
+	prgBank   [4]int
+	registers [8]int
+	targetReg byte
+	chrMode   byte
+	prgMode   byte
+
+	irqCounter byte
+	irqReload  byte
+	irqEnable  bool
+}
+
+func NewMapper4(rom *ROM) *Mapper4 {
+	return &Mapper4{
+		rom: rom,
+	}
+}
+
+func (m *Mapper4) Reset() {
+	m.mirror = MirrorHorizontal
+	m.registers = [8]int{}
+	m.chrBank = [8]int{}
+	m.prgMode = 0
+	m.chrMode = 0
+
+	m.prgBank[0] = 0 * 0x2000
+	m.prgBank[1] = 1 * 0x2000
+	m.prgBank[2] = m.prgOffset(-2)
+	m.prgBank[3] = m.prgOffset(-1)
+}
+
+func (m *Mapper4) Scanline() (t TickInfo) {
+	if m.irqCounter == 0 {
+		m.irqCounter = m.irqReload
+		return
+	}
+
+	m.irqCounter--
+	if m.irqCounter == 0 {
+		t.IRQ = m.irqEnable
+	}
+
+	return
+}
+
+func (m *Mapper4) MirrorMode() MirrorMode {
+	return m.mirror
+}
+
+func (m *Mapper4) ReadPRG(addr uint16) byte {
+	offset := int(addr&0x1FFF) % 0x4000
+
+	switch {
+	case addr >= 0x6000 && addr <= 0x7FFF:
+		return m.sram[addr-0x6000]
+	case addr >= 0x8000 && addr <= 0x9FFF:
+		return m.rom.PRG[m.prgBank[0]+offset]
+	case addr >= 0xA000 && addr <= 0xBFFF:
+		return m.rom.PRG[m.prgBank[1]+offset]
+	case addr >= 0xC000 && addr <= 0xDFFF:
+		return m.rom.PRG[m.prgBank[2]+offset]
+	case addr >= 0xE000 && addr <= 0xFFFF:
+		return m.rom.PRG[m.prgBank[3]+offset]
+	default:
+		log.Printf("mapper4: unhandled prg read at %04X\n", addr)
+		return 0
+	}
+}
+
+func (m *Mapper4) prgOffset(idx int) int {
+	if idx < 0 {
+		idx = m.rom.PRGBanks*2 + idx
+	}
+	return idx * 0x2000
+}
+
+func (m *Mapper4) chrOffset(idx int) int {
+	return idx * 0x0400
+}
+
+func (m *Mapper4) updateBanks() {
+	switch m.prgMode {
+	case 0:
+		m.prgBank[0] = m.prgOffset(m.registers[6])
+		m.prgBank[1] = m.prgOffset(m.registers[7])
+		m.prgBank[2] = m.prgOffset(-2)
+		m.prgBank[3] = m.prgOffset(-1)
+	case 1:
+		m.prgBank[0] = m.prgOffset(-2)
+		m.prgBank[1] = m.prgOffset(m.registers[7])
+		m.prgBank[2] = m.prgOffset(m.registers[6])
+		m.prgBank[3] = m.prgOffset(-1)
+	default:
+		panic(fmt.Sprintf("mapper4: invalid prg mode %d", m.prgMode))
+	}
+
+	switch m.chrMode {
+	case 0:
+		m.chrBank[0] = m.chrOffset(m.registers[0] & 0xFE)
+		m.chrBank[1] = m.chrOffset(m.registers[0] | 0x01)
+		m.chrBank[2] = m.chrOffset(m.registers[1] & 0xFE)
+		m.chrBank[3] = m.chrOffset(m.registers[1] | 0x01)
+		m.chrBank[4] = m.chrOffset(m.registers[2])
+		m.chrBank[5] = m.chrOffset(m.registers[3])
+		m.chrBank[6] = m.chrOffset(m.registers[4])
+		m.chrBank[7] = m.chrOffset(m.registers[5])
+	case 1:
+		m.chrBank[0] = m.chrOffset(m.registers[2])
+		m.chrBank[1] = m.chrOffset(m.registers[3])
+		m.chrBank[2] = m.chrOffset(m.registers[4])
+		m.chrBank[3] = m.chrOffset(m.registers[5])
+		m.chrBank[4] = m.chrOffset(m.registers[0] & 0xFE)
+		m.chrBank[5] = m.chrOffset(m.registers[0] | 0x01)
+		m.chrBank[6] = m.chrOffset(m.registers[1] & 0xFE)
+		m.chrBank[7] = m.chrOffset(m.registers[1] | 0x01)
+	default:
+		panic(fmt.Sprintf("mapper4: invalid chr mode %d", m.chrMode))
+	}
+}
+
+func (m *Mapper4) writeMirror(data byte) {
+	switch data & 1 {
+	case 0:
+		m.mirror = MirrorVertical
+	case 1:
+		m.mirror = MirrorHorizontal
+	}
+}
+
+func (m *Mapper4) writeRegister(addr uint16, data byte) {
+	switch {
+	case addr >= 0x8000 && addr <= 0x9FFF && addr%2 == 0: // bank select
+		m.prgMode = (data >> 6) & 1
+		m.chrMode = (data >> 7) & 1
+		m.targetReg = data & 7
+	case addr >= 0x8000 && addr <= 0x9FFF && addr%2 == 1: // bank data
+		m.registers[m.targetReg] = int(data)
+		m.updateBanks()
+	case addr >= 0xA000 && addr <= 0xBFFF && addr%2 == 0: // mirroring
+		m.writeMirror(data)
+	case addr >= 0xA000 && addr <= 0xBFFF && addr%2 == 1: // prg ram protect
+		// noop
+	case addr >= 0xC000 && addr <= 0xDFFF && addr%2 == 0: // irq latch
+		m.irqReload = data
+	case addr >= 0xC000 && addr <= 0xDFFF && addr%2 == 1: // irq reload
+		m.irqCounter = 0
+	case addr >= 0xE000 && addr <= 0xFFFF && addr%2 == 0: // irq disable
+		m.irqEnable = false
+	case addr >= 0xE000 && addr <= 0xFFFF && addr%2 == 1: // irq enable
+		m.irqEnable = true
+	default:
+		log.Printf("mapper4: invalid register write at %04X: %02X\n", addr, data)
+	}
+}
+
+func (m *Mapper4) WritePRG(addr uint16, data byte) {
+	switch {
+	case addr >= 0x6000 && addr <= 0x7FFF:
+		m.sram[addr-0x6000] = data
+	case addr >= 0x8000 && addr <= 0xFFFF:
+		m.writeRegister(addr, data)
+	default:
+		log.Printf("mapper4: unhandled prg write at %04X: %02X\n", addr, data)
+	}
+}
+
+func (m *Mapper4) ReadCHR(addr uint16) byte {
+	offset := int(addr&0x03FF) % 0x0400
+
+	switch {
+	case addr >= 0x0000 && addr <= 0x03FF:
+		return m.rom.CHR[m.chrBank[0]+offset]
+	case addr >= 0x0400 && addr <= 0x07FF:
+		return m.rom.CHR[m.chrBank[1]+offset]
+	case addr >= 0x0800 && addr <= 0x0BFF:
+		return m.rom.CHR[m.chrBank[2]+offset]
+	case addr >= 0x0C00 && addr <= 0x0FFF:
+		return m.rom.CHR[m.chrBank[3]+offset]
+	case addr >= 0x1000 && addr <= 0x13FF:
+		return m.rom.CHR[m.chrBank[4]+offset]
+	case addr >= 0x1400 && addr <= 0x17FF:
+		return m.rom.CHR[m.chrBank[5]+offset]
+	case addr >= 0x1800 && addr <= 0x1BFF:
+		return m.rom.CHR[m.chrBank[6]+offset]
+	case addr >= 0x1C00 && addr <= 0x1FFF:
+		return m.rom.CHR[m.chrBank[7]+offset]
+	default:
+		log.Printf("mapper4: unhandled chr read at %04X", addr)
+		return 0
+	}
+}
+
+func (m *Mapper4) WriteCHR(addr uint16, data byte) {
+	switch {
+	case addr >= 0x0000 && addr <= 0x03FF:
+		m.rom.CHR[m.chrBank[0]+int(addr&0x03FF)] = data
+	case addr >= 0x0400 && addr <= 0x07FF:
+		m.rom.CHR[m.chrBank[1]+int(addr&0x03FF)] = data
+	case addr >= 0x0800 && addr <= 0x0BFF:
+		m.rom.CHR[m.chrBank[2]+int(addr&0x03FF)] = data
+	case addr >= 0x0C00 && addr <= 0x0FFF:
+		m.rom.CHR[m.chrBank[3]+int(addr&0x03FF)] = data
+	case addr >= 0x1000 && addr <= 0x13FF:
+		m.rom.CHR[m.chrBank[4]+int(addr&0x03FF)] = data
+	case addr >= 0x1400 && addr <= 0x17FF:
+		m.rom.CHR[m.chrBank[5]+int(addr&0x03FF)] = data
+	case addr >= 0x1800 && addr <= 0x1BFF:
+		m.rom.CHR[m.chrBank[6]+int(addr&0x03FF)] = data
+	case addr >= 0x1C00 && addr <= 0x1FFF:
+		m.rom.CHR[m.chrBank[7]+int(addr&0x03FF)] = data
+	default:
+		log.Printf("mapper4: unhandled chr write at %04X: %02X\n", addr, data)
+	}
+}
+
+func (m *Mapper4) Save(enc *gob.Encoder) error {
+	return errors.Join(
+		m.rom.SaveCRC(enc),
+		enc.Encode(m.sram),
+		enc.Encode(m.prgMode),
+		enc.Encode(m.chrMode),
+		enc.Encode(m.targetReg),
+		enc.Encode(m.registers),
+		enc.Encode(m.chrBank),
+		enc.Encode(m.prgBank),
+		enc.Encode(m.irqEnable),
+		enc.Encode(m.irqCounter),
+		enc.Encode(m.irqReload),
+	)
+}
+
+func (m *Mapper4) Load(dec *gob.Decoder) error {
+	return errors.Join(
+		m.rom.LoadCRC(dec),
+		dec.Decode(&m.sram),
+		dec.Decode(&m.prgMode),
+		dec.Decode(&m.chrMode),
+		dec.Decode(&m.targetReg),
+		dec.Decode(&m.registers),
+		dec.Decode(&m.chrBank),
+		dec.Decode(&m.prgBank),
+		dec.Decode(&m.irqEnable),
+		dec.Decode(&m.irqCounter),
+		dec.Decode(&m.irqReload),
+	)
+}

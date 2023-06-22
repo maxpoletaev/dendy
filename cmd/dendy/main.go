@@ -84,6 +84,7 @@ func runOffline(bus *nes.Bus, o *opts) {
 				if w.ShouldClose() {
 					return
 				}
+
 				w.Refresh()
 			}
 		}

@@ -36,6 +36,10 @@ func (m *Mapper1) Reset() {
 	m.writeCount = 0
 }
 
+func (m *Mapper1) Scanline() TickInfo {
+	return TickInfo{}
+}
+
 func (m *Mapper1) MirrorMode() MirrorMode {
 	switch m.control & 0x03 {
 	case 0:
