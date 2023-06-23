@@ -1,11 +1,10 @@
 # Dendy
 
 Dendy is a NES/Famicom emulator written in Go and named after the soviet Famicom
-bootleg. It serves no practical purpose other than to be a toy project for
-me, so do not expect it to beat any of the existing emulators in terms of
-performance or accuracy. Yet, it is capable of running most of the games
-I tried, so it’s not completely useless, and it's still a great learning
-experience.
+bootleg. It’s nothing serious, so do not expect it to beat any of the existing 
+emulators in terms of performance or accuracy. Yet, it is capable of running most
+of the games I tried, so it’s not completely useless, and it's still a great 
+learning experience.
 
 <img src="screenshots.png" alt="Screenshots">
 
@@ -21,9 +20,9 @@ https://github.com/gen2brain/raylib-go#requirements for more details.
 
 ## Controls
 
-### Joystick
+### Controller
 
-Player 1 joystick is emulated using the keyboard. The default mapping is as
+Player 1 controller is emulated using the keyboard. The default mapping is as
 follows:
 
 ```
@@ -59,9 +58,41 @@ player’s state. Theoretically, this should keep the game playable for both
 players even if the network connection is not very stable (e.g. over the
 Internet), but it is not very well tested.
 
-Most of the ideas for the netplay implementation were borrowed from RetroArch.
+## Tested Games
+
+| Game                                              | Status       | Issues                                                        |
+|---------------------------------------------------|--------------|---------------------------------------------------------------|
+| Balloon Fight                                     | Playable     |                                                               |
+| Battle City                                       | Playable     |                                                               |
+| Bomberman                                         | Playable     |                                                               |
+| Castlevania                                       | Crash        |                                                               |
+| Chip 'n Dale                                      | Playable     |                                                               |
+| Chip 'n Dale 2                                    | Playable     | Characters are positioned 1px above the floor for some reason |
+| Contra                                            | Playable     |                                                               |
+| Contra Force                                      | Playable     | Status bar flickering                                         |
+| Darkwing Duck                                     | Playable     |                                                               |
+| Donkey Kong                                       | Playable     |                                                               |
+| Double Dragon 2                                   | Not Playable | Graphical artifacts                                           |
+| Duck Hunt                                         | Playable     |                                                               |
+| Duck Tales                                        | Playable     |                                                               |
+| Ice Climber                                       | Crash        |                                                               |
+| Legend of Zelda                                   | Playable     |                                                               |
+| Mario Bros.                                       | Playable     |                                                               |
+| Megaman                                           | Playable     |                                                               |
+| Megaman 4                                         | Playable     |                                                               |
+| Metal Gear                                        | Playable     |                                                               |
+| Ninja Cat                                         | Playable     |                                                               |
+| Prince of Persia                                  | Playable     | Incorrect sprite/background priority                          |
+| Super Mario Bros.                                 | Playable     | Status bar flickering                                         |
+| Super Mario Bros. 3                               | Crash        |                                                               |
+| Teenage Mutant Ninja Turtles                      | Not Playable | Black Screen                                                  |
+| Teenage Mutant Ninja Turtles 3                    | Playable     | Status bar is not rendered                                    |
+| Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts                                           |
 
 ## Status
+
+<details>
+<summary>Expand</summary>
 
 ### CPU
 
@@ -92,7 +123,7 @@ Most of the ideas for the netplay implementation were borrowed from RetroArch.
 
 TODO
 
-### Cartridges
+### Mappers
 
 The goal is to support top 7 mappers covering the majority of games. The
 percentage indicates the number of games that use the mapper according to
@@ -106,15 +137,7 @@ nescartdb.com.
 * [ ] AxROM (Mapper 7) - 3%
 * [ ] MMC5 (Mapper 5) - 1%
 
-### Test ROMs
-
-The checked items are the ones that pass the tests completely or with minor
-inaccuracies (that might be caused by the test ROMs themselves).
-
-* [x] Nestest CPU
-* [ ] Blargg’s CPU tests
-* [ ] Blargg’s PPU tests
-* [ ] Blargg’s APU tests
+</details>
 
 ## Resources
 
@@ -125,6 +148,7 @@ everyone who made them!
 
 ### Documentation
 
+* [NESDev Wiki](https://www.nesdev.org/wiki/Nesdev_Wiki)
 * [MOS 6502 CPU Reference](https://web.archive.org/web/20210429110213/http://obelisk.me.uk/6502/) by Andrew Jabobs, 2009
 * [Extra Instructions of the 65xx Series CPU](http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes) by Adam Vardy, 1996
 * [NES Rendering Overview](https://austinmorlan.com/posts/nes_rendering_overview/) by Austin Morlan, 2019
@@ -133,7 +157,7 @@ everyone who made them!
 
 ### Videos
 
-* The [NES Emulator from Scratch](nesemu) series covers most of the topics from
+* The [NES Emulator from Scratch][nesemu] series covers most of the topics from
   the CPU to the sound, but I found the two videos about the PPU to be the most
   useful for understanding the obscure details of the NES rendering pipeline:
   [[1]][ppu1], [[2]][ppu2].
