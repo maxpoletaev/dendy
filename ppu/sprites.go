@@ -136,8 +136,9 @@ func (p *PPU) renderSpriteScanline() {
 		height  = p.spriteHeight()
 	)
 
-	for i := 0; i < p.spriteCount; i++ {
+	for i := p.spriteCount - 1; i >= 0; i-- {
 		sprite := p.spriteScanline[i]
+
 		if sprite.Y > 239 || sprite.Y == 0 {
 			continue
 		}

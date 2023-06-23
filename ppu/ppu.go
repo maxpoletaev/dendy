@@ -333,7 +333,7 @@ func (p *PPU) checkSpriteZeroHit() bool {
 	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
 	//tilePixel := p.fetchTile(frameX/8, frameY/8).Pixels[frameX%8][frameY%8]
 
-	return spritePixel != 0
+	return spritePixel != 0 // && tilePixel != 0
 }
 
 func (p *PPU) clearFrame(c color.RGBA) {

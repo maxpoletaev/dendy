@@ -10,16 +10,15 @@ import (
 // Mapper4 implements the MMC3 mapper.
 // https://wiki.nesdev.com/w/index.php/MMC3
 type Mapper4 struct {
-	rom       *ROM
-	sram      [0x2000]byte
-	mirror    MirrorMode
-	chrBank   [8]int
-	prgBank   [4]int
-	registers [8]int
-	targetReg byte
-	chrMode   byte
-	prgMode   byte
-
+	rom        *ROM
+	sram       [0x2000]byte
+	mirror     MirrorMode
+	chrBank    [8]int
+	prgBank    [4]int
+	registers  [8]int
+	targetReg  byte
+	chrMode    byte
+	prgMode    byte
 	irqCounter byte
 	irqReload  byte
 	irqEnable  bool
@@ -47,12 +46,11 @@ func (m *Mapper4) Reset() {
 func (m *Mapper4) Scanline() (t TickInfo) {
 	if m.irqCounter == 0 {
 		m.irqCounter = m.irqReload
-		return
-	}
-
-	m.irqCounter--
-	if m.irqCounter == 0 {
-		t.IRQ = m.irqEnable
+	} else {
+		m.irqCounter--
+		if m.irqCounter == 0 {
+			t.IRQ = m.irqEnable
+		}
 	}
 
 	return
@@ -63,7 +61,7 @@ func (m *Mapper4) MirrorMode() MirrorMode {
 }
 
 func (m *Mapper4) ReadPRG(addr uint16) byte {
-	offset := int(addr&0x1FFF) % 0x4000
+	offset := int(addr-0x8000) % 0x2000
 
 	switch {
 	case addr >= 0x6000 && addr <= 0x7FFF:
@@ -86,10 +84,13 @@ func (m *Mapper4) prgOffset(idx int) int {
 	if idx < 0 {
 		idx = m.rom.PRGBanks*2 + idx
 	}
+
+	idx %= len(m.rom.PRG) / 0x2000
 	return idx * 0x2000
 }
 
 func (m *Mapper4) chrOffset(idx int) int {
+	idx %= len(m.rom.CHR) / 0x0400
 	return idx * 0x0400
 }
 
@@ -148,6 +149,7 @@ func (m *Mapper4) writeRegister(addr uint16, data byte) {
 		m.prgMode = (data >> 6) & 1
 		m.chrMode = (data >> 7) & 1
 		m.targetReg = data & 7
+		m.updateBanks()
 	case addr >= 0x8000 && addr <= 0x9FFF && addr%2 == 1: // bank data
 		m.registers[m.targetReg] = int(data)
 		m.updateBanks()
@@ -180,7 +182,7 @@ func (m *Mapper4) WritePRG(addr uint16, data byte) {
 }
 
 func (m *Mapper4) ReadCHR(addr uint16) byte {
-	offset := int(addr&0x03FF) % 0x0400
+	offset := int(addr % 0x0400)
 
 	switch {
 	case addr >= 0x0000 && addr <= 0x03FF:
@@ -232,6 +234,7 @@ func (m *Mapper4) Save(enc *gob.Encoder) error {
 	return errors.Join(
 		m.rom.SaveCRC(enc),
 		enc.Encode(m.sram),
+		enc.Encode(m.mirror),
 		enc.Encode(m.prgMode),
 		enc.Encode(m.chrMode),
 		enc.Encode(m.targetReg),
@@ -248,6 +251,7 @@ func (m *Mapper4) Load(dec *gob.Decoder) error {
 	return errors.Join(
 		m.rom.LoadCRC(dec),
 		dec.Decode(&m.sram),
+		dec.Decode(&m.mirror),
 		dec.Decode(&m.prgMode),
 		dec.Decode(&m.chrMode),
 		dec.Decode(&m.targetReg),
