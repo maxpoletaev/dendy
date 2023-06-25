@@ -75,7 +75,7 @@ func (m *Mapper4) ReadPRG(addr uint16) byte {
 	case addr >= 0xE000 && addr <= 0xFFFF:
 		return m.rom.PRG[m.prgBank[3]+offset]
 	default:
-		log.Printf("mapper4: unhandled prg read at %04X\n", addr)
+		log.Printf("[WARN] mapper4: unhandled prg read at %04X\n", addr)
 		return 0
 	}
 }
@@ -177,7 +177,7 @@ func (m *Mapper4) WritePRG(addr uint16, data byte) {
 	case addr >= 0x8000 && addr <= 0xFFFF:
 		m.writeRegister(addr, data)
 	default:
-		log.Printf("mapper4: unhandled prg write at %04X: %02X\n", addr, data)
+		log.Printf("[WARN] mapper4: unhandled prg write at %04X\n", addr)
 	}
 }
 
@@ -202,7 +202,7 @@ func (m *Mapper4) ReadCHR(addr uint16) byte {
 	case addr >= 0x1C00 && addr <= 0x1FFF:
 		return m.rom.CHR[m.chrBank[7]+offset]
 	default:
-		log.Printf("mapper4: unhandled chr read at %04X", addr)
+		log.Printf("[WARN] mapper4: unhandled chr read at %04X\n", addr)
 		return 0
 	}
 }
@@ -226,7 +226,7 @@ func (m *Mapper4) WriteCHR(addr uint16, data byte) {
 	case addr >= 0x1C00 && addr <= 0x1FFF:
 		m.rom.CHR[m.chrBank[7]+int(addr&0x03FF)] = data
 	default:
-		log.Printf("mapper4: unhandled chr write at %04X: %02X\n", addr, data)
+		log.Printf("[WARN] mapper4: unhandled chr write at %04X\n", addr)
 	}
 }
 

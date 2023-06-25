@@ -68,9 +68,9 @@ Internet), but it is not very well tested.
 |------|--------|--------|
 | Balloon Fight | Playable ||
 | Battle City | Playable ||
-| Batman| Crash ||
+| Batman| Playable ||
 | Bomberman | Playable ||
-| Castlevania | Crash ||
+| Castlevania | Playable ||
 | Chip 'n Dale | Playable ||
 | Chip 'n Dale 2 | Playable | Characters are positioned 1px above the floor |
 | Contra | Playable ||
@@ -80,7 +80,7 @@ Internet), but it is not very well tested.
 | Double Dragon 2 | Not Playable | Graphical artifacts |
 | Duck Hunt | Playable ||
 | Duck Tales | Playable ||
-| Ice Climber | Crash ||
+| Ice Climber | Playable ||
 | Legend of Zelda | Playable ||
 | Mario Bros. | Playable ||
 | Megaman | Playable ||

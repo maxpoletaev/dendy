@@ -2,7 +2,7 @@ package ines
 
 import (
 	"encoding/gob"
-	"fmt"
+	"log"
 )
 
 // Mapper0 is the simplest mapper. It has no registers, and it only supports
@@ -38,7 +38,8 @@ func (m *Mapper0) ReadPRG(addr uint16) byte {
 		idx := addr % uint16(len(m.rom.PRG))
 		return m.rom.PRG[idx]
 	default:
-		panic(fmt.Sprintf("mapper0: unhandled prg read at 0x%04X", addr))
+		log.Printf("[WARN] mapper0: unhandled prg read at 0x%04X\n", addr)
+		return 0
 	}
 }
 
@@ -52,7 +53,9 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 		return m.rom.CHR[addr]
 	}
 
-	panic(fmt.Sprintf("mapper0: unhandled chr read at 0x%04X", addr))
+	log.Printf("[WARN] mapper0: unhandled chr read at 0x%04X\n", addr)
+
+	return 0
 }
 
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {

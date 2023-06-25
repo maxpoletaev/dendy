@@ -3,6 +3,7 @@ package ppu
 import (
 	"fmt"
 	"image/color"
+	"log"
 
 	"github.com/maxpoletaev/dendy/ines"
 )
@@ -281,7 +282,8 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 		return value
 	}
 
-	panic(fmt.Sprintf("invalid vram address: %04X", addr))
+	log.Printf("[WARN] read from invalid vram address: %04X\n", addr)
+	return 0
 }
 
 func (p *PPU) writeVRAM(addr uint16, data uint8) {
@@ -309,7 +311,7 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 		return
 	}
 
-	panic(fmt.Sprintf("invalid vram address: %04X", addr))
+	log.Printf("[WARN] write to invalid vram address: %04X\n", addr)
 }
 
 func (p *PPU) checkSpriteZeroHit() bool {

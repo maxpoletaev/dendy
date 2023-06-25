@@ -3,7 +3,7 @@ package ines
 import (
 	"encoding/gob"
 	"errors"
-	"fmt"
+	"log"
 )
 
 type Mapper2 struct {
@@ -42,7 +42,8 @@ func (m *Mapper2) ReadPRG(addr uint16) byte {
 		idx := m.prgBank1*0x4000 + int(addr-0xC000)
 		return m.rom.PRG[idx]
 	default:
-		panic(fmt.Sprintf("mapper2: unhandled prg read at 0x%04X", addr))
+		log.Printf("[WARN] mapper2: unhandled prg read at 0x%04X\n", addr)
+		return 0
 	}
 }
 
@@ -57,7 +58,8 @@ func (m *Mapper2) ReadCHR(addr uint16) byte {
 	case addr >= 0x0000 && addr <= 0x1FFF:
 		return m.rom.CHR[addr]
 	default:
-		panic(fmt.Sprintf("mapper2: unhandled chr read at 0x%04X", addr))
+		log.Printf("[WARN] mapper2: unhandled chr read at 0x%04X\n", addr)
+		return 0
 	}
 }
 

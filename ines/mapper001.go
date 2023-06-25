@@ -132,7 +132,8 @@ func (m *Mapper1) ReadPRG(addr uint16) byte {
 		relAddr := int((addr - 0x8000) % 0x4000)
 		return m.rom.PRG[m.prgOffset(bank1)+relAddr]
 	default:
-		panic(fmt.Sprintf("mapper1: unhandled prg read at %04X", addr))
+		fmt.Printf("[WARN] mapper1: unhandled prg read at %04X\n", addr)
+		return 0
 	}
 }
 
@@ -143,7 +144,7 @@ func (m *Mapper1) WritePRG(addr uint16, data byte) {
 	case addr >= 0x8000 && addr <= 0xFFFF: // PRG-ROM (registers)
 		m.loadRegister(addr, data)
 	default:
-		panic(fmt.Sprintf("mapper1: unhandled prg write at %04X", addr))
+		fmt.Printf("[WARN] mapper1: unhandled prg write at %04X\n", addr)
 	}
 }
 
