@@ -16,10 +16,11 @@ import (
 )
 
 type opts struct {
-	disasm   bool
-	showFPS  bool
-	slowMode bool
-	scale    int
+	disasm        bool
+	showFPS       bool
+	slowMode      bool
+	scale         int
+	noSpriteLimit bool
 
 	cpuprof     string
 	listenAddr  string
@@ -33,6 +34,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
+	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
 
 	flag.IntVar(&o.batchSize, "batchsize", 10, "input batch size for netplay (default: 10)")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
@@ -211,6 +213,7 @@ func main() {
 		ppu = ppupkg.New(cart)
 	)
 
+	ppu.NoSpriteLimit = o.noSpriteLimit
 	cpu.EnableDisasm = o.disasm
 	cpu.AllowIllegal = true
 

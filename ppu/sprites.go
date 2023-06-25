@@ -108,20 +108,21 @@ func (p *PPU) prepareSprites() {
 
 	for i := 0; i < 64; i++ {
 		spriteY := int(p.oamData[i*4+0])
+
 		if scanline < spriteY || scanline >= spriteY+height {
 			continue
 		}
 
-		if p.spriteCount < 8 {
-			p.spriteScanline[p.spriteCount] = p.fetchSprite(i)
+		if p.spriteCount == 8 {
+			p.setStatus(StatusSpriteOverflow, true)
+
+			if !p.NoSpriteLimit {
+				break
+			}
 		}
 
+		p.spriteScanline[p.spriteCount] = p.fetchSprite(i)
 		p.spriteCount++
-	}
-
-	if p.spriteCount > 8 {
-		p.setStatus(StatusSpriteOverflow, true)
-		p.spriteCount = 8
 	}
 }
 

@@ -56,6 +56,7 @@ type PPU struct {
 	RequestNMI       bool
 	ScanlineComplete bool
 	FrameComplete    bool
+	NoSpriteLimit    bool
 
 	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
 	ctrl         CtrlFlags      // $2000
@@ -74,7 +75,7 @@ type PPU struct {
 	addrLatch  bool
 
 	spriteCount    int
-	spriteScanline [8]Sprite
+	spriteScanline [64]Sprite
 
 	cycle      int
 	scanline   int
