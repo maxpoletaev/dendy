@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log"
 )
 
 // Mapper1 implements the MMC1 mapper.
@@ -132,7 +133,7 @@ func (m *Mapper1) ReadPRG(addr uint16) byte {
 		relAddr := int((addr - 0x8000) % 0x4000)
 		return m.rom.PRG[m.prgOffset(bank1)+relAddr]
 	default:
-		fmt.Printf("[WARN] mapper1: unhandled prg read at %04X\n", addr)
+		log.Printf("[WARN] mapper1: unhandled prg read at %04X", addr)
 		return 0
 	}
 }
@@ -144,7 +145,7 @@ func (m *Mapper1) WritePRG(addr uint16, data byte) {
 	case addr >= 0x8000 && addr <= 0xFFFF: // PRG-ROM (registers)
 		m.loadRegister(addr, data)
 	default:
-		fmt.Printf("[WARN] mapper1: unhandled prg write at %04X\n", addr)
+		log.Printf("[WARN] mapper1: unhandled prg write at %04X", addr)
 	}
 }
 
@@ -173,7 +174,8 @@ func (m *Mapper1) ReadCHR(addr uint16) byte {
 	case addr >= 0x1000 && addr <= 0x1FFF: // CHR-RAM, bank 1
 		return m.rom.CHR[m.chrOffset(bank1)+relAddr]
 	default:
-		panic(fmt.Sprintf("mapper1: unhandled chr read at %04X", addr))
+		log.Printf("[WARN] mapper1: unhandled chr read at %04X", addr)
+		return 0
 	}
 }
 
@@ -187,7 +189,7 @@ func (m *Mapper1) WriteCHR(addr uint16, data byte) {
 	case addr >= 0x1000 && addr <= 0x1FFF: // CHR-RAM, bank 1
 		m.rom.CHR[m.chrOffset(bank1)+relAddr] = data
 	default:
-		panic(fmt.Sprintf("mapper1: unhandled chr write at %04X", addr))
+		log.Printf("mapper1: unhandled chr write at %04X", addr)
 	}
 }
 

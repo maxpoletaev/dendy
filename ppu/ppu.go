@@ -282,7 +282,7 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 		return value
 	}
 
-	log.Printf("[WARN] read from invalid vram address: %04X\n", addr)
+	log.Printf("[WARN] read from invalid vram address: %04X", addr)
 	return 0
 }
 
@@ -311,7 +311,7 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 		return
 	}
 
-	log.Printf("[WARN] write to invalid vram address: %04X\n", addr)
+	log.Printf("[WARN] write to invalid vram address: %04X", addr)
 }
 
 func (p *PPU) checkSpriteZeroHit() bool {

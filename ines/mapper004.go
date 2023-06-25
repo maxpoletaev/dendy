@@ -30,56 +30,6 @@ func NewMapper4(rom *ROM) *Mapper4 {
 	}
 }
 
-func (m *Mapper4) Reset() {
-	m.mirror = MirrorHorizontal
-	m.registers = [8]int{}
-	m.chrBank = [8]int{}
-	m.prgMode = 0
-	m.chrMode = 0
-
-	m.prgBank[0] = 0 * 0x2000
-	m.prgBank[1] = 1 * 0x2000
-	m.prgBank[2] = m.prgOffset(-2)
-	m.prgBank[3] = m.prgOffset(-1)
-}
-
-func (m *Mapper4) Scanline() (t TickInfo) {
-	if m.irqCounter == 0 {
-		m.irqCounter = m.irqReload
-	} else {
-		m.irqCounter--
-		if m.irqCounter == 0 {
-			t.IRQ = m.irqEnable
-		}
-	}
-
-	return
-}
-
-func (m *Mapper4) MirrorMode() MirrorMode {
-	return m.mirror
-}
-
-func (m *Mapper4) ReadPRG(addr uint16) byte {
-	offset := int(addr-0x8000) % 0x2000
-
-	switch {
-	case addr >= 0x6000 && addr <= 0x7FFF:
-		return m.sram[addr-0x6000]
-	case addr >= 0x8000 && addr <= 0x9FFF:
-		return m.rom.PRG[m.prgBank[0]+offset]
-	case addr >= 0xA000 && addr <= 0xBFFF:
-		return m.rom.PRG[m.prgBank[1]+offset]
-	case addr >= 0xC000 && addr <= 0xDFFF:
-		return m.rom.PRG[m.prgBank[2]+offset]
-	case addr >= 0xE000 && addr <= 0xFFFF:
-		return m.rom.PRG[m.prgBank[3]+offset]
-	default:
-		log.Printf("[WARN] mapper4: unhandled prg read at %04X\n", addr)
-		return 0
-	}
-}
-
 func (m *Mapper4) prgOffset(idx int) int {
 	if idx < 0 {
 		idx = m.rom.PRGBanks*2 + idx
@@ -166,7 +116,57 @@ func (m *Mapper4) writeRegister(addr uint16, data byte) {
 	case addr >= 0xE000 && addr <= 0xFFFF && addr%2 == 1: // irq enable
 		m.irqEnable = true
 	default:
-		log.Printf("mapper4: invalid register write at %04X: %02X\n", addr, data)
+		log.Printf("mapper4: invalid register write at %04X: %02X", addr, data)
+	}
+}
+
+func (m *Mapper4) Reset() {
+	m.mirror = MirrorHorizontal
+	m.registers = [8]int{}
+	m.chrBank = [8]int{}
+	m.prgMode = 0
+	m.chrMode = 0
+
+	m.prgBank[0] = 0 * 0x2000
+	m.prgBank[1] = 1 * 0x2000
+	m.prgBank[2] = m.prgOffset(-2)
+	m.prgBank[3] = m.prgOffset(-1)
+}
+
+func (m *Mapper4) Scanline() (t TickInfo) {
+	if m.irqCounter == 0 {
+		m.irqCounter = m.irqReload
+	} else {
+		m.irqCounter--
+		if m.irqCounter == 0 {
+			t.IRQ = m.irqEnable
+		}
+	}
+
+	return
+}
+
+func (m *Mapper4) MirrorMode() MirrorMode {
+	return m.mirror
+}
+
+func (m *Mapper4) ReadPRG(addr uint16) byte {
+	offset := int(addr-0x8000) % 0x2000
+
+	switch {
+	case addr >= 0x6000 && addr <= 0x7FFF:
+		return m.sram[addr-0x6000]
+	case addr >= 0x8000 && addr <= 0x9FFF:
+		return m.rom.PRG[m.prgBank[0]+offset]
+	case addr >= 0xA000 && addr <= 0xBFFF:
+		return m.rom.PRG[m.prgBank[1]+offset]
+	case addr >= 0xC000 && addr <= 0xDFFF:
+		return m.rom.PRG[m.prgBank[2]+offset]
+	case addr >= 0xE000 && addr <= 0xFFFF:
+		return m.rom.PRG[m.prgBank[3]+offset]
+	default:
+		log.Printf("[WARN] mapper4: unhandled prg read at %04X", addr)
+		return 0
 	}
 }
 
@@ -177,7 +177,7 @@ func (m *Mapper4) WritePRG(addr uint16, data byte) {
 	case addr >= 0x8000 && addr <= 0xFFFF:
 		m.writeRegister(addr, data)
 	default:
-		log.Printf("[WARN] mapper4: unhandled prg write at %04X\n", addr)
+		log.Printf("[WARN] mapper4: unhandled prg write at %04X", addr)
 	}
 }
 
@@ -202,7 +202,7 @@ func (m *Mapper4) ReadCHR(addr uint16) byte {
 	case addr >= 0x1C00 && addr <= 0x1FFF:
 		return m.rom.CHR[m.chrBank[7]+offset]
 	default:
-		log.Printf("[WARN] mapper4: unhandled chr read at %04X\n", addr)
+		log.Printf("[WARN] mapper4: unhandled chr read at %04X", addr)
 		return 0
 	}
 }
@@ -226,7 +226,7 @@ func (m *Mapper4) WriteCHR(addr uint16, data byte) {
 	case addr >= 0x1C00 && addr <= 0x1FFF:
 		m.rom.CHR[m.chrBank[7]+int(addr&0x03FF)] = data
 	default:
-		log.Printf("[WARN] mapper4: unhandled chr write at %04X\n", addr)
+		log.Printf("[WARN] mapper4: unhandled chr write at %04X", addr)
 	}
 }
 

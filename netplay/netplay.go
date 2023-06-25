@@ -2,7 +2,10 @@ package netplay
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
 	"net"
+	"time"
 
 	"github.com/maxpoletaev/dendy/internal/rolling"
 )
@@ -15,55 +18,69 @@ type Netplay struct {
 	inputBatch InputBatch
 	remoteConn net.Conn
 	batchSize  int
+	ping       int
+	pingJitter int
 }
 
-func Listen(game *Game, addr string, opts ...Options) (*Netplay, error) {
+func Listen(game *Game, addr string, opts ...Options) (*Netplay, net.Addr, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("netplay: failed to listen on %s: %v", addr, err)
+		return nil, nil, fmt.Errorf("netplay: failed to listen on %s: %v", addr, err)
 	}
 
 	conn, err := listener.Accept()
 	if err != nil {
-		return nil, fmt.Errorf("netplay: failed to accept connection: %v", err)
+		return nil, nil, fmt.Errorf("netplay: failed to accept connection: %v", err)
 	}
 
 	np := &Netplay{
 		toSend:     make(chan Message, 100),
 		toRecv:     make(chan Message, 100),
 		stop:       make(chan struct{}),
+		batchSize:  defaultInputBatch,
 		game:       game,
 		remoteConn: conn,
-		batchSize:  10,
 	}
 
 	for _, opt := range opts {
 		withOptions(np, opt)
 	}
 
-	return np, nil
+	return np, conn.RemoteAddr(), nil
 }
 
-func Connect(game *Game, addr string, opts ...Options) (*Netplay, error) {
+func Connect(game *Game, addr string, opts ...Options) (*Netplay, net.Addr, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("netplay: failed to connect to %s: %v", addr, err)
+		return nil, nil, fmt.Errorf("netplay: failed to connect to %s: %v", addr, err)
 	}
 
 	np := &Netplay{
 		toSend:     make(chan Message, 100),
 		toRecv:     make(chan Message, 100),
 		stop:       make(chan struct{}),
+		batchSize:  defaultInputBatch,
 		game:       game,
 		remoteConn: conn,
-		batchSize:  10,
 	}
 
 	for _, opt := range opts {
 		withOptions(np, opt)
 	}
 
-	return np, nil
+	return np, conn.RemoteAddr(), nil
+}
+
+func (np *Netplay) simulateLatency() {
+	if np.ping > 0 {
+		sleep := time.Duration(np.ping) * time.Millisecond
+
+		if np.pingJitter > 0 {
+			sleep += time.Duration(rand.Intn(np.pingJitter)) * time.Millisecond
+		}
+
+		time.Sleep(sleep)
+	}
 }
 
 func (np *Netplay) startWriter() {
@@ -72,6 +89,8 @@ func (np *Netplay) startWriter() {
 		case <-np.stop:
 			return
 		case msg := <-np.toSend:
+			np.simulateLatency()
+
 			if err := writeMsg(np.remoteConn, msg); err != nil {
 				panic(fmt.Errorf("failed to write message: %v", err))
 			}
@@ -95,7 +114,21 @@ func (np *Netplay) startReader() {
 	}
 }
 
+func (np *Netplay) sendMsg(msg Message) {
+	select {
+	case np.toSend <- msg:
+	default:
+		log.Printf("[WARN] send buffer is full, blocking")
+		np.toSend <- msg
+	}
+}
+
 func (np *Netplay) handleMessage(msg Message) {
+	if msg.Incarnation < np.game.Incarnation() {
+		log.Printf("[INFO] dropping message from old incarnation: %d", msg.Incarnation)
+		return
+	}
+
 	switch msg.Type {
 	case MsgTypeReset:
 		np.resetInputBatch(msg.Frame)
@@ -113,15 +146,18 @@ func (np *Netplay) handleMessage(msg Message) {
 		// If we're too far behind, ask the other side to wait for us.
 		endFrame := np.game.Frame() + int32(np.batchSize*10)
 		if rolling.GreaterThan(msg.Frame, endFrame) {
-			np.toSend <- Message{
-				Type:  MsgTypeSleep,
-				Frame: msg.Frame,
-			}
+			log.Printf("[INFO] asking other side to sleep")
+
+			np.sendMsg(Message{
+				Incarnation: np.game.Incarnation(),
+				Type:        MsgTypeSleep,
+				Frame:       msg.Frame,
+			})
 		}
 
 	case MsgTypeSleep:
 		if d := int(msg.Frame - np.game.Frame()); d > 0 {
-			fmt.Printf("sleeping for %d frames\n", d)
+			log.Printf("[INFO] sleeping for %d frames", d)
 			np.game.Sleep(d)
 		}
 	}
@@ -147,11 +183,12 @@ func (np *Netplay) SendReset() {
 	np.resetInputBatch(0)
 	cp := np.game.Checkpoint()
 
-	np.toSend <- Message{
-		Type:    MsgTypeReset,
-		Frame:   cp.Frame,
-		Payload: cp.State,
-	}
+	np.sendMsg(Message{
+		Incarnation: np.game.Incarnation(),
+		Type:        MsgTypeReset,
+		Frame:       cp.Frame,
+		Payload:     cp.State,
+	})
 }
 
 // SendInput sends the local input to the remote player. Should be called every frame.
@@ -161,11 +198,12 @@ func (np *Netplay) SendInput(buttons uint8) {
 	np.inputBatch.Add(buttons)
 
 	if len(np.inputBatch.Input) >= np.batchSize {
-		np.toSend <- Message{
-			Type:    MsgTypeInput,
-			Payload: np.inputBatch.Input,
-			Frame:   np.inputBatch.StartFrame,
-		}
+		np.sendMsg(Message{
+			Type:        MsgTypeInput,
+			Payload:     np.inputBatch.Input,
+			Frame:       np.inputBatch.StartFrame,
+			Incarnation: np.game.Incarnation(),
+		})
 
 		np.inputBatch = InputBatch{
 			StartFrame: np.game.Frame() + 1,

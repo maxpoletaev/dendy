@@ -3,6 +3,7 @@ package ines
 import (
 	"encoding/gob"
 	"fmt"
+	"log"
 )
 
 type TickInfo struct {
@@ -35,6 +36,8 @@ func Load(path string) (Cartridge, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("[INFO] loaded rom: mapper:%d", rom.MapperID)
 
 	switch rom.MapperID {
 	case 0:

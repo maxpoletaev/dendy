@@ -38,7 +38,7 @@ func (m *Mapper0) ReadPRG(addr uint16) byte {
 		idx := addr % uint16(len(m.rom.PRG))
 		return m.rom.PRG[idx]
 	default:
-		log.Printf("[WARN] mapper0: unhandled prg read at 0x%04X\n", addr)
+		log.Printf("[WARN] mapper0: unhandled prg read at %04X", addr)
 		return 0
 	}
 }
@@ -51,11 +51,10 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 	switch {
 	case addr >= 0x0000 && addr <= 0x1FFF:
 		return m.rom.CHR[addr]
+	default:
+		log.Printf("[WARN] mapper0: unhandled chr read at %04X", addr)
+		return 0
 	}
-
-	log.Printf("[WARN] mapper0: unhandled chr read at 0x%04X\n", addr)
-
-	return 0
 }
 
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {

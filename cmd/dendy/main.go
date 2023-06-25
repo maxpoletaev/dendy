@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"runtime/pprof"
 
@@ -21,11 +22,12 @@ type opts struct {
 	slowMode      bool
 	scale         int
 	noSpriteLimit bool
-
-	cpuprof     string
-	listenAddr  string
-	connectAddr string
-	batchSize   int
+	cpuprof       string
+	listenAddr    string
+	connectAddr   string
+	inputBatch    int
+	pingTime      int
+	pingJitter    int
 }
 
 func (o *opts) parse() *opts {
@@ -35,10 +37,11 @@ func (o *opts) parse() *opts {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
-
-	flag.IntVar(&o.batchSize, "batchsize", 10, "input batch size for netplay (default: 10)")
+	flag.IntVar(&o.pingTime, "ping", 0, "netplay latency simulation (default: 0)")
+	flag.IntVar(&o.pingJitter, "pingjitter", 0, "netplay ping jitter (default: 0)")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address (default: none)")
+	flag.IntVar(&o.inputBatch, "inputbatch", 5, "input batch size for netplay (default: 5)")
 
 	flag.Parse()
 	return o
@@ -93,7 +96,7 @@ func runOffline(bus *nes.Bus, o *opts) {
 	}
 }
 
-func runServer(bus *nes.Bus, o *opts) {
+func runAsServer(bus *nes.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 
@@ -102,13 +105,21 @@ func runServer(bus *nes.Bus, o *opts) {
 	game.LocalJoy = bus.Joy1
 	game.Reset(nil)
 
-	fmt.Printf("waiting for client...\n")
+	log.Printf("[INFO] waiting for client...")
 
-	server, err := netplay.Listen(game, o.listenAddr, netplay.Options{BatchSize: o.batchSize})
+	server, addr, err := netplay.Listen(game, o.listenAddr, netplay.Options{
+		BatchSize:  o.inputBatch,
+		Ping:       o.pingTime,
+		PingJitter: o.pingJitter,
+	})
+
 	if err != nil {
-		fmt.Printf("failed to listen: %v\n", err)
+		log.Printf("[ERROR] failed to listen: %v", err)
 		os.Exit(1)
 	}
+
+	log.Printf("[INFO] client connected: %s", addr)
+	log.Printf("[INFO] starting game...")
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.SetTitle(fmt.Sprintf("%s (P1)", screen.Title))
@@ -135,7 +146,7 @@ func runServer(bus *nes.Bus, o *opts) {
 	}
 }
 
-func runClient(bus *nes.Bus, o *opts) {
+func runAsClient(bus *nes.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 
@@ -144,13 +155,21 @@ func runClient(bus *nes.Bus, o *opts) {
 	game.LocalJoy = bus.Joy2
 	game.Reset(nil)
 
-	fmt.Println("connecting to server...")
+	log.Printf("[INFO] connecting to server...")
 
-	client, err := netplay.Connect(game, o.connectAddr, netplay.Options{BatchSize: o.batchSize})
+	client, addr, err := netplay.Connect(game, o.connectAddr, netplay.Options{
+		BatchSize:  o.inputBatch,
+		Ping:       o.pingTime,
+		PingJitter: o.pingJitter,
+	})
+
 	if err != nil {
-		fmt.Printf("failed to connect: %v\n", err)
+		log.Printf("[ERROR] failed to connect: %v", err)
 		os.Exit(1)
 	}
+
+	log.Printf("[INFO] connected to server: %s", addr)
+	log.Printf("[INFO] starting game...")
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
@@ -176,6 +195,8 @@ func runClient(bus *nes.Bus, o *opts) {
 }
 
 func main() {
+	log.Default().SetFlags(0)
+
 	o := new(opts).parse()
 	o.sanitize()
 
@@ -185,17 +206,17 @@ func main() {
 	}
 
 	if o.cpuprof != "" {
-		fmt.Printf("writing cpu profile to %s\n", o.cpuprof)
+		log.Printf("[INFO] writing cpu profile to %s", o.cpuprof)
 
 		f, err := os.Create(o.cpuprof)
 		if err != nil {
-			fmt.Printf("failed to create cpu profile: %v\n", err)
+			log.Printf("[ERROR] failed to create cpu profile: %v", err)
 			os.Exit(1)
 		}
 
 		err = pprof.StartCPUProfile(f)
 		if err != nil {
-			fmt.Printf("failed to start cpu profile: %v\n", err)
+			log.Printf("[ERROR] failed to start cpu profile: %v", err)
 			os.Exit(1)
 		}
 
@@ -204,7 +225,7 @@ func main() {
 
 	cart, err := ines.Load(flag.Arg(0))
 	if err != nil {
-		fmt.Println(fmt.Sprintf("failed to open rom file: %s", err))
+		log.Printf("[ERROR] failed to open rom file: %s", err)
 		os.Exit(1)
 	}
 
@@ -217,8 +238,6 @@ func main() {
 	cpu.EnableDisasm = o.disasm
 	cpu.AllowIllegal = true
 
-	// Initialize a basic console bus. The controllers will
-	// depend on the mode, so we'll initialize them later.
 	bus := &nes.Bus{
 		Cart: cart,
 		CPU:  cpu,
@@ -227,10 +246,13 @@ func main() {
 
 	switch {
 	case o.listenAddr != "":
-		runServer(bus, o)
+		log.Printf("[INFO] starting server mode")
+		runAsServer(bus, o)
 	case o.connectAddr != "":
-		runClient(bus, o)
+		log.Printf("[INFO] starting client mode")
+		runAsClient(bus, o)
 	default:
+		log.Printf("[INFO] starting offline mode")
 		runOffline(bus, o)
 	}
 }

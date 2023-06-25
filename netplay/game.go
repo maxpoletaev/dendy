@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/maxpoletaev/dendy/input"
@@ -13,7 +14,8 @@ import (
 )
 
 const (
-	frameDuration = time.Second / 60
+	frameDuration     = time.Second / 60
+	defaultInputBatch = 5
 )
 
 type Checkpoint struct {
@@ -39,6 +41,7 @@ type Game struct {
 	checkpoint     *Checkpoint
 	remoteInput    *generic.Queue[InputBatch]
 	simulatedInput uint8
+	incarnation    uint32
 
 	LocalJoy  *input.Joystick
 	RemoteJoy *input.Joystick
@@ -55,6 +58,8 @@ func NewGame(bus *nes.Bus) *Game {
 // emulator is reset to the initial state.
 func (g *Game) Reset(cp *Checkpoint) {
 	g.frame = 0
+	g.incarnation++
+
 	g.localInput = nil
 	g.simulatedInput = 0
 	g.remoteInput = generic.NewQueue[InputBatch]()
@@ -78,6 +83,12 @@ func (g *Game) Checkpoint() *Checkpoint {
 // Frame returns the current frame number.
 func (g *Game) Frame() int32 {
 	return g.frame
+}
+
+// Incarnation returns the current incarnation number. It is incremented every
+// time the game is reset.
+func (g *Game) Incarnation() uint32 {
+	return g.incarnation
 }
 
 func (g *Game) playFrame() {
@@ -167,8 +178,10 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 		panic(fmt.Errorf("input is behind the checkpoint: %d < %d", batch.StartFrame, g.checkpoint.Frame))
 	}
 
+	start := time.Now()
 	endFrame := g.frame
 	g.restoreCheckpoint()
+	numFrames := endFrame - g.frame
 
 	minLen := len(g.localInput)
 	if len(batch.Input) < minLen {
@@ -204,6 +217,12 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 
 	if g.frame != endFrame {
 		panic(fmt.Errorf("frame advanced from %d to %d", endFrame, g.frame))
+	}
+
+	// Replaying a large number of frames will inevitably create some lag
+	// for the local player. There is not much we can do about it.
+	if time.Since(start) > frameDuration {
+		log.Printf("[WARN] replay lag: %s (%d frames)", time.Since(start), numFrames)
 	}
 
 	// There might still be some local inputs left, so we need to keep them.
