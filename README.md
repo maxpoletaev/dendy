@@ -23,7 +23,7 @@ https://github.com/gen2brain/raylib-go#requirements for more details.
 ### Controller
 
 Player 1 controller is emulated using the keyboard. The default mapping is as
-follows:
+follows. Multiplayer on a single keyboard is not supported.
 
 ```
                    ┆┆
@@ -42,13 +42,14 @@ follows:
 Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
 the mouse cursor at the right position on the screen and click to shoot.
 
-## Multiplayer
+## Network Multiplayer
 
 Dendy can be played over the network with another player. Run the emulator with
 the `-listen=<host>:<port>` flag to start a netplay server that will be waiting
 for the second player to connect via the `-connect=<host>:<port>` flag. Once the
 connection is established, the game will start for both sides. The player who
-started the server will be controlling the first joystick.
+started the server will be controlling the first joystick. Ensure that both
+sides are using the same ROM file and the same version of the emulator.
 
 The feature works by synchronizing the state of the emulated NES and sending
 the controller input over the network to the other player. The algorithm allows
@@ -60,34 +61,41 @@ Internet), but it is not very well tested.
 
 ## Tested Games
 
-| Game                                              | Status       | Issues                                                        |
-|---------------------------------------------------|--------------|---------------------------------------------------------------|
-| Balloon Fight                                     | Playable     |                                                               |
-| Battle City                                       | Playable     |                                                               |
-| Bomberman                                         | Playable     |                                                               |
-| Castlevania                                       | Crash        |                                                               |
-| Chip 'n Dale                                      | Playable     |                                                               |
-| Chip 'n Dale 2                                    | Playable     | Characters are positioned 1px above the floor for some reason |
-| Contra                                            | Playable     |                                                               |
-| Contra Force                                      | Playable     | Status bar flickering                                         |
-| Darkwing Duck                                     | Playable     |                                                               |
-| Donkey Kong                                       | Playable     |                                                               |
-| Double Dragon 2                                   | Not Playable | Graphical artifacts                                           |
-| Duck Hunt                                         | Playable     |                                                               |
-| Duck Tales                                        | Playable     |                                                               |
-| Ice Climber                                       | Crash        |                                                               |
-| Legend of Zelda                                   | Playable     |                                                               |
-| Mario Bros.                                       | Playable     |                                                               |
-| Megaman                                           | Playable     |                                                               |
-| Megaman 4                                         | Playable     |                                                               |
-| Metal Gear                                        | Playable     |                                                               |
-| Ninja Cat                                         | Playable     |                                                               |
-| Prince of Persia                                  | Playable     | Incorrect sprite/background priority                          |
-| Super Mario Bros.                                 | Playable     | Status bar flickering                                         |
-| Super Mario Bros. 3                               | Crash        |                                                               |
-| Teenage Mutant Ninja Turtles                      | Not Playable | Black Screen                                                  |
-| Teenage Mutant Ninja Turtles 3                    | Playable     | Status bar is not rendered                                    |
-| Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts                                           |
+<details>
+<summary>Expand</summary>
+
+| Game | Status | Issues |
+|------|--------|--------|
+| Balloon Fight | Playable ||
+| Battle City | Playable ||
+| Batman| Crash ||
+| Bomberman | Playable ||
+| Castlevania | Crash ||
+| Chip 'n Dale | Playable ||
+| Chip 'n Dale 2 | Playable | Characters are positioned 1px above the floor |
+| Contra | Playable ||
+| Contra Force | Playable | Status bar flickering |
+| Darkwing Duck | Playable ||
+| Donkey Kong | Playable ||
+| Double Dragon 2 | Not Playable | Graphical artifacts |
+| Duck Hunt | Playable ||
+| Duck Tales | Playable ||
+| Ice Climber | Crash ||
+| Legend of Zelda | Playable ||
+| Mario Bros. | Playable ||
+| Megaman | Playable ||
+| Megaman 4 | Playable ||
+| Metal Gear | Playable ||
+| Ninja Cat | Playable ||
+| Prince of Persia | Playable | Incorrect sprite/background priority |
+| Super Mario Bros. | Playable | Status bar flickering |
+| Super Mario Bros. 3 | Crash ||
+| Super Contra | Playable ||
+| Teenage Mutant Ninja Turtles | Not Playable | Black Screen |
+| Teenage Mutant Ninja Turtles 3 | Playable | Status bar is not rendered |
+| Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts |
+
+</details>
 
 ## Status
 
