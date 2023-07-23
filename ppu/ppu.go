@@ -325,8 +325,9 @@ func (p *PPU) checkSpriteZeroHit() bool {
 		return false
 	}
 
+	pixelX, pixelY := frameX%8, frameY%8
 	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
-	tilePixel := p.fetchTile(frameX/8, frameY/8).Pixels[frameX%8][frameY%8]
+	tilePixel := p.fetchTileLine(frameX/8, frameY/8, pixelY).Pixels[pixelX][pixelY]
 
 	return spritePixel != 0 && tilePixel != 0
 }

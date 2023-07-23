@@ -70,7 +70,7 @@ Internet), but it is not very well tested.
 | Captain America | Playable ||
 | Castlevania | Playable ||
 | Chip 'n Dale | Playable ||
-| Chip 'n Dale 2 | Playable | Characters are positioned 1px above the floor |
+| Chip 'n Dale 2 | Playable | Characters are 1px above the floor |
 | Contra Force | Playable ||
 | Contra | Playable ||
 | Darkwing Duck | Playable ||
