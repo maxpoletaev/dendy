@@ -10,6 +10,7 @@ import (
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
+	"github.com/maxpoletaev/dendy/internal/loglevel"
 	"github.com/maxpoletaev/dendy/nes"
 	"github.com/maxpoletaev/dendy/netplay"
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
@@ -17,6 +18,7 @@ import (
 )
 
 type opts struct {
+	verbose       bool
 	disasm        bool
 	showFPS       bool
 	slowMode      bool
@@ -32,6 +34,7 @@ type opts struct {
 
 func (o *opts) parse() *opts {
 	flag.BoolVar(&o.slowMode, "slow", false, "enable slow mode")
+	flag.BoolVar(&o.verbose, "verbose", false, "enable verbose logging")
 	flag.BoolVar(&o.disasm, "disasm", false, "enable cpu disassembler")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
@@ -51,6 +54,14 @@ func (o *opts) sanitize() {
 	if o.scale < 1 {
 		o.scale = 1
 	}
+}
+
+func (o *opts) logLevel() loglevel.Level {
+	if o.verbose {
+		return loglevel.LevelDebug
+	}
+
+	return loglevel.LevelError
 }
 
 func runOffline(bus *nes.Bus, o *opts) {
@@ -195,10 +206,14 @@ func runAsClient(bus *nes.Bus, o *opts) {
 }
 
 func main() {
-	log.Default().SetFlags(0)
-
 	o := new(opts).parse()
 	o.sanitize()
+
+	log.Default().SetFlags(0)
+	log.Default().SetOutput(&loglevel.LevelFilter{
+		Level:  o.logLevel(),
+		Output: os.Stderr,
+	})
 
 	if flag.NArg() != 1 {
 		fmt.Println("usage: dendy [-scale=2] [-showfps] [-disasm] <rom_file.nes>")
