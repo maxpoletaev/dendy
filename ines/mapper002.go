@@ -36,10 +36,12 @@ func (m *Mapper2) ReadPRG(addr uint16) byte {
 	case addr >= 0x8000 && addr <= 0xBFFF:
 		// Read from the first 16KB PRG-ROM bank (fixed).
 		idx := m.prgBank0*0x4000 + int(addr-0x8000)
+		idx %= len(m.rom.PRG)
 		return m.rom.PRG[idx]
 	case addr >= 0xC000 && addr <= 0xFFFF:
 		// Read from the last 16KB PRG-ROM bank (switchable).
 		idx := m.prgBank1*0x4000 + int(addr-0xC000)
+		idx %= len(m.rom.PRG)
 		return m.rom.PRG[idx]
 	default:
 		log.Printf("[WARN] mapper2: unhandled prg read at 0x%04X", addr)
