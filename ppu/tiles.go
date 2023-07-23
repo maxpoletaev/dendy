@@ -69,6 +69,10 @@ func (p *PPU) renderTileScanline() {
 	)
 
 	for screenX := 0; screenX < 256; screenX++ {
+		if !p.getMask(MaskShowLeftTiles) && screenX < 8 {
+			continue
+		}
+
 		scrolledX := screenX + int(scrollX)
 		pixelX := scrolledX % 8
 		tileX := scrolledX / 8

@@ -152,6 +152,10 @@ func (p *PPU) renderSpriteScanline() {
 				continue
 			}
 
+			if !p.getMask(MaskShowLeftSprites) && frameX < 8 {
+				continue
+			}
+
 			px := pixels[pixelX][pixelY]
 			if px == 0 {
 				continue

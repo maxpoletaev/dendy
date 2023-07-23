@@ -24,14 +24,14 @@ const (
 )
 
 const (
-	MaskGrayscale          MaskFlags = 1 << 0
-	MaskShowLeftBackground MaskFlags = 1 << 1
-	MaskShowLeftSprites    MaskFlags = 1 << 2
-	MaskShowBackground     MaskFlags = 1 << 3
-	MaskShowSprites        MaskFlags = 1 << 4
-	MaskEmphasizeRed       MaskFlags = 1 << 5
-	MaskEmphasizeGreen     MaskFlags = 1 << 6
-	MaskEmphasizeBlue      MaskFlags = 1 << 7
+	MaskGrayscale       MaskFlags = 1 << 0
+	MaskShowLeftTiles   MaskFlags = 1 << 1
+	MaskShowLeftSprites MaskFlags = 1 << 2
+	MaskShowBackground  MaskFlags = 1 << 3
+	MaskShowSprites     MaskFlags = 1 << 4
+	MaskEmphasizeRed    MaskFlags = 1 << 5
+	MaskEmphasizeGreen  MaskFlags = 1 << 6
+	MaskEmphasizeBlue   MaskFlags = 1 << 7
 )
 
 const (
