@@ -188,10 +188,10 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 		minLen = len(batch.Input)
 	}
 
-	// Disable the rendering, as we don’t need to see the intermediate states.
-	// This makes the replay much faster.
-	g.bus.PPU.DisableRender()
-	defer g.bus.PPU.EnableRender()
+	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
+	// render the intermediate frames.
+	g.bus.PPU.BeginFastForward()
+	defer g.bus.PPU.EndFastForward()
 
 	// Replay the inputs until the local and remote emulators are in sync.
 	for i := 0; i < minLen; i++ {

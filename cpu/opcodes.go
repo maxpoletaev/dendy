@@ -169,7 +169,7 @@ const (
 var instrTable = []instrInfo{
 	// Official 6502 instructions.
 	{"NOP", NOP_Imp, AddrModeImp, 1, 2},
-	{"BRK", BRK_Imp, AddrModeImp, 1, 7},
+	{"BRK", BRK_Imp, AddrModeImp, 2, 7},
 	{"LDA", LDA_Imm, AddrModeImm, 2, 2},
 	{"LDA", LDA_Zp, AddrModeZp, 2, 3},
 	{"LDA", LDA_ZpX, AddrModeZpX, 2, 4},

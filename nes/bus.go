@@ -109,8 +109,7 @@ func (b *Bus) Tick() (r TickInfo) {
 		b.PPU.ScanlineComplete = false
 		r.ScanlineComplete = true
 
-		// Some mappers require scanline IRQs.
-		if t := b.Cart.Scanline(); t.IRQ {
+		if t := b.Cart.Scanline(); t.RequestIRQ {
 			b.CPU.TriggerIRQ()
 		}
 	}

@@ -446,16 +446,12 @@ func (cpu *CPU) jmp(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) jsr(mem Memory, arg operand) {
-	retAddr := cpu.PC - 1
-	cpu.pushByte(mem, uint8(retAddr>>8))
-	cpu.pushByte(mem, uint8(retAddr))
+	cpu.pushWord(mem, cpu.PC-1)
 	cpu.PC = arg.addr
 }
 
 func (cpu *CPU) rts(mem Memory, arg operand) {
-	lo := uint16(cpu.popByte(mem))
-	hi := uint16(cpu.popByte(mem))
-	addr := hi<<8 | lo
+	addr := cpu.popWord(mem)
 	cpu.PC = addr + 1
 }
 
@@ -548,10 +544,8 @@ func (cpu *CPU) bvs(mem Memory, arg operand) {
 }
 
 func (cpu *CPU) brk(mem Memory, arg operand) {
-	cpu.pushByte(mem, uint8(cpu.PC>>8))
-	cpu.pushByte(mem, uint8(cpu.PC))
-	cpu.pushByte(mem, uint8(cpu.P))
-	cpu.setFlag(FlagBreak, true)
+	cpu.pushWord(mem, cpu.PC)
+	cpu.pushByte(mem, uint8(cpu.P&FlagBreak))
 	cpu.PC = readWord(mem, VecIRQ)
 }
 
@@ -585,5 +579,6 @@ func (cpu *CPU) sei(mem Memory, arg operand) {
 
 func (cpu *CPU) rti(mem Memory, arg operand) {
 	cpu.P = Flags(cpu.popByte(mem))&0xEF | 0x20
+	cpu.setFlag(FlagBreak, false)
 	cpu.PC = cpu.popWord(mem)
 }

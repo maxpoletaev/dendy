@@ -61,46 +61,45 @@ Internet), but it is not very well tested.
 
 ## Tested Games
 
-<details>
-<summary>Expand</summary>
-
 | Game | Status | Issues |
 |------|--------|--------|
 | Balloon Fight | Playable ||
-| Battle City | Playable ||
 | Batman| Playable ||
+| Battle City | Playable ||
 | Bomberman | Playable ||
+| Captain America | Playable ||
 | Castlevania | Playable ||
 | Chip 'n Dale | Playable ||
 | Chip 'n Dale 2 | Playable | Characters are positioned 1px above the floor |
+| Contra Force | Playable ||
 | Contra | Playable ||
-| Contra Force | Playable | Status bar flickering |
 | Darkwing Duck | Playable ||
 | Donkey Kong | Playable ||
-| Double Dragon 2 | Not Playable | Graphical artifacts |
+| Double Dragon 2 | Playable ||
+| Double Dragon 3 | Playable ||
 | Duck Hunt | Playable ||
 | Duck Tales | Playable ||
 | Ice Climber | Playable ||
+| Jackal | Not Playable | Black screen |
+| Kirby's Adventure | Not Playable | Graphical artifacts |
 | Legend of Zelda | Playable ||
 | Mario Bros. | Playable ||
 | Megaman | Playable ||
 | Megaman 4 | Playable ||
 | Metal Gear | Playable ||
+| Mighty Final Fight | Playable ||
 | Ninja Cat | Playable ||
 | Prince of Persia | Playable | Incorrect sprite/background priority |
-| Super Mario Bros. | Playable | Status bar flickering |
-| Super Mario Bros. 3 | Crash ||
 | Super Contra | Playable ||
-| Teenage Mutant Ninja Turtles | Not Playable | Black Screen |
-| Teenage Mutant Ninja Turtles 3 | Playable | Status bar is not rendered |
+| Super Mario Bros. 3 | Crash ||
+| Super Mario Bros. | Playable ||
+| Teenage Mutant Ninja Turtles | Not Playable | Extremely slow |
+| Teenage Mutant Ninja Turtles 2 | Playable ||
+| Teenage Mutant Ninja Turtles 3 | Playable ||
 | Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts |
-
-</details>
+| Tiny Toon Adventures | Playable ||
 
 ## Status
-
-<details>
-<summary>Expand</summary>
 
 ### CPU
 
@@ -119,7 +118,7 @@ Internet), but it is not very well tested.
 * [x] Palettes
 * [x] Scrolling
 * [ ] Color emphasis
-* [ ] Cycle-accurate emulation
+* [ ] Cycle-accurate rendering
 
 ### Input/Output
 
@@ -144,8 +143,6 @@ nescartdb.com.
 * [ ] CNROM (Mapper 3) - 6%
 * [ ] AxROM (Mapper 7) - 3%
 * [ ] MMC5 (Mapper 5) - 1%
-
-</details>
 
 ## Resources
 
@@ -183,3 +180,4 @@ people that I often referred to when I was stuck:
 * [github.com/OneLoneCoder/olcNES](https://github.com/OneLoneCoder/olcNES)
 * [github.com/ad-sho-loko/goones](https://github.com/ad-sho-loko/goones)
 * [github.com/fogleman/nes](https://github.com/fogleman/nes)
+* [github.com/marethyu/nesty](https://github.com/marethyu/nesty)

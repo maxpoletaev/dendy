@@ -8,17 +8,6 @@ import (
 	"github.com/maxpoletaev/dendy/ines"
 )
 
-const (
-	ctrlRegAddr     uint16 = 0x2000
-	maskRegAddr     uint16 = 0x2001
-	statusRegAddr   uint16 = 0x2002
-	oamAddrRegAddr  uint16 = 0x2003
-	oamDataRegAddr  uint16 = 0x2004
-	scrollRegAddr   uint16 = 0x2005
-	vramAddrRegAddr uint16 = 0x2006
-	vramDataRegAddr uint16 = 0x2007
-)
-
 type (
 	CtrlFlags   uint8
 	MaskFlags   uint8
@@ -26,7 +15,6 @@ type (
 )
 
 const (
-	CtrlNameTableSelect              = 0x03 // two bits
 	CtrlIncrementMode      CtrlFlags = 1 << 2
 	CtrlSpritePatternAddr  CtrlFlags = 1 << 3
 	CtrlPatternTableSelect CtrlFlags = 1 << 4
@@ -65,22 +53,22 @@ type PPU struct {
 	status       StatusFlags    // $2002
 	oamAddr      uint8          // $2003
 	oamData      [256]byte      // $2004
-	scrollX      uint8          // $2005 (first write)
-	scrollY      uint8          // $2005 (second write)
 	nameTable    [2][1024]byte  // $2000-$2FFF
 	paletteTable [32]byte       // $3F00-$3FFF
 
-	vramAddr   uint16
-	tmpAddr    uint16
+	vramAddr   vramAddr
+	tmpAddr    vramAddr
 	vramBuffer uint8
 	addrLatch  bool
+	fineX      uint8
+	oddFrame   bool
 
 	spriteCount    int
 	spriteScanline [64]Sprite
 
-	cycle      int
-	scanline   int
-	skipRender bool
+	cycle       int
+	scanline    int
+	fastForward bool
 }
 
 func New(cart ines.Cartridge) *PPU {
@@ -89,16 +77,16 @@ func New(cart ines.Cartridge) *PPU {
 	}
 }
 
-// DisableRender disables the actual rendering of the frame but keeps the
+// BeginFastForward disables the actual rendering of the frame but keeps the
 // other operations intact. This is useful for fast-forwarding the game
 // state where we don’t need to display the frames.
-func (p *PPU) DisableRender() {
-	p.skipRender = true
+func (p *PPU) BeginFastForward() {
+	p.fastForward = true
 }
 
-// EnableRender enables the rendering of the frame.
-func (p *PPU) EnableRender() {
-	p.skipRender = false
+// EndFastForward enables the rendering of the frame.
+func (p *PPU) EndFastForward() {
+	p.fastForward = false
 }
 
 func (p *PPU) getStatus(flag StatusFlags) bool {
@@ -130,23 +118,25 @@ func (p *PPU) incrementAddr() {
 }
 
 func (p *PPU) Reset() {
+	p.RequestNMI = false
+	p.FrameComplete = false
 	p.ctrl = 0
 	p.mask = 0
 	p.status = 0
 	p.oamAddr = 0
 	p.vramAddr = 0
-	p.RequestNMI = false
-	p.FrameComplete = false
-	p.addrLatch = false
 	p.tmpAddr = 0
 	p.vramBuffer = 0
+	p.addrLatch = false
 	p.scanline = 0
 	p.cycle = 0
 }
 
 func (p *PPU) Read(addr uint16) uint8 {
-	switch addr % 0x2008 {
-	case statusRegAddr:
+	addr = 0x2000 + (addr % 8)
+
+	switch addr {
+	case 0x2002:
 		// We only use the top 3 bits of the status register, and the rest are filled
 		// with noise from the bottom 5 bits of the vram buffer. It also clears the
 		// address latch and vblank flag.
@@ -155,24 +145,24 @@ func (p *PPU) Read(addr uint16) uint8 {
 		p.setStatus(StatusVBlank, false)
 		return uint8(status)&0xE0 | p.vramBuffer&0x1F
 
-	case oamDataRegAddr:
+	case 0x2004:
 		data := p.oamData[p.oamAddr]
 		if p.oamAddr&0x03 == 0x02 {
 			data &= 0xE3
 		}
 		return data
 
-	case vramDataRegAddr:
+	case 0x2007:
 		// Palette reads are not delayed.
 		if p.vramAddr >= 0x3F00 {
-			data := p.readVRAM(p.vramAddr)
+			data := p.readVRAM(uint16(p.vramAddr))
 			p.incrementAddr()
 			return data
 		}
 
 		// Reads from pattern tables are delayed by one cycle.
 		data := p.vramBuffer
-		p.vramBuffer = p.readVRAM(p.vramAddr)
+		p.vramBuffer = p.readVRAM(uint16(p.vramAddr))
 		p.incrementAddr()
 		return data
 
@@ -182,34 +172,39 @@ func (p *PPU) Read(addr uint16) uint8 {
 }
 
 func (p *PPU) Write(addr uint16, data uint8) {
-	switch addr % 0x2008 {
-	case ctrlRegAddr:
+	addr = 0x2000 + (addr % 8)
+
+	switch addr {
+	case 0x2000:
 		p.ctrl = CtrlFlags(data)
-	case maskRegAddr:
+		p.tmpAddr.setNametable(uint16(data) & 0x03)
+	case 0x2001:
 		p.mask = MaskFlags(data)
-	case oamAddrRegAddr:
+	case 0x2003:
 		p.oamAddr = data
-	case oamDataRegAddr:
+	case 0x2004:
 		p.oamData[p.oamAddr] = data
 		p.oamAddr++
-	case vramAddrRegAddr:
+	case 0x2005:
 		if !p.addrLatch {
-			p.tmpAddr = uint16(data)
+			p.tmpAddr.setCoarseX(uint16(data) >> 3)
+			p.fineX = data & 0x07
 			p.addrLatch = true
 		} else {
-			p.vramAddr = p.tmpAddr<<8 | uint16(data)
+			p.tmpAddr.setCoarseY(uint16(data) >> 3)
+			p.tmpAddr.setFineY(uint16(data) & 0x07)
+			p.addrLatch = false
+		}
+	case 0x2006:
+		if !p.addrLatch {
+			p.tmpAddr = vramAddr(data)
+			p.addrLatch = true
+		} else {
+			p.vramAddr = p.tmpAddr<<8 | vramAddr(data)
 			p.addrLatch = false
 			p.tmpAddr = 0
 		}
-	case scrollRegAddr:
-		if !p.addrLatch {
-			p.scrollX = data
-			p.addrLatch = true
-		} else {
-			p.scrollY = data
-			p.addrLatch = false
-		}
-	case vramDataRegAddr:
+	case 0x2007:
 		p.writeVRAM(p.vramAddr, data)
 		p.incrementAddr()
 	}
@@ -283,18 +278,19 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 	}
 
 	log.Printf("[WARN] read from invalid vram address: %04X", addr)
+
 	return 0
 }
 
-func (p *PPU) writeVRAM(addr uint16, data uint8) {
+func (p *PPU) writeVRAM(addr vramAddr, data uint8) {
 	if addr <= 0x1FFF {
-		p.cart.WriteCHR(addr, data)
+		p.cart.WriteCHR(uint16(addr), data)
 		return
 	}
 
 	if addr <= 0x3EFF {
 		addr = addr & 0x2FFF
-		idx := p.nameTableIdx(addr)
+		idx := p.nameTableIdx(uint16(addr))
 		p.nameTable[idx][addr%1024] = data
 
 		return
@@ -315,13 +311,9 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 }
 
 func (p *PPU) checkSpriteZeroHit() bool {
-	if !p.getMask(MaskShowSprites) || !p.getMask(MaskShowBackground) || p.getStatus(StatusSpriteZeroHit) {
-		return false
-	}
-
 	spriteX, spriteY := int(p.oamData[3]), int(p.oamData[0])
 	frameY, frameX := p.scanline, p.cycle
-	spriteY += 2 // Not sure why.
+	spriteY += 1
 
 	// Check if the scanline is within the sprite's horizontal range.
 	if frameX < spriteX || frameX >= spriteX+8 {
@@ -334,12 +326,16 @@ func (p *PPU) checkSpriteZeroHit() bool {
 	}
 
 	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
-	//tilePixel := p.fetchTile(frameX/8, frameY/8).Pixels[frameX%8][frameY%8]
+	tilePixel := p.fetchTile(frameX/8, frameY/8).Pixels[frameX%8][frameY%8]
 
-	return spritePixel != 0 // && tilePixel != 0
+	return spritePixel != 0 && tilePixel != 0
 }
 
 func (p *PPU) clearFrame(c color.RGBA) {
+	if p.fastForward {
+		return
+	}
+
 	for x := 0; x < 256; x++ {
 		for y := 0; y < 240; y++ {
 			p.Frame[x][y] = c
@@ -352,7 +348,11 @@ func (p *PPU) backdropColor() color.RGBA {
 	return Colors[idx]
 }
 
-func (p *PPU) render() {
+func (p *PPU) renderScanline() {
+	if p.fastForward {
+		return
+	}
+
 	if p.getMask(MaskShowBackground) {
 		p.renderTileScanline()
 	}
@@ -362,67 +362,106 @@ func (p *PPU) render() {
 	}
 }
 
+func (p *PPU) renderingEnabled() bool {
+	return p.getMask(MaskShowBackground) || p.getMask(MaskShowSprites)
+}
+
 func (p *PPU) Tick() {
-	if p.scanline == -1 {
-		// Start of pre-render scanline, clear the frame with the backdrop color and
-		// reset the PPU status flags.
-		if p.cycle == 1 {
-			p.clearFrame(p.backdropColor())
+	// Pre-render + visible scanlines.
+	if p.scanline >= -1 && p.scanline <= 238 {
+		if p.scanline == -1 && p.cycle == 1 {
 			p.setStatus(StatusSpriteOverflow, false)
 			p.setStatus(StatusSpriteZeroHit, false)
 			p.setStatus(StatusVBlank, false)
+			p.clearFrame(p.backdropColor())
 		}
 
-		// End of pre-render scanline, prepare the sprites for the first visible scanline.
-		if p.cycle == 340 {
-			if !p.skipRender {
-				p.prepareSprites()
-			}
-		}
-	}
-
-	if p.scanline >= 0 && p.scanline <= 239 {
-		if p.cycle >= 1 && p.cycle <= 256 {
-			if p.checkSpriteZeroHit() {
-				p.setStatus(StatusSpriteZeroHit, true)
+		// Sprite zero hit detection.
+		if p.scanline >= 0 && p.cycle <= 256 {
+			if p.renderingEnabled() && !p.getStatus(StatusSpriteZeroHit) {
+				p.setStatus(StatusSpriteZeroHit, p.checkSpriteZeroHit())
 			}
 		}
 
-		// End of visible part of a scanline, render of what is on it.
+		// Skip the first cycle of the first scanline on odd frames.
+		if p.scanline == 0 {
+			if p.cycle == 0 && p.oddFrame {
+				p.cycle = 1
+			}
+		}
+
+		// Increment scrollX every 8 cycles (tile width).
+		if p.cycle%8 == 0 && p.cycle <= 256 {
+			if p.renderingEnabled() {
+				p.vramAddr.incrementX()
+			}
+		}
+
+		// Increment scrollY at the end of each scanline.
+		if p.cycle == 256 {
+			if p.renderingEnabled() {
+				p.vramAddr.incrementY()
+			}
+		}
+
+		// At the end of each scanline, reset scrollX to the initial position from tmpAddr.
+		// Then render it and prepare the sprites for the next scanline.
 		if p.cycle == 257 {
-			p.ScanlineComplete = true
+			if p.renderingEnabled() {
+				p.vramAddr.setNametableX(p.tmpAddr.nametableX())
+				p.vramAddr.setCoarseX(p.tmpAddr.coarseX())
+			}
 
-			if !p.skipRender {
-				p.render()
+			if p.scanline >= 0 {
+				p.renderScanline()
+			}
+
+			if p.renderingEnabled() {
+				p.evaluateSprites()
+			}
+
+			p.ScanlineComplete = true
+		}
+
+		// During cycles 280-304 of the pre-render scanline, vertical scroll
+		// bits are copied multiple times.
+		if p.scanline == -1 {
+			if p.cycle >= 280 && p.cycle <= 304 {
+				if p.renderingEnabled() {
+					p.vramAddr.setNametableY(p.tmpAddr.nametableY())
+					p.vramAddr.setCoarseY(p.tmpAddr.coarseY())
+					p.vramAddr.setFineY(p.tmpAddr.fineY())
+				}
 			}
 		}
 
-		// Prepare the sprites for the next scanline.
-		if p.cycle == 340 {
-			if !p.skipRender {
-				p.prepareSprites()
+		// X is incremented on cycles 328 and 336 as well.
+		if p.cycle == 328 || p.cycle == 336 {
+			if p.renderingEnabled() {
+				p.vramAddr.incrementX()
 			}
 		}
 	}
 
-	// End of visible scanlines and start of vertical blank. Set the vblank flag and
-	// trigger the CPU interrupt if the NMI flag is set.
-	if p.scanline == 241 && p.cycle == 1 {
-		p.setStatus(StatusVBlank, true)
+	// Start of vertical blank.
+	if p.scanline == 241 {
+		if p.cycle == 1 {
+			p.setStatus(StatusVBlank, true)
+			p.FrameComplete = true
 
-		if p.getCtrl(CtrlNMI) {
-			p.RequestNMI = true
+			if p.getCtrl(CtrlNMI) {
+				p.RequestNMI = true
+			}
 		}
-
-		p.FrameComplete = true
 	}
 
 	// Endless loop of scanlines and cycles.
-	if p.cycle++; p.cycle >= 341 {
+	if p.cycle++; p.cycle == 341 {
 		p.cycle = 0
 		p.scanline++
 
-		if p.scanline >= 261 {
+		if p.scanline == 261 {
+			p.oddFrame = !p.oddFrame
 			p.scanline = -1
 		}
 	}

@@ -139,7 +139,7 @@ func (m *Mapper4) Scanline() (t TickInfo) {
 	} else {
 		m.irqCounter--
 		if m.irqCounter == 0 {
-			t.IRQ = m.irqEnable
+			t.RequestIRQ = m.irqEnable
 		}
 	}
 
@@ -151,19 +151,13 @@ func (m *Mapper4) MirrorMode() MirrorMode {
 }
 
 func (m *Mapper4) ReadPRG(addr uint16) byte {
-	offset := int(addr-0x8000) % 0x2000
-
 	switch {
 	case addr >= 0x6000 && addr <= 0x7FFF:
 		return m.sram[addr-0x6000]
-	case addr >= 0x8000 && addr <= 0x9FFF:
-		return m.rom.PRG[m.prgBank[0]+offset]
-	case addr >= 0xA000 && addr <= 0xBFFF:
-		return m.rom.PRG[m.prgBank[1]+offset]
-	case addr >= 0xC000 && addr <= 0xDFFF:
-		return m.rom.PRG[m.prgBank[2]+offset]
-	case addr >= 0xE000 && addr <= 0xFFFF:
-		return m.rom.PRG[m.prgBank[3]+offset]
+	case addr >= 0x8000 && addr <= 0xFFFF:
+		bank := (addr - 0x8000) / 0x2000
+		offset := int(addr-0x8000) % 0x2000
+		return m.rom.PRG[m.prgBank[bank]+offset]
 	default:
 		log.Printf("[WARN] mapper4: unhandled prg read at %04X", addr)
 		return 0
@@ -182,49 +176,24 @@ func (m *Mapper4) WritePRG(addr uint16, data byte) {
 }
 
 func (m *Mapper4) ReadCHR(addr uint16) byte {
-	offset := int(addr % 0x0400)
-
 	switch {
-	case addr >= 0x0000 && addr <= 0x03FF:
-		return m.rom.CHR[m.chrBank[0]+offset]
-	case addr >= 0x0400 && addr <= 0x07FF:
-		return m.rom.CHR[m.chrBank[1]+offset]
-	case addr >= 0x0800 && addr <= 0x0BFF:
-		return m.rom.CHR[m.chrBank[2]+offset]
-	case addr >= 0x0C00 && addr <= 0x0FFF:
-		return m.rom.CHR[m.chrBank[3]+offset]
-	case addr >= 0x1000 && addr <= 0x13FF:
-		return m.rom.CHR[m.chrBank[4]+offset]
-	case addr >= 0x1400 && addr <= 0x17FF:
-		return m.rom.CHR[m.chrBank[5]+offset]
-	case addr >= 0x1800 && addr <= 0x1BFF:
-		return m.rom.CHR[m.chrBank[6]+offset]
-	case addr >= 0x1C00 && addr <= 0x1FFF:
-		return m.rom.CHR[m.chrBank[7]+offset]
+	case addr >= 0x0000 && addr <= 0x1FFF:
+		bank := int(addr / 0x0400)
+		offset := int(addr % 0x0400)
+		return m.rom.CHR[m.chrBank[bank]+offset]
 	default:
-		log.Printf("[WARN] mapper4: unhandled chr read at %04X", addr)
+		log.Printf("[WARN] mapper4: invalid chr read at %04X", addr)
 		return 0
+
 	}
 }
 
 func (m *Mapper4) WriteCHR(addr uint16, data byte) {
 	switch {
-	case addr >= 0x0000 && addr <= 0x03FF:
-		m.rom.CHR[m.chrBank[0]+int(addr&0x03FF)] = data
-	case addr >= 0x0400 && addr <= 0x07FF:
-		m.rom.CHR[m.chrBank[1]+int(addr&0x03FF)] = data
-	case addr >= 0x0800 && addr <= 0x0BFF:
-		m.rom.CHR[m.chrBank[2]+int(addr&0x03FF)] = data
-	case addr >= 0x0C00 && addr <= 0x0FFF:
-		m.rom.CHR[m.chrBank[3]+int(addr&0x03FF)] = data
-	case addr >= 0x1000 && addr <= 0x13FF:
-		m.rom.CHR[m.chrBank[4]+int(addr&0x03FF)] = data
-	case addr >= 0x1400 && addr <= 0x17FF:
-		m.rom.CHR[m.chrBank[5]+int(addr&0x03FF)] = data
-	case addr >= 0x1800 && addr <= 0x1BFF:
-		m.rom.CHR[m.chrBank[6]+int(addr&0x03FF)] = data
-	case addr >= 0x1C00 && addr <= 0x1FFF:
-		m.rom.CHR[m.chrBank[7]+int(addr&0x03FF)] = data
+	case addr >= 0x0000 && addr <= 0x1FFF:
+		bank := int(addr / 0x0400)
+		offset := int(addr % 0x0400)
+		m.rom.CHR[m.chrBank[bank]+offset] = data
 	default:
 		log.Printf("[WARN] mapper4: unhandled chr write at %04X", addr)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 type TickInfo struct {
-	IRQ bool
+	RequestIRQ bool
 }
 
 type Cartridge interface {
