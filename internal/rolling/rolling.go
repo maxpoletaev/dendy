@@ -32,15 +32,15 @@ func Compare[T generic.Signed](a, b T) int {
 	return Equal
 }
 
-func LessThan[T generic.Signed](a, b T) bool {
+func IsLess[T generic.Signed](a, b T) bool {
 	return Compare(a, b) == Less
 }
 
-func GreaterThan[T generic.Signed](a, b T) bool {
+func IsGreater[T generic.Signed](a, b T) bool {
 	return Compare(a, b) == Greater
 }
 
-func EqualTo[T generic.Signed](a, b T) bool {
+func IsEqual[T generic.Signed](a, b T) bool {
 	return Compare(a, b) == Equal
 }
 

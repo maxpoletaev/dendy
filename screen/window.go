@@ -19,6 +19,7 @@ type Window struct {
 	InputDelegate  func(buttons uint8)
 	ResetDelegate  func()
 	ShowFPS        bool
+	FPS            int
 
 	frame    *[256][240]color.RGBA
 	texture  rl.RenderTexture2D
@@ -62,7 +63,7 @@ func (w *Window) ToggleSlowMode() {
 	if w.slowMode {
 		rl.SetTargetFPS(10)
 	} else {
-		rl.SetTargetFPS(60)
+		rl.SetTargetFPS(FrameRate)
 	}
 }
 

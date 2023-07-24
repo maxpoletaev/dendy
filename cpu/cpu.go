@@ -179,6 +179,11 @@ func (cpu *CPU) TriggerIRQ() {
 func (cpu *CPU) Tick(mem Memory) bool {
 	cpu.Cycles++
 
+	if cpu.Halt > 0 {
+		cpu.Halt--
+		return cpu.Halt == 0
+	}
+
 	switch cpu.interrupt {
 	case InterruptIRQ:
 		cpu.irq(mem)
@@ -186,11 +191,6 @@ func (cpu *CPU) Tick(mem Memory) bool {
 	case InterruptNMI:
 		cpu.nmi(mem)
 		cpu.interrupt = 0
-	}
-
-	if cpu.Halt > 0 {
-		cpu.Halt--
-		return cpu.Halt == 0
 	}
 
 	if cpu.EnableDisasm {

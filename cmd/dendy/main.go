@@ -28,8 +28,6 @@ type opts struct {
 	listenAddr    string
 	connectAddr   string
 	inputBatch    int
-	pingTime      int
-	pingJitter    int
 }
 
 func (o *opts) parse() *opts {
@@ -40,11 +38,8 @@ func (o *opts) parse() *opts {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
-	flag.IntVar(&o.pingTime, "ping", 0, "netplay latency simulation (default: 0)")
-	flag.IntVar(&o.pingJitter, "pingjitter", 0, "netplay ping jitter (default: 0)")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address (default: none)")
-	flag.IntVar(&o.inputBatch, "inputbatch", 5, "input batch size for netplay (default: 5)")
 
 	flag.Parse()
 	return o
@@ -61,7 +56,7 @@ func (o *opts) logLevel() loglevel.Level {
 		return loglevel.LevelDebug
 	}
 
-	return loglevel.LevelError
+	return loglevel.LevelInfo
 }
 
 func runOffline(bus *nes.Bus, o *opts) {
@@ -117,12 +112,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 	game.Reset(nil)
 
 	log.Printf("[INFO] waiting for client...")
-
-	server, addr, err := netplay.Listen(game, o.listenAddr, netplay.Options{
-		BatchSize:  o.inputBatch,
-		Ping:       o.pingTime,
-		PingJitter: o.pingJitter,
-	})
+	server, addr, err := netplay.Listen(game, o.listenAddr)
 
 	if err != nil {
 		log.Printf("[ERROR] failed to listen: %v", err)
@@ -134,7 +124,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.SetTitle(fmt.Sprintf("%s (P1)", screen.Title))
-	w.InputDelegate = server.SendInput
+	w.InputDelegate = server.SendButtons
 	w.ResetDelegate = server.SendReset
 	w.ShowFPS = o.showFPS
 
@@ -167,12 +157,7 @@ func runAsClient(bus *nes.Bus, o *opts) {
 	game.Reset(nil)
 
 	log.Printf("[INFO] connecting to server...")
-
-	client, addr, err := netplay.Connect(game, o.connectAddr, netplay.Options{
-		BatchSize:  o.inputBatch,
-		Ping:       o.pingTime,
-		PingJitter: o.pingJitter,
-	})
+	client, addr, err := netplay.Connect(game, o.connectAddr)
 
 	if err != nil {
 		log.Printf("[ERROR] failed to connect: %v", err)
@@ -184,7 +169,7 @@ func runAsClient(bus *nes.Bus, o *opts) {
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
-	w.InputDelegate = client.SendInput
+	w.InputDelegate = client.SendButtons
 	w.ShowFPS = o.showFPS
 
 	if o.slowMode {

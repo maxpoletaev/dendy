@@ -30,6 +30,23 @@ func NewMapper4(rom *ROM) *Mapper4 {
 	}
 }
 
+func (m *Mapper4) Reset() {
+	m.mirror = MirrorHorizontal
+	m.sram = [0x2000]byte{}
+	m.registers = [8]int{}
+	m.chrBank = [8]int{}
+	m.prgBank = [4]int{}
+	m.targetReg = 0
+	m.prgMode = 0
+	m.chrMode = 0
+
+	m.irqEnable = false
+	m.irqCounter = 0
+	m.irqReload = 0
+
+	m.updateBanks()
+}
+
 func (m *Mapper4) prgOffset(idx int) int {
 	if idx < 0 {
 		idx = m.rom.PRGBanks*2 + idx
@@ -118,19 +135,6 @@ func (m *Mapper4) writeRegister(addr uint16, data byte) {
 	default:
 		log.Printf("mapper4: invalid register write at %04X: %02X", addr, data)
 	}
-}
-
-func (m *Mapper4) Reset() {
-	m.mirror = MirrorHorizontal
-	m.registers = [8]int{}
-	m.chrBank = [8]int{}
-	m.prgMode = 0
-	m.chrMode = 0
-
-	m.prgBank[0] = 0 * 0x2000
-	m.prgBank[1] = 1 * 0x2000
-	m.prgBank[2] = m.prgOffset(-2)
-	m.prgBank[3] = m.prgOffset(-1)
 }
 
 func (m *Mapper4) Scanline() (t TickInfo) {

@@ -14,14 +14,13 @@ type MsgType uint8
 const (
 	MsgTypeReset MsgType = iota + 1
 	MsgTypeInput
-	MsgTypeSleep
 )
 
 type Message struct {
-	Type        MsgType
-	Frame       int32
-	Incarnation uint32
-	Payload     []byte
+	Type       MsgType
+	Frame      int32
+	Generation uint32
+	Payload    []byte
 }
 
 func (m *Message) Encode() ([]byte, error) {
@@ -29,7 +28,7 @@ func (m *Message) Encode() ([]byte, error) {
 
 	buf.Write([]byte{byte(m.Type)})
 	err1 := binary.Write(&buf, binary.LittleEndian, m.Frame)
-	err2 := binary.Write(&buf, binary.LittleEndian, m.Incarnation)
+	err2 := binary.Write(&buf, binary.LittleEndian, m.Generation)
 	err3 := binary.Write(&buf, binary.LittleEndian, uint32(len(m.Payload)))
 
 	if err := errors.Join(err1, err2, err3); err != nil {
@@ -49,7 +48,7 @@ func (m *Message) Decode(data []byte) error {
 
 	var payloadSize uint32
 	err1 := binary.Read(buf, binary.LittleEndian, &m.Frame)
-	err2 := binary.Read(buf, binary.LittleEndian, &m.Incarnation)
+	err2 := binary.Read(buf, binary.LittleEndian, &m.Generation)
 	err3 := binary.Read(buf, binary.LittleEndian, &payloadSize)
 
 	if err := errors.Join(err1, err2, err3); err != nil {

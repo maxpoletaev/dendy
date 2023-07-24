@@ -18,6 +18,7 @@ func (p *PPU) tilePatternTableAddr() uint16 {
 
 func (p *PPU) fetchTileLine(tileX, tileY, line int) (tile Tile) {
 	nametableID := p.vramAddr.nametable()
+
 	if tileX >= 32 {
 		nametableID ^= 0x01
 		tileX -= 32
@@ -75,6 +76,9 @@ func (p *PPU) renderTileScanline() {
 		pixelX := scrolledX % 8
 		tileX := scrolledX / 8
 
+		// While staying on the same scanline, we only need to fetch a new tile when we
+		// cross a tile boundary. We don’t need a full tile here either, just the line
+		// we’re currently rendering.
 		if tileX != lastTileX {
 			tile = p.fetchTileLine(tileX, tileY, pixelY)
 			lastTileX = tileX

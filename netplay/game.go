@@ -14,34 +14,36 @@ import (
 )
 
 const (
-	frameDuration     = time.Second / 60
-	defaultInputBatch = 5
+	frameDuration = time.Second / 60
 )
+
+type inputBatch struct {
+	startFrame int32
+	inputs     []uint8
+}
 
 type Checkpoint struct {
 	Frame int32
 	State []byte
+	Crc32 uint32
 }
 
-type InputBatch struct {
-	StartFrame int32
-	Input      []byte
-}
-
-func (b *InputBatch) Add(input uint8) {
-	b.Input = append(b.Input, input)
+type PlayerInput struct {
+	Frame   int32
+	Buttons uint8
 }
 
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
-	frame          int32
-	bus            *nes.Bus
+	frame      int32
+	bus        *nes.Bus
+	checkpoint *Checkpoint
+	generation uint32
+
 	localInput     []uint8
-	checkpoint     *Checkpoint
-	remoteInput    *generic.Queue[InputBatch]
-	simulatedInput uint8
-	incarnation    uint32
+	remoteInput    *generic.Queue[PlayerInput]
+	predictedInput uint8
 
 	LocalJoy  *input.Joystick
 	RemoteJoy *input.Joystick
@@ -58,11 +60,11 @@ func NewGame(bus *nes.Bus) *Game {
 // emulator is reset to the initial state.
 func (g *Game) Reset(cp *Checkpoint) {
 	g.frame = 0
-	g.incarnation++
+	g.generation++
 
-	g.localInput = nil
-	g.simulatedInput = 0
-	g.remoteInput = generic.NewQueue[InputBatch]()
+	g.predictedInput = 0
+	g.localInput = make([]uint8, 0, cap(g.localInput))
+	g.remoteInput = generic.NewQueue[PlayerInput](300)
 
 	if cp != nil {
 		g.checkpoint = cp
@@ -85,16 +87,15 @@ func (g *Game) Frame() int32 {
 	return g.frame
 }
 
-// Incarnation returns the current incarnation number. It is incremented every
+// Generation returns the current generation number. It is incremented every
 // time the game is reset.
-func (g *Game) Incarnation() uint32 {
-	return g.incarnation
+func (g *Game) Generation() uint32 {
+	return g.generation
 }
 
 func (g *Game) playFrame() {
 	for {
 		tick := g.bus.Tick()
-
 		if tick.FrameComplete {
 			g.frame++
 			break
@@ -104,13 +105,26 @@ func (g *Game) playFrame() {
 
 // RunFrame runs a single frame of the game.
 func (g *Game) RunFrame() {
-	if in, ok := g.remoteInput.Peek(); ok {
-		endFrame := in.StartFrame + int32(len(in.Input))
+	if !g.remoteInput.Empty() {
+		in := g.remoteInput.Front()
 
-		switch rolling.Compare(g.frame, endFrame) {
-		case rolling.Greater, rolling.Equal:
-			g.applyRemoteInput(in)
-			g.remoteInput.Pop()
+		if rolling.IsLess(in.Frame, g.frame) {
+			inputs := make([]byte, 0, g.remoteInput.Len())
+
+			for !g.remoteInput.Empty() {
+				in := g.remoteInput.Front()
+				if in.Frame >= g.frame {
+					break
+				}
+
+				inputs = append(inputs, in.Buttons)
+				g.remoteInput.Dequeue()
+			}
+
+			g.applyRemoteInput(inputBatch{
+				startFrame: in.Frame,
+				inputs:     inputs,
+			})
 		}
 	}
 
@@ -145,19 +159,20 @@ func (g *Game) restoreCheckpoint() {
 	g.frame = g.checkpoint.Frame
 }
 
-// AddLocalInput adds records and applies the input from the local player.
+// HandleLocalInput adds records and applies the input from the local player.
 // Since the remote player is behind, it assumes that it just keeps pressing
 // the same buttons until it catches up. This is not always true, but it's
 // good approximation for most games.
-func (g *Game) AddLocalInput(buttons uint8) {
+func (g *Game) HandleLocalInput(buttons uint8) {
 	g.localInput = append(g.localInput, buttons)
-	g.RemoteJoy.SetButtons(g.simulatedInput)
+	g.RemoteJoy.SetButtons(g.predictedInput)
 	g.LocalJoy.SetButtons(buttons)
 }
 
-// AddRemoteInput adds the input from the remote player.
-func (g *Game) AddRemoteInput(batch InputBatch) {
-	g.remoteInput.Push(batch)
+// HandleRemoteInput adds the input from the remote player.
+func (g *Game) HandleRemoteInput(input PlayerInput) {
+	g.remoteInput.Enqueue(input)
+
 }
 
 // applyRemoteInput applies the input from the remote player to the local
@@ -165,27 +180,27 @@ func (g *Game) AddRemoteInput(batch InputBatch) {
 // player is usually a few frames behind the local emulator state. The emulator
 // is reset to the last checkpoint and then both local and remote inputs are
 // replayed until they catch up to the current frame.
-func (g *Game) applyRemoteInput(batch InputBatch) {
-	g.simulatedInput = 0
-	if len(batch.Input) > 0 {
-		g.simulatedInput = batch.Input[len(batch.Input)-1]
+func (g *Game) applyRemoteInput(batch inputBatch) {
+	g.predictedInput = 0
+	if len(batch.inputs) > 0 {
+		g.predictedInput = batch.inputs[len(batch.inputs)-1]
 	}
 
 	// Need to ensure that the input is not behind the checkpoint, otherwise the
 	// states will be out of sync. This should never happen, but in case it fires,
 	// something is very broken.
-	if rolling.LessThan(batch.StartFrame, g.checkpoint.Frame) {
-		panic(fmt.Errorf("input is behind the checkpoint: %d < %d", batch.StartFrame, g.checkpoint.Frame))
+	if batch.startFrame != g.checkpoint.Frame+1 {
+		panic(fmt.Sprintf("input is not aligned with the checkpoint: %d != %d", batch.startFrame, g.checkpoint.Frame+1))
 	}
 
 	start := time.Now()
 	endFrame := g.frame
 	g.restoreCheckpoint()
-	numFrames := endFrame - g.frame
+	startFrame := g.frame
 
 	minLen := len(g.localInput)
-	if len(batch.Input) < minLen {
-		minLen = len(batch.Input)
+	if len(batch.inputs) < minLen {
+		minLen = len(batch.inputs)
 	}
 
 	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
@@ -196,19 +211,19 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 	// Replay the inputs until the local and remote emulators are in sync.
 	for i := 0; i < minLen; i++ {
 		g.LocalJoy.SetButtons(g.localInput[i])
-		g.RemoteJoy.SetButtons(batch.Input[i])
+		g.RemoteJoy.SetButtons(batch.inputs[i])
 		g.playFrame()
 	}
 
 	// This is the last state where both emulators are in sync.
-	// Create a new checkpoint, so we can restore to this state later.
+	// Create a new checkpoint, so we can rewind to this state later.
 	g.createCheckpoint()
 
 	// In case the local state is ahead (which is almost always the case), we
 	// need to replay the local inputs and simulate the remote inputs.
 	for i := minLen; i < len(g.localInput); i++ {
 		g.LocalJoy.SetButtons(g.localInput[i])
-		g.RemoteJoy.SetButtons(g.simulatedInput)
+		g.RemoteJoy.SetButtons(g.predictedInput)
 
 		if g.frame < endFrame {
 			g.playFrame()
@@ -222,10 +237,10 @@ func (g *Game) applyRemoteInput(batch InputBatch) {
 	// Replaying a large number of frames will inevitably create some lag
 	// for the local player. There is not much we can do about it.
 	if time.Since(start) > frameDuration {
-		log.Printf("[WARN] replay lag: %s (%d frames)", time.Since(start), numFrames)
+		log.Printf("[DEBUG] replay lag: %s (%d frames)", time.Since(start), endFrame-startFrame)
 	}
 
 	// There might still be some local inputs left, so we need to keep them.
-	newInput := make([]uint8, 0, len(g.localInput))
+	newInput := make([]uint8, 0, cap(g.localInput))
 	g.localInput = append(newInput, g.localInput[minLen:]...)
 }
