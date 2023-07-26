@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	Width     = 256
-	Height    = 240
-	FrameRate = 60
-	Title     = "Dendy Emulator"
+	Width         = 256
+	Height        = 240
+	Title         = "Dendy Emulator"
+	FrameRate     = 60
+	SlowFrameRate = 10
 )
 
 type Window struct {
@@ -56,12 +57,16 @@ func (w *Window) SetTitle(title string) {
 	rl.SetWindowTitle(title)
 }
 
-func (w *Window) ToggleSlowMode() {
+func (w *Window) SetFrameRate(fps int) {
+	rl.SetTargetFPS(int32(fps))
+}
+
+func (w *Window) toggleSlowMode() {
 	w.slowMode = !w.slowMode
 	w.ShowFPS = true
 
 	if w.slowMode {
-		rl.SetTargetFPS(10)
+		rl.SetTargetFPS(SlowFrameRate)
 	} else {
 		rl.SetTargetFPS(FrameRate)
 	}
@@ -115,7 +120,7 @@ func (w *Window) isCtrlPressed() bool {
 func (w *Window) HandleHotKeys() {
 	switch {
 	case rl.IsKeyPressed(rl.KeyF1):
-		w.ToggleSlowMode()
+		w.toggleSlowMode()
 
 	case rl.IsKeyPressed(rl.KeyF12):
 		rl.TakeScreenshot("screenshot.png")

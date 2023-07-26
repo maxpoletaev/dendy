@@ -27,7 +27,7 @@ func (q *Queue[T]) Enqueue(item T) {
 
 func (q *Queue[T]) Dequeue() T {
 	if q.size == 0 {
-		panic("queue is EmptyValue")
+		panic("queue is empty")
 	}
 
 	item := q.items[q.head]
@@ -40,7 +40,7 @@ func (q *Queue[T]) Dequeue() T {
 
 func (q *Queue[T]) Front() T {
 	if q.size == 0 {
-		panic("queue is EmptyValue")
+		panic("queue is empty")
 	}
 
 	return q.items[q.head]

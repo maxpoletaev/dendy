@@ -9,7 +9,6 @@ import (
 
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/generic"
-	"github.com/maxpoletaev/dendy/internal/rolling"
 	"github.com/maxpoletaev/dendy/nes"
 )
 
@@ -18,25 +17,27 @@ const (
 )
 
 type inputBatch struct {
-	startFrame int32
+	startFrame uint32
 	inputs     []uint8
 }
 
 type Checkpoint struct {
-	Frame int32
+	Frame uint32
 	State []byte
 	Crc32 uint32
 }
 
 type PlayerInput struct {
-	Frame   int32
+	Frame   uint32
 	Buttons uint8
 }
 
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
-	frame      int32
+	frame     uint32
+	prevFrame uint32
+
 	bus        *nes.Bus
 	checkpoint *Checkpoint
 	generation uint32
@@ -45,8 +46,9 @@ type Game struct {
 	remoteInput    *generic.Queue[PlayerInput]
 	predictedInput uint8
 
-	LocalJoy  *input.Joystick
-	RemoteJoy *input.Joystick
+	LocalJoy      *input.Joystick
+	RemoteJoy     *input.Joystick
+	DisasmEnabled bool
 }
 
 func NewGame(bus *nes.Bus) *Game {
@@ -60,6 +62,7 @@ func NewGame(bus *nes.Bus) *Game {
 // emulator is reset to the initial state.
 func (g *Game) Reset(cp *Checkpoint) {
 	g.frame = 0
+	g.prevFrame = 0
 	g.generation++
 
 	g.predictedInput = 0
@@ -83,7 +86,7 @@ func (g *Game) Checkpoint() *Checkpoint {
 }
 
 // Frame returns the current frame number.
-func (g *Game) Frame() int32 {
+func (g *Game) Frame() uint32 {
 	return g.frame
 }
 
@@ -96,19 +99,27 @@ func (g *Game) Generation() uint32 {
 func (g *Game) playFrame() {
 	for {
 		tick := g.bus.Tick()
+
 		if tick.FrameComplete {
 			g.frame++
 			break
 		}
 	}
+
+	// Overflow will happen after ~2 years of continuous play at 60 FPS :)
+	// Don't think it's a problem though.
+	if g.frame == 0 {
+		panic("frame counter overflow")
+	}
+
+	g.prevFrame = g.frame
 }
 
-// RunFrame runs a single frame of the game.
-func (g *Game) RunFrame() {
+func (g *Game) checkRemoteInput() {
 	if !g.remoteInput.Empty() {
-		in := g.remoteInput.Front()
+		first := g.remoteInput.Front()
 
-		if rolling.IsLess(in.Frame, g.frame) {
+		if first.Frame < g.frame {
 			inputs := make([]byte, 0, g.remoteInput.Len())
 
 			for !g.remoteInput.Empty() {
@@ -122,12 +133,16 @@ func (g *Game) RunFrame() {
 			}
 
 			g.applyRemoteInput(inputBatch{
-				startFrame: in.Frame,
+				startFrame: first.Frame,
 				inputs:     inputs,
 			})
 		}
 	}
+}
 
+// RunFrame runs a single frame of the game.
+func (g *Game) RunFrame() {
+	g.checkRemoteInput()
 	g.playFrame()
 }
 
@@ -205,14 +220,25 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 
 	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
 	// render the intermediate frames.
-	g.bus.PPU.BeginFastForward()
-	defer g.bus.PPU.EndFastForward()
+	g.bus.PPU.FastForward = true
+
+	// Enable CPU disassembly if requested. We do it only for frames where we have
+	// both local and remote inputs, so that we can compare.
+	if g.DisasmEnabled {
+		g.bus.DisasmEnabled = true
+	}
 
 	// Replay the inputs until the local and remote emulators are in sync.
 	for i := 0; i < minLen; i++ {
 		g.LocalJoy.SetButtons(g.localInput[i])
 		g.RemoteJoy.SetButtons(batch.inputs[i])
 		g.playFrame()
+	}
+
+	// Disable CPU disassembly, since from now on we have only the predicted input
+	// from the remote player, so this part will be rolling back eventually.
+	if g.DisasmEnabled {
+		g.bus.DisasmEnabled = false
 	}
 
 	// This is the last state where both emulators are in sync.
@@ -243,4 +269,7 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 	// There might still be some local inputs left, so we need to keep them.
 	newInput := make([]uint8, 0, cap(g.localInput))
 	g.localInput = append(newInput, g.localInput[minLen:]...)
+
+	// Disable fast-forwarding, since we are back to real-time.
+	g.bus.PPU.FastForward = false
 }

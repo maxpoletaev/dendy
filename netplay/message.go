@@ -18,7 +18,7 @@ const (
 
 type Message struct {
 	Type       MsgType
-	Frame      int32
+	Frame      uint32
 	Generation uint32
 	Payload    []byte
 }

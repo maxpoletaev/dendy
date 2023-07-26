@@ -1,15 +1,22 @@
 package cpu
 
 var (
-	instructions map[uint8]instrInfo
+	Instructions map[uint8]Instruction
 )
 
 func init() {
-	instructions = make(map[uint8]instrInfo)
-
-	for _, instr := range instrTable {
-		instructions[instr.opcode] = instr
+	Instructions = make(map[uint8]Instruction)
+	for _, instr := range instructionTable {
+		Instructions[instr.Opcode] = instr
 	}
+}
+
+type Instruction struct {
+	Name     string
+	Opcode   uint8
+	AddrMode AddrMode
+	Size     int
+	Cycles   int
 }
 
 const (
@@ -166,7 +173,7 @@ const (
 	RTS_Imp  uint8 = 0x60
 )
 
-var instrTable = []instrInfo{
+var instructionTable = []Instruction{
 	// Official 6502 instructions.
 	{"NOP", NOP_Imp, AddrModeImp, 1, 2},
 	{"BRK", BRK_Imp, AddrModeImp, 2, 7},

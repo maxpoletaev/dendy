@@ -11,34 +11,25 @@ type (
 )
 
 const (
-	FlagCarry     Flags = 1 << 0
-	FlagZero            = 1 << 1
-	FlagInterrupt       = 1 << 2
-	FlagDecimal         = 1 << 3
-	FlagBreak           = 1 << 4
-	FlagUnused          = 1 << 5
-	FlagOverflow        = 1 << 6
-	FlagNegative        = 1 << 7
+	flagCarry     Flags = 1 << 0
+	flagZero            = 1 << 1
+	flagInterrupt       = 1 << 2
+	flagDecimal         = 1 << 3
+	flagBreak           = 1 << 4
+	flagOverflow        = 1 << 6
+	flagNegative        = 1 << 7
 )
 
 const (
-	VecNMI   uint16 = 0xFFFA // Non-maskable interrupt vector
-	VecReset uint16 = 0xFFFC // Reset vector
-	VecIRQ   uint16 = 0xFFFE // Interrupt request vector
+	vecNMI   uint16 = 0xFFFA // Non-maskable interrupt vector
+	vecReset uint16 = 0xFFFC // Reset vector
+	vecIRQ   uint16 = 0xFFFE // Interrupt request vector
 )
 
 const (
-	InterruptNMI Interrupt = iota + 1
-	InterruptIRQ
+	interruptNMI Interrupt = iota + 1
+	interruptIRQ
 )
-
-type instrInfo struct {
-	name   string
-	opcode uint8
-	mode   AddrMode
-	size   int
-	cost   int
-}
 
 type operand struct {
 	mode      AddrMode
@@ -54,7 +45,6 @@ type CPU struct {
 	SP uint8  // Stack pointer
 	PC uint16 // Program counter
 
-	EnableDisasm bool   // Enable disassembler
 	AllowIllegal bool   // Handle illegal opcodes
 	Cycles       uint64 // Number of cycles executed
 	Halt         int    // Number of cycles to wait
@@ -82,13 +72,13 @@ func (cpu *CPU) setFlag(flag Flags, value bool) {
 // setZN sets the zero and negative flags based on the given value, which is
 // assumed to be the result of an operation.
 func (cpu *CPU) setZN(value uint8) {
-	cpu.setFlag(FlagZero, value == 0)
-	cpu.setFlag(FlagNegative, value&0x80 != 0)
+	cpu.setFlag(flagZero, value == 0)
+	cpu.setFlag(flagNegative, value&0x80 != 0)
 }
 
 // carried returns 1 if the carry flag is set, otherwise 0.
 func (cpu *CPU) carried() uint8 {
-	if cpu.getFlag(FlagCarry) {
+	if cpu.getFlag(flagCarry) {
 		return 1
 	}
 
@@ -133,7 +123,7 @@ func (cpu *CPU) fetchOpcode(mem Memory) uint8 {
 // Reset resets the CPU to its initial state. To match the behaviour of the real
 // CPU, the next 6 cycles are skipped after a reset.
 func (cpu *CPU) Reset(mem Memory) {
-	cpu.PC = readWord(mem, VecReset)
+	cpu.PC = readWord(mem, vecReset)
 	cpu.SP = 0xFD
 	cpu.P = 0x24
 	cpu.A = 0
@@ -146,32 +136,32 @@ func (cpu *CPU) Reset(mem Memory) {
 func (cpu *CPU) nmi(mem Memory) {
 	cpu.pushWord(mem, cpu.PC)
 	cpu.pushByte(mem, uint8(cpu.P))
-	cpu.setFlag(FlagInterrupt, true)
-	cpu.PC = readWord(mem, VecNMI)
+	cpu.setFlag(flagInterrupt, true)
+	cpu.PC = readWord(mem, vecNMI)
 	cpu.Halt += 7
 }
 
 // TriggerNMI triggers a non-maskable interrupt on the next CPU cycle.
 func (cpu *CPU) TriggerNMI() {
-	cpu.interrupt = InterruptNMI
+	cpu.interrupt = interruptNMI
 }
 
 func (cpu *CPU) irq(mem Memory) {
 	cpu.pushWord(mem, cpu.PC)
 	cpu.pushByte(mem, uint8(cpu.P))
-	cpu.setFlag(FlagInterrupt, true)
-	cpu.PC = readWord(mem, VecIRQ)
+	cpu.setFlag(flagInterrupt, true)
+	cpu.PC = readWord(mem, vecIRQ)
 	cpu.Halt += 7
 }
 
 // TriggerIRQ triggers an interrupt on the next CPU cycle.
 // If the interrupt flag is set, the interrupt is ignored.
 func (cpu *CPU) TriggerIRQ() {
-	if cpu.getFlag(FlagInterrupt) {
+	if cpu.getFlag(flagInterrupt) {
 		return
 	}
 
-	cpu.interrupt = InterruptIRQ
+	cpu.interrupt = interruptIRQ
 }
 
 // Tick executes a single CPU cycle, returning true if the CPU has finished
@@ -185,29 +175,25 @@ func (cpu *CPU) Tick(mem Memory) bool {
 	}
 
 	switch cpu.interrupt {
-	case InterruptIRQ:
+	case interruptIRQ:
 		cpu.irq(mem)
 		cpu.interrupt = 0
-	case InterruptNMI:
+	case interruptNMI:
 		cpu.nmi(mem)
 		cpu.interrupt = 0
 	}
 
-	if cpu.EnableDisasm {
-		fmt.Println(debugStep(mem, cpu))
-	}
-
 	var (
 		opcode = cpu.fetchOpcode(mem)
-		instr  instrInfo
+		instr  Instruction
 		ok     bool
 	)
 
-	if instr, ok = instructions[opcode]; !ok {
+	if instr, ok = Instructions[opcode]; !ok {
 		panic(fmt.Sprintf("unknown opcode: %02X", opcode))
 	}
 
-	opr := cpu.fetchOperand(mem, instr.mode)
+	opr := cpu.fetchOperand(mem, instr.AddrMode)
 	ok = cpu.execute(mem, instr, opr)
 
 	if !ok && cpu.AllowIllegal {
@@ -215,10 +201,10 @@ func (cpu *CPU) Tick(mem Memory) bool {
 	}
 
 	if !ok {
-		panic(fmt.Sprintf("invalid instruction: %s", instr.name))
+		panic(fmt.Sprintf("invalid instruction: %s", instr.Name))
 	}
 
-	cpu.Halt += instr.cost - 1
+	cpu.Halt += instr.Cycles - 1
 
 	return false
 }

@@ -33,6 +33,7 @@ type ROM struct {
 	PRG        []byte
 	CHR        []byte
 	crc32      uint32
+	chrRAM     bool
 }
 
 func loadROM(filename string) (*ROM, error) {
@@ -89,9 +90,11 @@ func loadROM(filename string) (*ROM, error) {
 	}
 
 	// If CHR-ROM is empty, allocate 8KB of CHR-RAM.
+	var chrRAM bool
 	if chrSize == 0 {
 		chr = make([]uint8, 8192)
 		chrSize = 8192
+		chrRAM = true
 	}
 
 	return &ROM{
@@ -103,22 +106,29 @@ func loadROM(filename string) (*ROM, error) {
 		PRGBanks:   prgSize / 16384,
 		CHRBanks:   chrSize / 8192,
 		crc32:      h.Sum32(),
+		chrRAM:     chrRAM,
 	}, nil
 }
 
-func (r *ROM) SaveCRC(enc *gob.Encoder) error {
-	return enc.Encode(r.crc32)
+func (r *ROM) Save(enc *gob.Encoder) error {
+	return errors.Join(
+		enc.Encode(r.crc32),
+		enc.Encode(r.PRG),
+		enc.Encode(r.CHR),
+	)
 }
 
-func (r *ROM) LoadCRC(dec *gob.Decoder) error {
+func (r *ROM) Load(dec *gob.Decoder) error {
 	var hash uint32
+
 	if err := dec.Decode(&hash); err != nil {
 		return err
-	}
-
-	if hash != r.crc32 {
+	} else if hash != r.crc32 {
 		return ErrSavedStateMismatch
 	}
 
-	return nil
+	return errors.Join(
+		dec.Decode(&r.PRG),
+		dec.Decode(&r.CHR),
+	)
 }

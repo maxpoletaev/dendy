@@ -1,7 +1,7 @@
 package cpu
 
-func (cpu *CPU) executeIllegal(mem Memory, instr instrInfo, arg operand) bool {
-	switch instr.name {
+func (cpu *CPU) executeIllegal(mem Memory, instr Instruction, arg operand) bool {
+	switch instr.Name {
 	case "*DCP":
 		cpu.dcp(mem, arg)
 	case "*ISB":
@@ -43,7 +43,7 @@ func (cpu *CPU) dcp(mem Memory, arg operand) {
 	mem.Write(arg.addr, data)
 
 	data2 := uint16(cpu.A) - uint16(data)
-	cpu.setFlag(FlagCarry, data2 < 0x100)
+	cpu.setFlag(flagCarry, data2 < 0x100)
 	cpu.setZN(uint8(data2))
 }
 
@@ -59,8 +59,8 @@ func (cpu *CPU) isb(mem Memory, arg operand) {
 	overflow := (a^b)&0x80 != 0 && (a^r)&0x80 != 0
 
 	mem.Write(arg.addr, data)
-	cpu.setFlag(FlagCarry, r < 0x100)
-	cpu.setFlag(FlagOverflow, overflow)
+	cpu.setFlag(flagCarry, r < 0x100)
+	cpu.setFlag(flagOverflow, overflow)
 	cpu.A = uint8(r)
 	cpu.setZN(cpu.A)
 }
@@ -81,7 +81,7 @@ func (cpu *CPU) rla(mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	carr := cpu.carried()
 
-	cpu.setFlag(FlagCarry, data&0x80 != 0)
+	cpu.setFlag(flagCarry, data&0x80 != 0)
 	data = (data << 1) | carr
 	mem.Write(arg.addr, data)
 	cpu.A &= data
@@ -97,7 +97,7 @@ func (cpu *CPU) sax(mem Memory, arg operand) {
 // slo is asl + ora
 func (cpu *CPU) slo(mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
-	cpu.setFlag(FlagCarry, data&0x80 != 0)
+	cpu.setFlag(flagCarry, data&0x80 != 0)
 
 	data <<= 1
 	mem.Write(arg.addr, data)
@@ -109,7 +109,7 @@ func (cpu *CPU) slo(mem Memory, arg operand) {
 // sre is lsr + eor
 func (cpu *CPU) sre(mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
-	cpu.setFlag(FlagCarry, data&0x01 != 0)
+	cpu.setFlag(flagCarry, data&0x01 != 0)
 
 	data >>= 1
 	mem.Write(arg.addr, data)
@@ -124,7 +124,7 @@ func (cpu *CPU) rra(mem Memory, arg operand) {
 	carr := cpu.carried()
 
 	// ror
-	cpu.setFlag(FlagCarry, data&0x01 != 0)
+	cpu.setFlag(flagCarry, data&0x01 != 0)
 	data = data>>1 | carr<<7
 	mem.Write(arg.addr, data)
 
@@ -133,8 +133,8 @@ func (cpu *CPU) rra(mem Memory, arg operand) {
 	r := a + b + uint16(cpu.carried())
 	overflow := (a^b)&0x80 == 0 && (a^r)&0x80 != 0
 
-	cpu.setFlag(FlagOverflow, overflow)
-	cpu.setFlag(FlagCarry, r > 0xFF)
+	cpu.setFlag(flagOverflow, overflow)
+	cpu.setFlag(flagCarry, r > 0xFF)
 	cpu.A = uint8(r)
 	cpu.setZN(cpu.A)
 }

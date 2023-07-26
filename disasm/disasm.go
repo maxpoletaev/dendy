@@ -1,27 +1,35 @@
-package cpu
+package disasm
 
 import (
 	"fmt"
 	"strings"
+
+	cpupkg "github.com/maxpoletaev/dendy/cpu"
 )
 
-func getInstrSize(opcode byte) int {
-	if instr, ok := instructions[opcode]; ok {
-		return instr.size
+func instrSize(opcode byte) int {
+	if instr, ok := cpupkg.Instructions[opcode]; ok {
+		return instr.Size
 	}
 
 	return 1
 }
 
-// debugStep returns a string containing the current CPU state and the
+func readWord(mem cpupkg.Memory, addr uint16) uint16 {
+	lo := uint16(mem.Read(addr))
+	hi := uint16(mem.Read(addr + 1))
+	return hi<<8 | lo
+}
+
+// DebugStep returns a string containing the current CPU state and the
 // disassembled instruction at the current PC. The format of the string is
 // designed to be similar to the output of the Nintendulator NES emulator, for
 // easy comparison with the golden log files.
-func debugStep(mem Memory, cpu *CPU) string {
+func DebugStep(mem cpupkg.Memory, cpu *cpupkg.CPU) string {
 	var b strings.Builder
 
 	opcode := mem.Read(cpu.PC)
-	size := getInstrSize(opcode)
+	size := instrSize(opcode)
 
 	// PC
 	b.WriteString(fmt.Sprintf("%04X", cpu.PC))
@@ -53,48 +61,52 @@ func debugStep(mem Memory, cpu *CPU) string {
 
 // disassemble returns a string containing the disassembled instruction at the
 // current PC. In the case of an unknown opcode, it returns "???".
-func disassemble(mem Memory, pc uint16) string {
+func disassemble(mem cpupkg.Memory, pc uint16) string {
 	opcode := mem.Read(pc)
-	instr, ok := instructions[opcode]
+
+	instr, ok := cpupkg.Instructions[opcode]
 
 	if !ok {
 		return "???"
 	}
 
 	var arg uint16
-	if instr.size == 2 {
+	if instr.Size == 2 {
 		arg = uint16(mem.Read(pc + 1))
-	} else if instr.size == 3 {
+	} else if instr.Size == 3 {
 		arg = readWord(mem, pc+1)
 	}
 
 	b := strings.Builder{}
-	b.WriteString(fmt.Sprintf("%s ", instr.name))
+	b.WriteString(fmt.Sprintf("%s ", instr.Name))
 
-	switch instr.mode {
-	case AddrModeAcc:
+	// Note for future me: You should not try to read a memory values here, because
+	// reading from some addresses (e.g. PPU registers) can have side effects.
+
+	switch instr.AddrMode {
+	case cpupkg.AddrModeAcc:
 		b.WriteString("A")
-	case AddrModeImm:
+	case cpupkg.AddrModeImm:
 		b.WriteString(fmt.Sprintf("#$%02X", arg))
-	case AddrModeZp:
+	case cpupkg.AddrModeZp:
 		b.WriteString(fmt.Sprintf("$%02X", arg))
-	case AddrModeZpX:
+	case cpupkg.AddrModeZpX:
 		b.WriteString(fmt.Sprintf("$%02X,X", arg))
-	case AddrModeZpY:
+	case cpupkg.AddrModeZpY:
 		b.WriteString(fmt.Sprintf("$%02X,Y", arg))
-	case AddrModeAbs:
+	case cpupkg.AddrModeAbs:
 		b.WriteString(fmt.Sprintf("$%04X", arg))
-	case AddrModeAbsX:
+	case cpupkg.AddrModeAbsX:
 		b.WriteString(fmt.Sprintf("$%04X,X", arg))
-	case AddrModeAbsY:
+	case cpupkg.AddrModeAbsY:
 		b.WriteString(fmt.Sprintf("$%04X,Y", arg))
-	case AddrModeInd:
+	case cpupkg.AddrModeInd:
 		b.WriteString(fmt.Sprintf("($%04X)", arg))
-	case AddrModeIndX:
+	case cpupkg.AddrModeIndX:
 		b.WriteString(fmt.Sprintf("($%02X,X)", arg))
-	case AddrModeIndY:
+	case cpupkg.AddrModeIndY:
 		b.WriteString(fmt.Sprintf("($%02X),Y", arg))
-	case AddrModeRel:
+	case cpupkg.AddrModeRel:
 		b.WriteString(fmt.Sprintf("$%02X", arg))
 	}
 

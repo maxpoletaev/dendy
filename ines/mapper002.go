@@ -71,7 +71,7 @@ func (m *Mapper2) WriteCHR(addr uint16, data byte) {
 
 func (m *Mapper2) Save(enc *gob.Encoder) error {
 	return errors.Join(
-		m.rom.SaveCRC(enc),
+		m.rom.Save(enc),
 		enc.Encode(m.prgBank0),
 		enc.Encode(m.prgBank1),
 	)
@@ -79,7 +79,7 @@ func (m *Mapper2) Save(enc *gob.Encoder) error {
 
 func (m *Mapper2) Load(dec *gob.Decoder) error {
 	return errors.Join(
-		m.rom.LoadCRC(dec),
+		m.rom.Load(dec),
 		dec.Decode(&m.prgBank0),
 		dec.Decode(&m.prgBank1),
 	)

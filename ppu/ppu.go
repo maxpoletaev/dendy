@@ -46,6 +46,7 @@ type PPU struct {
 	ScanlineComplete bool
 	FrameComplete    bool
 	NoSpriteLimit    bool
+	FastForward      bool
 
 	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
 	ctrl         CtrlFlags      // $2000
@@ -66,27 +67,14 @@ type PPU struct {
 	spriteCount    int
 	spriteScanline [64]Sprite
 
-	cycle       int
-	scanline    int
-	fastForward bool
+	cycle    int
+	scanline int
 }
 
 func New(cart ines.Cartridge) *PPU {
 	return &PPU{
 		cart: cart,
 	}
-}
-
-// BeginFastForward disables the actual rendering of the frame but keeps the
-// other operations intact. This is useful for fast-forwarding the game
-// state where we don’t need to display the frames.
-func (p *PPU) BeginFastForward() {
-	p.fastForward = true
-}
-
-// EndFastForward enables the rendering of the frame.
-func (p *PPU) EndFastForward() {
-	p.fastForward = false
 }
 
 func (p *PPU) getStatus(flag StatusFlags) bool {
@@ -333,7 +321,7 @@ func (p *PPU) checkSpriteZeroHit() bool {
 }
 
 func (p *PPU) clearFrame(c color.RGBA) {
-	if p.fastForward {
+	if p.FastForward {
 		return
 	}
 
@@ -350,7 +338,7 @@ func (p *PPU) backdropColor() color.RGBA {
 }
 
 func (p *PPU) renderScanline() {
-	if p.fastForward {
+	if p.FastForward {
 		return
 	}
 
