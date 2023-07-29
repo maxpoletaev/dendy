@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime/pprof"
+	"strings"
 
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
 	"github.com/maxpoletaev/dendy/ines"
@@ -379,7 +381,8 @@ func main() {
 		log.Printf("[INFO] starting client mode")
 		runAsClient(bus, o)
 	default:
+		saveFile := strings.TrimSuffix(romFile, filepath.Ext(romFile)) + ".save"
 		log.Printf("[INFO] starting offline mode")
-		runOffline(bus, o, fmt.Sprintf("%s.save", romFile))
+		runOffline(bus, o, saveFile)
 	}
 }
