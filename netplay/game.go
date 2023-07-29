@@ -35,9 +35,7 @@ type PlayerInput struct {
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
-	frame     uint32
-	prevFrame uint32
-
+	frame      uint32
 	bus        *nes.Bus
 	checkpoint *Checkpoint
 	generation uint32
@@ -62,7 +60,6 @@ func NewGame(bus *nes.Bus) *Game {
 // emulator is reset to the initial state.
 func (g *Game) Reset(cp *Checkpoint) {
 	g.frame = 0
-	g.prevFrame = 0
 	g.generation++
 
 	g.predictedInput = 0
@@ -96,25 +93,6 @@ func (g *Game) Generation() uint32 {
 	return g.generation
 }
 
-func (g *Game) playFrame() {
-	for {
-		tick := g.bus.Tick()
-
-		if tick.FrameComplete {
-			g.frame++
-			break
-		}
-	}
-
-	// Overflow will happen after ~2 years of continuous play at 60 FPS :)
-	// Don't think it's a problem though.
-	if g.frame == 0 {
-		panic("frame counter overflow")
-	}
-
-	g.prevFrame = g.frame
-}
-
 func (g *Game) checkRemoteInput() {
 	if !g.remoteInput.Empty() {
 		first := g.remoteInput.Front()
@@ -137,6 +115,23 @@ func (g *Game) checkRemoteInput() {
 				inputs:     inputs,
 			})
 		}
+	}
+}
+
+func (g *Game) playFrame() {
+	for {
+		tick := g.bus.Tick()
+
+		if tick.FrameComplete {
+			g.frame++
+			break
+		}
+	}
+
+	// Overflow will happen after ~2 years of continuous play :)
+	// Don't think it's a problem though.
+	if g.frame == 0 {
+		panic("frame counter overflow")
 	}
 }
 

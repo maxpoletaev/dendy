@@ -246,7 +246,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 
 	for {
 		if w.ShouldClose() {
-			return
+			break
 		}
 
 		w.HandleHotKeys()

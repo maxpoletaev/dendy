@@ -25,6 +25,7 @@ func (p *PPU) Save(enc *gob.Encoder) error {
 		enc.Encode(p.paletteTable),
 		enc.Encode(p.cycle),
 		enc.Encode(p.scanline),
+		enc.Encode(p.oddFrame),
 	)
 
 	if err != nil {
@@ -53,6 +54,7 @@ func (p *PPU) Load(dec *gob.Decoder) error {
 		dec.Decode(&p.paletteTable),
 		dec.Decode(&p.cycle),
 		dec.Decode(&p.scanline),
+		dec.Decode(&p.oddFrame),
 	)
 
 	if err != nil {

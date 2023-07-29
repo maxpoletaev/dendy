@@ -120,13 +120,17 @@ func (np *Netplay) Start() {
 // game is ready to start to sync the initial state.
 func (np *Netplay) SendReset() {
 	np.game.Reset(nil)
-	cp := np.game.Checkpoint()
+
+	checkpoint := np.game.Checkpoint()
+	state := make([]uint8, len(checkpoint.State))
+	copy(state, checkpoint.State)
+	frame := checkpoint.Frame
 
 	np.sendMsg(Message{
 		Generation: np.game.Generation(),
 		Type:       MsgTypeReset,
-		Frame:      cp.Frame,
-		Payload:    cp.State,
+		Frame:      frame,
+		Payload:    state,
 	})
 }
 
