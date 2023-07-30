@@ -26,6 +26,7 @@ type opts struct {
 	noSpriteLimit bool
 	connectAddr   string
 	listenAddr    string
+	bufsize       int
 	noSave        bool
 	showFPS       bool
 	verbose       bool
@@ -39,6 +40,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address (default: none)")
+	flag.IntVar(&o.bufsize, "bufsize", 0, "netplay input buffer size (default: 0)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 
@@ -200,6 +202,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 	bus.Joy2 = input.NewJoystick()
 
 	game := netplay.NewGame(bus)
+	game.BufferSize = o.bufsize
 	game.RemoteJoy = bus.Joy2
 	game.LocalJoy = bus.Joy1
 	game.Reset(nil)
@@ -263,6 +266,7 @@ func runAsClient(bus *nes.Bus, o *opts) {
 	bus.Joy2 = input.NewJoystick()
 
 	game := netplay.NewGame(bus)
+	game.BufferSize = o.bufsize
 	game.RemoteJoy = bus.Joy1
 	game.LocalJoy = bus.Joy2
 	game.Reset(nil)

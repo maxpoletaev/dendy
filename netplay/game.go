@@ -47,6 +47,7 @@ type Game struct {
 	LocalJoy      *input.Joystick
 	RemoteJoy     *input.Joystick
 	DisasmEnabled bool
+	BufferSize    int
 }
 
 func NewGame(bus *nes.Bus) *Game {
@@ -93,8 +94,8 @@ func (g *Game) Generation() uint32 {
 	return g.generation
 }
 
-func (g *Game) checkRemoteInput() {
-	if !g.remoteInput.Empty() {
+func (g *Game) handleDelayedInput() {
+	if g.remoteInput.Len() > g.BufferSize {
 		first := g.remoteInput.Front()
 
 		if first.Frame < g.frame {
@@ -137,7 +138,7 @@ func (g *Game) playFrame() {
 
 // RunFrame runs a single frame of the game.
 func (g *Game) RunFrame() {
-	g.checkRemoteInput()
+	g.handleDelayedInput()
 	g.playFrame()
 }
 
@@ -182,7 +183,6 @@ func (g *Game) HandleLocalInput(buttons uint8) {
 // HandleRemoteInput adds the input from the remote player.
 func (g *Game) HandleRemoteInput(input PlayerInput) {
 	g.remoteInput.Enqueue(input)
-
 }
 
 // applyRemoteInput applies the input from the remote player to the local
@@ -206,7 +206,6 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 	start := time.Now()
 	endFrame := g.frame
 	g.restoreCheckpoint()
-	startFrame := g.frame
 
 	minLen := len(g.localInput)
 	if len(batch.inputs) < minLen {
@@ -257,8 +256,8 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 
 	// Replaying a large number of frames will inevitably create some lag
 	// for the local player. There is not much we can do about it.
-	if time.Since(start) > frameDuration {
-		log.Printf("[DEBUG] replay lag: %s (%d frames)", time.Since(start), endFrame-startFrame)
+	if delta := time.Since(start); delta > frameDuration {
+		log.Printf("[DEBUG] replay lag: %s (%d frames)", delta, delta/frameDuration)
 	}
 
 	// There might still be some local inputs left, so we need to keep them.
