@@ -19,13 +19,13 @@ type TickInfo struct {
 }
 
 type Bus struct {
-	RAM  [2048]uint8
-	CPU  *cpupkg.CPU
-	PPU  *ppupkg.PPU
-	Cart ines.Cartridge
-	Joy1 *input.Joystick
-	Joy2 *input.Joystick
-	Zap  *input.Zapper
+	RAM    [2048]uint8
+	CPU    *cpupkg.CPU
+	PPU    *ppupkg.PPU
+	Cart   ines.Cartridge
+	Joy1   *input.Joystick
+	Joy2   *input.Joystick
+	Zapper *input.Zapper
 
 	DisasmWriter  io.StringWriter
 	DisasmEnabled bool
@@ -58,8 +58,8 @@ func (b *Bus) Read(addr uint16) uint8 {
 	case addr <= 0x4017: // Controller 2 or Zapper.
 		if b.Joy2 != nil {
 			return b.Joy2.Read()
-		} else if b.Zap != nil {
-			return b.Zap.Read()
+		} else if b.Zapper != nil {
+			return b.Zapper.Read()
 		}
 		return 0
 	case addr <= 0x401F: // APU and I/O functionality.

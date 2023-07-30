@@ -41,7 +41,9 @@ const (
 )
 
 type PPU struct {
-	Frame            [256][240]color.RGBA
+	Frame       [256][240]color.RGBA
+	transparent [256][240]bool
+
 	RequestNMI       bool
 	ScanlineComplete bool
 	FrameComplete    bool
@@ -298,28 +300,6 @@ func (p *PPU) writeVRAM(addr vramAddr, data uint8) {
 	log.Printf("[WARN] write to invalid vram address: %04X", addr)
 }
 
-func (p *PPU) checkSpriteZeroHit() bool {
-	spriteX, spriteY := int(p.oamData[3]), int(p.oamData[0])
-	frameY, frameX := p.scanline, p.cycle
-	spriteY += 1
-
-	// Check if the scanline is within the sprite's horizontal range.
-	if frameX < spriteX || frameX >= spriteX+8 {
-		return false
-	}
-
-	// Check if the scanline is within the sprite's vertical range.
-	if frameY < spriteY || frameY >= spriteY+p.spriteHeight() {
-		return false
-	}
-
-	pixelX, pixelY := frameX%8, frameY%8
-	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
-	tilePixel := p.fetchTileLine(frameX/8, frameY/8, pixelY).Pixels[pixelX][pixelY]
-
-	return spritePixel != 0 && tilePixel != 0
-}
-
 func (p *PPU) clearFrame(c color.RGBA) {
 	if p.FastForward {
 		return
@@ -363,13 +343,6 @@ func (p *PPU) Tick() {
 			p.setStatus(StatusSpriteZeroHit, false)
 			p.setStatus(StatusVBlank, false)
 			p.clearFrame(p.backdropColor())
-		}
-
-		// Sprite zero hit detection.
-		if p.scanline >= 0 && p.cycle <= 256 {
-			if p.renderingEnabled() && !p.getStatus(StatusSpriteZeroHit) {
-				p.setStatus(StatusSpriteZeroHit, p.checkSpriteZeroHit())
-			}
 		}
 
 		// Skip the first cycle of the first scanline on odd frames.

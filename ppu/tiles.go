@@ -48,7 +48,7 @@ func (p *PPU) fetchTileLine(tileX, tileY, line int) (tile Tile) {
 	return tile
 }
 
-func (p *PPU) readColor(pixel, paletteID uint8) color.RGBA {
+func (p *PPU) readTileColor(pixel, paletteID uint8) color.RGBA {
 	colorAddr := 0x3F00 + uint16(paletteID)*4 + uint16(pixel)
 	colorIdx := p.readVRAM(colorAddr)
 	return Colors[colorIdx]
@@ -85,10 +85,10 @@ func (p *PPU) renderTileScanline() {
 		}
 
 		pixel := tile.Pixels[pixelX][pixelY]
-		if pixel == 0 {
-			continue
-		}
+		p.transparent[screenX][screenY] = pixel == 0
 
-		p.Frame[screenX][screenY] = p.readColor(pixel, tile.PaletteID)
+		if pixel != 0 {
+			p.Frame[screenX][screenY] = p.readTileColor(pixel, tile.PaletteID)
+		}
 	}
 }

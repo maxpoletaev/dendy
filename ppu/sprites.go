@@ -1,5 +1,7 @@
 package ppu
 
+import "image/color"
+
 const (
 	spriteAttrPalette  = 0x03 // two bits
 	spriteAttrPriority = 1 << 5
@@ -8,6 +10,7 @@ const (
 )
 
 type Sprite struct {
+	ID        int
 	Pixels    [8][16]uint8
 	PaletteID uint8
 	X, Y      uint8
@@ -66,6 +69,7 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 	)
 
 	sprite := Sprite{
+		ID:        idx,
 		PaletteID: attr & spriteAttrPalette,
 		Back:      attr&spriteAttrPriority != 0,
 		FlipX:     attr&spriteAttrFlipX != 0,
@@ -125,6 +129,12 @@ func (p *PPU) evaluateSprites() {
 	}
 }
 
+func (p *PPU) readSpriteColor(pixel, paletteID uint8) color.RGBA {
+	colorAddr := 0x3F10 + uint16(paletteID)*4 + uint16(pixel)
+	colorIdx := p.readVRAM(colorAddr)
+	return Colors[colorIdx]
+}
+
 func (p *PPU) renderSpriteScanline() {
 	frameY := p.scanline
 	if frameY > 239 {
@@ -161,13 +171,17 @@ func (p *PPU) renderSpriteScanline() {
 				continue
 			}
 
+			// Sprite zero hit detection.
+			if sprite.ID == 0 && !p.transparent[frameX][frameY] {
+				p.setStatus(StatusSpriteZeroHit, true)
+			}
+
 			// Sprite is behind the background, so don't render.
 			if sprite.Back && p.Frame[frameX][frameY] != bgColor {
 				continue
 			}
 
-			addr := 0x3F10 + uint16(sprite.PaletteID)*4 + uint16(px)
-			p.Frame[frameX][frameY] = Colors[p.readVRAM(addr)]
+			p.Frame[frameX][frameY] = p.readSpriteColor(px, sprite.PaletteID)
 		}
 	}
 }

@@ -92,7 +92,7 @@ func (w *Window) updateTexture() {
 	rl.UpdateTexture(w.texture.Texture, w.pixels)
 }
 
-func (w *Window) SetLatency(latency int64) {
+func (w *Window) SetLatencyInfo(latency int64) {
 	w.latency = latency
 }
 

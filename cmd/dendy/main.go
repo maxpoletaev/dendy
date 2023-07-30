@@ -121,7 +121,7 @@ func saveState(bus *nes.Bus, saveFile string) error {
 func runOffline(bus *nes.Bus, o *opts, saveFile string) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
-	bus.Zap = input.NewZapper()
+	bus.Zapper = input.NewZapper()
 	bus.Reset()
 
 	if o.disasm != "" {
@@ -152,7 +152,7 @@ func runOffline(bus *nes.Bus, o *opts, saveFile string) {
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.InputDelegate = bus.Joy1.SetButtons
-	w.ZapperDelegate = bus.Zap.Update
+	w.ZapperDelegate = bus.Zapper.Update
 	w.ResetDelegate = bus.Reset
 	w.ShowFPS = o.showFPS
 
@@ -172,7 +172,7 @@ func runOffline(bus *nes.Bus, o *opts, saveFile string) {
 				break
 			}
 
-			bus.Zap.VBlank()
+			bus.Zapper.VBlank()
 			w.UpdateJoystick()
 			w.HandleHotKeys()
 			w.Refresh()
@@ -226,7 +226,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 	}
 
 	log.Printf("[INFO] waiting for client...")
-	server, addr, err := netplay.Listen(game, o.listenAddr)
+	sess, addr, err := netplay.Listen(game, o.listenAddr)
 
 	if err != nil {
 		log.Printf("[ERROR] failed to listen: %v", err)
@@ -238,8 +238,8 @@ func runAsServer(bus *nes.Bus, o *opts) {
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.SetTitle(fmt.Sprintf("%s (P1)", screen.Title))
-	w.InputDelegate = server.SendButtons
-	w.ResetDelegate = server.SendReset
+	w.InputDelegate = sess.SendButtons
+	w.ResetDelegate = sess.SendReset
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 
@@ -247,18 +247,18 @@ func runAsServer(bus *nes.Bus, o *opts) {
 		w.SetFrameRate(o.fps)
 	}
 
-	server.SendReset()
-	server.Start()
+	sess.SendReset()
+	sess.Start()
 
 	for {
 		if w.ShouldClose() {
 			break
 		}
 
-		w.SetLatency(server.Latency())
+		w.SetLatencyInfo(sess.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-		server.RunFrame()
+		sess.RunFrame()
 		w.Refresh()
 	}
 }
@@ -292,7 +292,7 @@ func runAsClient(bus *nes.Bus, o *opts) {
 	}
 
 	log.Printf("[INFO] connecting to server...")
-	client, addr, err := netplay.Connect(game, o.connectAddr)
+	sess, addr, err := netplay.Connect(game, o.connectAddr)
 
 	if err != nil {
 		log.Printf("[ERROR] failed to connect: %v", err)
@@ -304,7 +304,7 @@ func runAsClient(bus *nes.Bus, o *opts) {
 
 	w := screen.Show(&bus.PPU.Frame, o.scale)
 	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
-	w.InputDelegate = client.SendButtons
+	w.InputDelegate = sess.SendButtons
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 
@@ -312,17 +312,17 @@ func runAsClient(bus *nes.Bus, o *opts) {
 		w.SetFrameRate(o.fps)
 	}
 
-	client.Start()
+	sess.Start()
 
 	for {
 		if w.ShouldClose() {
 			break
 		}
 
-		w.SetLatency(client.Latency())
+		w.SetLatencyInfo(sess.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-		client.RunFrame()
+		sess.RunFrame()
 		w.Refresh()
 	}
 }
