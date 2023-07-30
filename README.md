@@ -44,20 +44,23 @@ the mouse cursor at the right position on the screen and click to shoot.
 
 ## Network Multiplayer
 
-Dendy can be played over the network with another player. Run the emulator with
-the `-listen=<host>:<port>` flag to start a netplay server that will be waiting
-for the second player to connect via the `-connect=<host>:<port>` flag. Once the
-connection is established, the game will start for both sides. The player who
-started the server will be controlling the first joystick. Ensure that both
-sides are using the same ROM file and the same version of the emulator.
+Run the emulator with the `-listen=<host>:<port>` flag to start a netplay server
+that will be waiting for the second player to connect via the `-connect=<host>:<port>`
+flag. Once the connection is established, the game will start for both sides.
+The player who started the server will be controlling the first joystick. Ensure
+that both sides are using the same ROM file and the same version of the emulator.
 
-The feature works by synchronizing the state of the emulated NES and sending
-the controller input over the network to the other player. The algorithm allows
-slight drifts in the clock speed and network latency by generating fake input
-events for the other player if the state of the emulator is ahead of the other
-player’s state. Theoretically, this should keep the game playable for both
-players even if the network connection is not very stable (e.g. over the
-Internet), but it is not very well tested.
+The multiplayer feature is based on rollback networking. The emulation always
+runs at the full speed on both sides, and the player inputs attached to frame
+numbers are exchanged over the network.
+
+It compensates for slight drifts in the clock speed and network latency by predicting
+input events for the other player when the real input has not yet been received.
+It then corrects itself by rewinding to the last known synchronized state
+and replaying the inputs from that point. Theoretically, this should keep the
+game playable for both players without any local input delay, even if the network
+connection is not very stable (e.g., over the Internet). When tested, latencies 
+of up to 150ms felt pretty comfortable.
 
 ## Tested Games
 

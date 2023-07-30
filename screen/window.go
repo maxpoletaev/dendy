@@ -19,9 +19,11 @@ type Window struct {
 	ZapperDelegate func(brightness uint8, trigger bool)
 	InputDelegate  func(buttons uint8)
 	ResetDelegate  func()
+	ShowPing       bool
 	ShowFPS        bool
 	FPS            int
 
+	latency  int64
 	frame    *[256][240]color.RGBA
 	texture  rl.RenderTexture2D
 	pixels   []color.RGBA
@@ -90,6 +92,10 @@ func (w *Window) updateTexture() {
 	rl.UpdateTexture(w.texture.Texture, w.pixels)
 }
 
+func (w *Window) SetLatency(latency int64) {
+	w.latency = latency
+}
+
 func (w *Window) Refresh() {
 	w.updateTexture()
 
@@ -100,10 +106,29 @@ func (w *Window) Refresh() {
 	rl.ClearBackground(rl.Black)
 	rl.DrawTexturePro(w.texture.Texture, w.sourceRec, w.destRec, origin, 0, rl.White)
 
+	var offsetY int32
+
 	if w.ShowFPS {
+		textY := offsetY + 5
 		fps := fmt.Sprintf("%d fps", rl.GetFPS())
-		rl.DrawText(fps, 6, 6, 10, rl.Black)
-		rl.DrawText(fps, 5, 5, 10, rl.White)
+		rl.DrawText(fps, 6, textY+1, 10, rl.Black)
+		rl.DrawText(fps, 5, textY, 10, rl.White)
+		offsetY += 10
+	}
+
+	if w.ShowPing && w.latency > 0 {
+		textY := offsetY + 5
+		colour := rl.Green
+
+		if w.latency > 150 {
+			colour = rl.Red
+		} else if w.latency > 100 {
+			colour = rl.Yellow
+		}
+
+		latency := fmt.Sprintf("%d ms", w.latency)
+		rl.DrawText(latency, 6, textY+1, 10, rl.Black)
+		rl.DrawText(latency, 5, textY, 10, colour)
 	}
 }
 

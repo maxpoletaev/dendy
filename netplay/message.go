@@ -14,6 +14,8 @@ type MsgType uint8
 const (
 	MsgTypeReset MsgType = iota + 1
 	MsgTypeInput
+	MsgTypePing
+	MsgTypePong
 )
 
 type Message struct {

@@ -241,6 +241,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 	w.InputDelegate = server.SendButtons
 	w.ResetDelegate = server.SendReset
 	w.ShowFPS = o.showFPS
+	w.ShowPing = true
 
 	if o.fps > 0 {
 		w.SetFrameRate(o.fps)
@@ -254,6 +255,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 			break
 		}
 
+		w.SetLatency(server.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
 		server.RunFrame()
@@ -304,6 +306,7 @@ func runAsClient(bus *nes.Bus, o *opts) {
 	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
 	w.InputDelegate = client.SendButtons
 	w.ShowFPS = o.showFPS
+	w.ShowPing = true
 
 	if o.fps > 0 {
 		w.SetFrameRate(o.fps)
@@ -313,9 +316,10 @@ func runAsClient(bus *nes.Bus, o *opts) {
 
 	for {
 		if w.ShouldClose() {
-			return
+			break
 		}
 
+		w.SetLatency(client.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
 		client.RunFrame()

@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 type Netplay struct {
-	game   *Game
-	toRecv chan Message
-	toSend chan Message
-	stop   chan struct{}
-	conn   net.Conn
+	game     *Game
+	latency  time.Duration
+	toRecv   chan Message
+	toSend   chan Message
+	stop     chan struct{}
+	pingSent time.Time
+	conn     net.Conn
 }
 
 func Listen(game *Game, addr string) (*Netplay, net.Addr, error) {
@@ -108,6 +111,13 @@ func (np *Netplay) handleMessage(msg Message) {
 			Buttons: msg.Payload[0],
 			Frame:   msg.Frame,
 		})
+	case MsgTypePing:
+		np.sendMsg(Message{
+			Type:       MsgTypePong,
+			Generation: np.game.Generation(),
+		})
+	case MsgTypePong:
+		np.latency = time.Since(np.pingSent)
 	}
 }
 
@@ -162,5 +172,17 @@ loop:
 		}
 	}
 
+	if np.game.Frame()%100 == 0 {
+		np.sendMsg(Message{
+			Type:       MsgTypePing,
+			Generation: np.game.Generation(),
+		})
+		np.pingSent = time.Now()
+	}
+
 	np.game.RunFrame()
+}
+
+func (np *Netplay) Latency() int64 {
+	return np.latency.Milliseconds()
 }
