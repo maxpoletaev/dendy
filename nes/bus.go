@@ -56,12 +56,10 @@ func (b *Bus) Read(addr uint16) uint8 {
 	case addr == 0x4016: // Controller 1.
 		return b.Joy1.Read()
 	case addr <= 0x4017: // Controller 2 or Zapper.
-		if b.Joy2 != nil {
-			return b.Joy2.Read()
-		} else if b.Zapper != nil {
+		if b.Zapper != nil {
 			return b.Zapper.Read()
 		}
-		return 0
+		return b.Joy2.Read()
 	case addr <= 0x401F: // APU and I/O functionality.
 		return 0
 	default: // Cartridge space.

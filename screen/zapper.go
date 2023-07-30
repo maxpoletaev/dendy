@@ -1,6 +1,8 @@
 package screen
 
-import "github.com/gen2brain/raylib-go/raylib"
+import (
+	"github.com/gen2brain/raylib-go/raylib"
+)
 
 func (w *Window) getFrameMousePosition() (int, int, bool) {
 	pos := rl.GetMousePosition()
