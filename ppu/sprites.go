@@ -1,6 +1,8 @@
 package ppu
 
-import "image/color"
+import (
+	"image/color"
+)
 
 const (
 	spriteAttrPalette  = 0x03 // two bits
@@ -10,7 +12,7 @@ const (
 )
 
 type Sprite struct {
-	ID        int
+	Index     int
 	Pixels    [8][16]uint8
 	PaletteID uint8
 	X, Y      uint8
@@ -69,7 +71,7 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 	)
 
 	sprite := Sprite{
-		ID:        idx,
+		Index:     idx,
 		PaletteID: attr & spriteAttrPalette,
 		Back:      attr&spriteAttrPriority != 0,
 		FlipX:     attr&spriteAttrFlipX != 0,
@@ -142,13 +144,11 @@ func (p *PPU) renderSpriteScanline() {
 	}
 
 	var (
-		bgColor = p.backdropColor()
-		height  = p.spriteHeight()
+		height = p.spriteHeight()
 	)
 
 	for i := p.spriteCount - 1; i >= 0; i-- {
 		sprite := p.spriteScanline[i]
-
 		if sprite.Y > 239 || sprite.Y == 0 {
 			continue
 		}
@@ -172,12 +172,12 @@ func (p *PPU) renderSpriteScanline() {
 			}
 
 			// Sprite zero hit detection.
-			if sprite.ID == 0 && !p.transparent[frameX][frameY] {
+			if sprite.Index == 0 && !p.transparent[frameX][frameY] {
 				p.setStatus(StatusSpriteZeroHit, true)
 			}
 
 			// Sprite is behind the background, so don't render.
-			if sprite.Back && p.Frame[frameX][frameY] != bgColor {
+			if sprite.Back && !p.transparent[frameX][frameY] {
 				continue
 			}
 

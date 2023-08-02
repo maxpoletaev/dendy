@@ -73,7 +73,7 @@ of up to 150ms felt pretty comfortable.
 | Captain America | Playable ||
 | Castlevania | Playable ||
 | Chip 'n Dale | Playable ||
-| Chip 'n Dale 2 | Playable | Characters are 1px above the floor |
+| Chip 'n Dale 2 | Playable ||
 | Contra Force | Playable ||
 | Contra | Playable ||
 | Darkwing Duck | Playable ||

@@ -58,7 +58,7 @@ func (p *PPU) renderTileScanline() {
 	var (
 		scrollX = p.vramAddr.coarseX()*8 + uint16(p.fineX)
 		scrollY = p.vramAddr.coarseY()*8 + p.vramAddr.fineY()
-		screenY = p.scanline + 1
+		screenY = p.scanline
 	)
 
 	var (
@@ -87,7 +87,7 @@ func (p *PPU) renderTileScanline() {
 		pixel := tile.Pixels[pixelX][pixelY]
 		p.transparent[screenX][screenY] = pixel == 0
 
-		if pixel != 0 {
+		if pixel > 0 {
 			p.Frame[screenX][screenY] = p.readTileColor(pixel, tile.PaletteID)
 		}
 	}
