@@ -335,6 +335,28 @@ func (p *PPU) renderingEnabled() bool {
 	return p.getMask(MaskShowBackground) || p.getMask(MaskShowSprites)
 }
 
+func (p *PPU) checkSpriteZeroHit() bool {
+	spriteX, spriteY := int(p.oamData[3]), int(p.oamData[0])
+	frameY, frameX := p.scanline, p.cycle
+	spriteY += 1
+
+	// Check if the scanline is within the sprite's horizontal range.
+	if frameX < spriteX || frameX >= spriteX+8 {
+		return false
+	}
+
+	// Check if the scanline is within the sprite's vertical range.
+	if frameY < spriteY || frameY >= spriteY+p.spriteHeight() {
+		return false
+	}
+
+	pixelX, pixelY := frameX%8, frameY%8
+	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
+	tilePixel := p.fetchTileLine(frameX/8, frameY/8, pixelY).Pixels[pixelX][pixelY]
+
+	return spritePixel != 0 && tilePixel != 0
+}
+
 func (p *PPU) Tick() {
 	// Pre-render + visible scanlines.
 	if p.scanline >= -1 && p.scanline <= 238 {
@@ -349,6 +371,13 @@ func (p *PPU) Tick() {
 		if p.scanline == 0 {
 			if p.cycle == 0 && p.oddFrame {
 				p.cycle = 1
+			}
+		}
+
+		// Manual sprite zero hit detection during fast-forward.
+		if p.FastForward && p.cycle >= 0 && p.cycle <= 255 {
+			if p.renderingEnabled() && !p.getStatus(StatusSpriteZeroHit) {
+				p.setStatus(StatusSpriteZeroHit, p.checkSpriteZeroHit())
 			}
 		}
 

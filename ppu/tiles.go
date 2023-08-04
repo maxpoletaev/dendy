@@ -16,7 +16,7 @@ func (p *PPU) tilePatternTableAddr() uint16 {
 	return 0
 }
 
-func (p *PPU) fetchTileLine(tileX, tileY, line int) (tile Tile) {
+func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
 	nametableID := p.vramAddr.nametable()
 
 	if tileX >= 32 {
@@ -32,13 +32,13 @@ func (p *PPU) fetchTileLine(tileX, tileY, line int) (tile Tile) {
 	attrAddr := attrtableAddr + uint16(tileX)/4 + uint16(tileY)/4*8
 	attr := p.readVRAM(attrAddr)
 
-	p1 := p.readVRAM(tileAddr + uint16(line) + 0)
-	p2 := p.readVRAM(tileAddr + uint16(line) + 8)
+	p1 := p.readVRAM(tileAddr + uint16(y) + 0)
+	p2 := p.readVRAM(tileAddr + uint16(y) + 8)
 
 	for x := 0; x < 8; x++ {
 		pixel := p1 & (0x80 >> x) >> (7 - x) << 0
 		pixel |= (p2 & (0x80 >> x) >> (7 - x)) << 1
-		tile.Pixels[x][line] = pixel // two-bit pixel value
+		tile.Pixels[x][y] = pixel // two-bit pixel value
 	}
 
 	// two-bit palette ID
