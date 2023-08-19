@@ -3,12 +3,16 @@
 package nestest
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/maxpoletaev/dendy/cpu"
+	"github.com/maxpoletaev/dendy/disasm"
 	"github.com/maxpoletaev/dendy/ines"
+	"github.com/maxpoletaev/dendy/internal/loglevel"
 )
 
 type Memory struct {
@@ -34,20 +38,41 @@ func (r *Memory) Write(addr uint16, value byte) {
 	}
 }
 
+func disableLogger(t *testing.T) {
+	t.Helper()
+
+	log.SetOutput(&loglevel.LevelFilter{
+		Level: loglevel.LevelNone,
+	})
+
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+	})
+}
+
 func TestNestestROM(t *testing.T) {
+	disableLogger(t)
+
 	cart, err := ines.Load("nestest.nes")
-	require.NoError(t, err, "failed to open nestest rom")
+	if err != nil {
+		t.Fatal(fmt.Errorf("failed to load nestest rom: %w", err))
+	}
 
 	c := cpu.New()
 	mem := &Memory{rom: cart}
+	writer := bufio.NewWriter(os.Stdout)
 
 	c.Reset(mem)
 	c.PC = 0xC000
-	c.EnableDisasm = true
 	c.AllowIllegal = true
 
 	for {
 		if c.Tick(mem) {
+			line := disasm.DebugStep(mem, c) + "\n"
+			if _, err := writer.WriteString(line); err != nil {
+				t.Fatal(fmt.Errorf("failed to write disasm line: %w", err))
+			}
+
 			// Nestest ends at 0xC66E.
 			if c.PC == 0xC66E {
 				break

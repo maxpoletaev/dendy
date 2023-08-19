@@ -8,7 +8,8 @@ import (
 type Level uint8
 
 const (
-	LevelDebug Level = iota
+	LevelNone Level = iota
+	LevelDebug
 	LevelInfo
 	LevelWarn
 	LevelError
@@ -40,6 +41,10 @@ type LevelFilter struct {
 }
 
 func (f *LevelFilter) Write(p []byte) (n int, err error) {
+	if f.Level == LevelNone {
+		return len(p), nil
+	}
+
 	if extractLevel(p) >= f.Level {
 		return f.Output.Write(p)
 	}

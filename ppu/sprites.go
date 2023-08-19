@@ -18,7 +18,7 @@ type Sprite struct {
 	X, Y      uint8
 	FlipX     bool
 	FlipY     bool
-	Back      bool
+	Behind    bool
 }
 
 func flipPixels(pixels [8][16]uint8, flipX, flipY bool, height int) (flipped [8][16]uint8) {
@@ -73,7 +73,7 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 	sprite := Sprite{
 		Index:     idx,
 		PaletteID: attr & spriteAttrPalette,
-		Back:      attr&spriteAttrPriority != 0,
+		Behind:    attr&spriteAttrPriority != 0,
 		FlipX:     attr&spriteAttrFlipX != 0,
 		FlipY:     attr&spriteAttrFlipY != 0,
 		Y:         spriteY,
@@ -177,7 +177,7 @@ func (p *PPU) renderSpriteScanline() {
 			}
 
 			// Sprite is behind the background, so don't render.
-			if sprite.Back && !p.transparent[frameX][frameY] {
+			if sprite.Behind && !p.transparent[frameX][frameY] {
 				continue
 			}
 

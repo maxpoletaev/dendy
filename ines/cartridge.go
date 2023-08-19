@@ -46,6 +46,8 @@ func Load(path string) (Cartridge, error) {
 		return NewMapper1(rom), nil
 	case 2:
 		return NewMapper2(rom), nil
+	case 3:
+		return NewMapper3(rom), nil
 	case 4:
 		return NewMapper4(rom), nil
 	default:

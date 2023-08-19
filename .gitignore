@@ -1,3 +1,9 @@
 /bin
 /roms
 /nestest.log
+
+# Save states
+*.save
+
+# Profiling files
+*.pprof

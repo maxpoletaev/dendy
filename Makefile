@@ -28,5 +28,5 @@ test: ## run tests
 .PHONY: nestest
 nestest: ## run nestest rom
 	@echo "--------- running: $@ ---------"
-	@go test -tags testrom -v ./nestest | tee nestest.log
-	@sed -i '' '1d' nestest.log # remove the first line to match the good log
+	go test -tags testrom -v ./nestest > nestest.log
+	sed -i '1d' nestest.log # remove the first line to match the good.log

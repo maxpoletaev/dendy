@@ -136,7 +136,7 @@ func (w *Window) InFocus() bool {
 	return rl.IsWindowFocused()
 }
 
-func (w *Window) isCtrlPressed() bool {
+func (w *Window) isModifierPressed() bool {
 	ctrl := rl.IsKeyDown(rl.KeyLeftControl) || rl.IsKeyDown(rl.KeyRightControl)
 	super := rl.IsKeyDown(rl.KeyLeftSuper) || rl.IsKeyDown(rl.KeyRightSuper)
 	return super || ctrl
@@ -150,7 +150,7 @@ func (w *Window) HandleHotKeys() {
 	case rl.IsKeyPressed(rl.KeyF12):
 		rl.TakeScreenshot("screenshot.png")
 
-	case w.isCtrlPressed() && rl.IsKeyPressed(rl.KeyR):
+	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyR):
 		if w.ResetDelegate != nil {
 			w.ResetDelegate()
 		}
