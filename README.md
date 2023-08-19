@@ -142,7 +142,7 @@ nescartdb.com.
 * [x] MMC3 (Mapper 4) - 24%
 * [x] UxROM (Mapper 2) - 11%
 * [x] NROM (Mapper 0) - 10%
-* [ ] CNROM (Mapper 3) - 6%
+* [x] CNROM (Mapper 3) - 6%
 * [ ] AxROM (Mapper 7) - 3%
 * [ ] MMC5 (Mapper 5) - 1%
 
