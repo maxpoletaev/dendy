@@ -83,7 +83,7 @@ of up to 150ms felt pretty comfortable.
 | Duck Tales | Playable ||
 | Ice Climber | Playable ||
 | Jackal | Not Playable | Black screen |
-| Kirby's Adventure | Not Playable | Graphical artifacts |
+| Kirby's Adventure | Playable ||
 | Legend of Zelda | Playable ||
 | Mario Bros. | Playable ||
 | Megaman | Playable ||
@@ -95,7 +95,7 @@ of up to 150ms felt pretty comfortable.
 | Super Contra | Playable ||
 | Super Mario Bros. 3 | Crash ||
 | Super Mario Bros. | Playable ||
-| Teenage Mutant Ninja Turtles | Not Playable | Extremely slow |
+| Teenage Mutant Ninja Turtles | Playable ||
 | Teenage Mutant Ninja Turtles 2 | Playable ||
 | Teenage Mutant Ninja Turtles 3 | Playable ||
 | Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts |

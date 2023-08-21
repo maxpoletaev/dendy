@@ -88,9 +88,9 @@ func (g *Game) Frame() uint32 {
 	return g.frame
 }
 
-// Generation returns the current generation number. It is incremented every
+// Gen returns the current generation number. It is incremented every
 // time the game is reset.
-func (g *Game) Generation() uint32 {
+func (g *Game) Gen() uint32 {
 	return g.generation
 }
 

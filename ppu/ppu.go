@@ -195,7 +195,8 @@ func (p *PPU) Write(addr uint16, data uint8) {
 			p.tmpAddr = 0
 		}
 	case 0x2007:
-		p.writeVRAM(p.vramAddr, data)
+		writeAddr := uint16(p.vramAddr) % 0x4000
+		p.writeVRAM(writeAddr, data)
 		p.incrementAddr()
 	}
 }
@@ -272,15 +273,15 @@ func (p *PPU) readVRAM(addr uint16) uint8 {
 	return 0
 }
 
-func (p *PPU) writeVRAM(addr vramAddr, data uint8) {
+func (p *PPU) writeVRAM(addr uint16, data uint8) {
 	if addr <= 0x1FFF {
-		p.cart.WriteCHR(uint16(addr), data)
+		p.cart.WriteCHR(addr, data)
 		return
 	}
 
 	if addr <= 0x3EFF {
 		addr = addr & 0x2FFF
-		idx := p.nameTableIdx(uint16(addr))
+		idx := p.nameTableIdx(addr)
 		p.nameTable[idx][addr%1024] = data
 
 		return

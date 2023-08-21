@@ -31,7 +31,7 @@ type Window struct {
 	scale    int
 
 	sourceRec rl.Rectangle
-	destRec   rl.Rectangle
+	targetRec rl.Rectangle
 }
 
 func Show(frame *[256][240]color.RGBA, scale int) *Window {
@@ -43,7 +43,7 @@ func Show(frame *[256][240]color.RGBA, scale int) *Window {
 	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
 
 	sourceRec := rl.NewRectangle(0, 0, Width, Height)
-	destRec := rl.NewRectangle(0, 0, float32(Width*scale), float32(Height*scale))
+	targetRec := rl.NewRectangle(0, 0, float32(Width*scale), float32(Height*scale))
 
 	return &Window{
 		pixels:    make([]color.RGBA, Width*Height),
@@ -51,7 +51,7 @@ func Show(frame *[256][240]color.RGBA, scale int) *Window {
 		frame:     frame,
 		scale:     scale,
 		sourceRec: sourceRec,
-		destRec:   destRec,
+		targetRec: targetRec,
 	}
 }
 
@@ -96,6 +96,11 @@ func (w *Window) SetLatencyInfo(latency int64) {
 	w.latency = latency
 }
 
+func (w *Window) drawTextWithShadow(text string, x int32, y int32, size int32, colour rl.Color) {
+	rl.DrawText(text, x+1, y+1, size, rl.Black)
+	rl.DrawText(text, x, y, size, colour)
+}
+
 func (w *Window) Refresh() {
 	w.updateTexture()
 
@@ -104,15 +109,14 @@ func (w *Window) Refresh() {
 
 	origin := rl.NewVector2(0, 0)
 	rl.ClearBackground(rl.Black)
-	rl.DrawTexturePro(w.texture.Texture, w.sourceRec, w.destRec, origin, 0, rl.White)
+	rl.DrawTexturePro(w.texture.Texture, w.sourceRec, w.targetRec, origin, 0, rl.White)
 
 	var offsetY int32
 
 	if w.ShowFPS {
 		textY := offsetY + 5
 		fps := fmt.Sprintf("%d fps", rl.GetFPS())
-		rl.DrawText(fps, 6, textY+1, 10, rl.Black)
-		rl.DrawText(fps, 5, textY, 10, rl.White)
+		w.drawTextWithShadow(fps, 6, textY, 10, rl.White)
 		offsetY += 10
 	}
 
@@ -127,8 +131,7 @@ func (w *Window) Refresh() {
 		}
 
 		latency := fmt.Sprintf("%d ms", w.latency)
-		rl.DrawText(latency, 6, textY+1, 10, rl.Black)
-		rl.DrawText(latency, 5, textY, 10, colour)
+		w.drawTextWithShadow(latency, 6, textY, 10, colour)
 	}
 }
 

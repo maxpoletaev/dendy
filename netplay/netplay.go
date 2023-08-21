@@ -95,7 +95,7 @@ func (np *Netplay) sendMsg(msg Message) {
 }
 
 func (np *Netplay) handleMessage(msg Message) {
-	if msg.Generation < np.game.Generation() {
+	if msg.Generation < np.game.Gen() {
 		log.Printf("[INFO] dropping message from old generation: %d", msg.Generation)
 		return
 	}
@@ -114,7 +114,7 @@ func (np *Netplay) handleMessage(msg Message) {
 	case MsgTypePing:
 		np.sendMsg(Message{
 			Type:       MsgTypePong,
-			Generation: np.game.Generation(),
+			Generation: np.game.Gen(),
 		})
 	case MsgTypePong:
 		np.latency = time.Since(np.pingSent)
@@ -137,7 +137,7 @@ func (np *Netplay) SendReset() {
 	frame := checkpoint.Frame
 
 	np.sendMsg(Message{
-		Generation: np.game.Generation(),
+		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
 		Frame:      frame,
 		Payload:    state,
@@ -155,7 +155,7 @@ func (np *Netplay) SendButtons(buttons uint8) {
 		Type:       MsgTypeInput,
 		Payload:    []uint8{buttons},
 		Frame:      np.game.Frame(),
-		Generation: np.game.Generation(),
+		Generation: np.game.Gen(),
 	})
 
 	np.game.HandleLocalInput(buttons)
@@ -174,9 +174,10 @@ loop:
 
 	if np.game.Frame()%100 == 0 {
 		np.sendMsg(Message{
+			Generation: np.game.Gen(),
 			Type:       MsgTypePing,
-			Generation: np.game.Generation(),
 		})
+
 		np.pingSent = time.Now()
 	}
 
