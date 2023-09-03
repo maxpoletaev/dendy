@@ -34,14 +34,14 @@ type Window struct {
 	targetRec rl.Rectangle
 }
 
-func Show(frame *[256][240]color.RGBA, scale int) *Window {
-	rl.SetTraceLog(rl.LogNone)
-	rl.SetTargetFPS(FrameRate)
+func CreateWindow(frame *[256][240]color.RGBA, scale int) *Window {
+	rl.SetTraceLog(rl.LogInfo)
+
 	rl.InitWindow(Width*int32(scale), Height*int32(scale), Title)
+	rl.SetTargetFPS(FrameRate)
 
 	texture := rl.LoadRenderTexture(Width, Height)
 	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
-
 	sourceRec := rl.NewRectangle(0, 0, Width, Height)
 	targetRec := rl.NewRectangle(0, 0, float32(Width*scale), float32(Height*scale))
 
@@ -103,9 +103,7 @@ func (w *Window) drawTextWithShadow(text string, x int32, y int32, size int32, c
 
 func (w *Window) Refresh() {
 	w.updateTexture()
-
 	rl.BeginDrawing()
-	defer rl.EndDrawing()
 
 	origin := rl.NewVector2(0, 0)
 	rl.ClearBackground(rl.Black)
@@ -133,6 +131,8 @@ func (w *Window) Refresh() {
 		latency := fmt.Sprintf("%d ms", w.latency)
 		w.drawTextWithShadow(latency, 6, textY, 10, colour)
 	}
+
+	rl.EndDrawing()
 }
 
 func (w *Window) InFocus() bool {

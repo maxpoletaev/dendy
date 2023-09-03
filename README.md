@@ -49,22 +49,22 @@ flag. Once the connection is established, the game will start for both sides.
 The player who started the server will be controlling the first joystick. Ensure
 that both sides are using the same ROM file and the same version of the emulator.
 
-The multiplayer feature is based on rollback networking. The emulation always
-runs at the full speed on both sides, and the player inputs attached to frame
-numbers are exchanged over the network.
-
-It compensates for slight drifts in the clock speed and network latency by predicting
-input events for the other player when the real input has not yet been received.
-It then corrects itself by rewinding to the last known synchronized state
-and replaying the inputs from that point. Theoretically, this should keep the
-game playable for both players without any local input delay, even if the network
-connection is not very stable (e.g., over the Internet). When tested, latencies 
-of up to 150ms felt pretty comfortable.
+The multiplayer feature is based on rollback networking, similar to how it is done in
+RetroArch and Fightcade. The emulation always runs at the full speed on both sides,
+and the player inputs attached to frame numbers are exchanged over the network. It
+compensates for slight drifts in the clock speed and network latency by predicting
+input events for the other player when the real input has not yet been received. When
+the input from the remote player arrives, it corrects itself by rewinding to the last
+known synchronized state and replaying the inputs from that point. Theoretically, this
+should keep the game playable for both sides without any local input delay, even if
+the network connection is not very stable (e.g., over the Internet). When tested,
+latencies of up to 150ms felt pretty comfortable.
 
 ## Tested Games
 
 | Game | Status | Issues |
 |------|--------|--------|
+| [Bad Apple][bad] | Playable ||
 | Balloon Fight | Playable ||
 | Batman| Playable ||
 | Battle City | Playable ||
@@ -101,6 +101,8 @@ of up to 150ms felt pretty comfortable.
 | Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts |
 | Tiny Toon Adventures | Playable ||
 
+[bad]: https://www.nesdev.org/wiki/Bad_Apple
+
 ## Status
 
 ### CPU
@@ -120,17 +122,19 @@ of up to 150ms felt pretty comfortable.
 * [x] Palettes
 * [x] Scrolling
 * [ ] Color emphasis
-* [ ] Cycle-accurate rendering
 
 ### Input/Output
 
 * [x] Graphics output
-* [x] Controller 1
+* [x] Controllers
 * [x] Zapper
 
-### Sound
+### Sound (WIP)
 
-TODO
+* [ ] Pulse
+* [ ] Triangle
+* [ ] Noise
+* [ ] DMC
 
 ### Mappers
 

@@ -20,12 +20,12 @@ package ppu
 type vramAddr uint16
 
 const (
-	bitsCoarseX    uint16 = 0b0000000000011111
-	bitsCoarseY    uint16 = 0b0000001111100000
-	bitsFineY      uint16 = 0b0111000000000000
-	bitsNametable  uint16 = 0b0000110000000000
-	bitsNametableX uint16 = 0b0000010000000000
-	bitsNametableY uint16 = 0b0000100000000000
+	bitsCoarseX    uint16 = 0b0_000_00_00000_11111
+	bitsCoarseY    uint16 = 0b0_000_00_11111_00000
+	bitsNametable  uint16 = 0b0_000_11_00000_00000
+	bitsNametableX uint16 = 0b0_000_01_00000_00000
+	bitsNametableY uint16 = 0b0_000_10_00000_00000
+	bitsFineY      uint16 = 0b0_111_00_00000_00000
 )
 
 func (v *vramAddr) coarseX() uint16    { return (uint16(*v) & bitsCoarseX) >> 0 }

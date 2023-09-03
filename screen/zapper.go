@@ -6,9 +6,7 @@ import (
 
 func (w *Window) getFrameMousePosition() (int, int, bool) {
 	pos := rl.GetMousePosition()
-
 	x, y := int(pos.X)/w.scale, int(pos.Y)/w.scale
-
 	if x < 0 || x >= Width || y < 0 || y >= Height {
 		return 0, 0, false
 	}

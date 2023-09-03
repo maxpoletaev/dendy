@@ -1,4 +1,4 @@
-package nes
+package console
 
 import (
 	"encoding/gob"
