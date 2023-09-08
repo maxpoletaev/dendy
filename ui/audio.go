@@ -45,7 +45,7 @@ func (s *AudioOut) Close() {
 	rl.CloseAudioDevice()
 }
 
-func (s *AudioOut) drainSourceCh(out []float32) (n int) {
+func (s *AudioOut) fillBuffer(out []float32) (n int) {
 loop:
 	for i := 0; i < len(out); i += s.channels {
 		select {
@@ -56,7 +56,14 @@ loop:
 
 			n += s.channels
 		default:
-			log.Printf("[WARN] audio buffer underrun, want:%d, got:%d", len(out), n)
+			if n > 0 {
+				last := out[n-1]
+				for j := n; j < len(out); j++ {
+					out[j] = last
+				}
+			}
+
+			log.Printf("[DEBUG] audio buffer underrun, want:%d, got:%d", len(out), n)
 			break loop
 		}
 	}
@@ -66,8 +73,7 @@ loop:
 
 func (s *AudioOut) Update() {
 	if rl.IsAudioStreamProcessed(s.stream) {
-		if f := s.drainSourceCh(s.buffer); f > 0 {
-			rl.UpdateAudioStream(s.stream, s.buffer[:f])
-		}
+		s.fillBuffer(s.buffer)
+		rl.UpdateAudioStream(s.stream, s.buffer)
 	}
 }

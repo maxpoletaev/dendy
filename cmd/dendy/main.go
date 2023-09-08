@@ -24,14 +24,14 @@ import (
 )
 
 const (
-	sampleSize       = 32
-	framesPerSecond  = 60
-	samplesPerSecond = 44100
-	ticksPerSecond   = 1789773 * 3
-	ticksPerFrame    = ticksPerSecond / framesPerSecond
-	samplesPerFrame  = samplesPerSecond / framesPerSecond
-	ticksPerSample   = ticksPerSecond / samplesPerSecond
-	windowTitle      = "Dendy Emulator"
+	sampleSize        = 32
+	framesPerSecond   = 60
+	samplesPerSecond  = 44100
+	cpuTicksPerSecond = 1789773
+	ticksPerSecond    = cpuTicksPerSecond * 3
+	samplesPerFrame   = samplesPerSecond / framesPerSecond
+	ticksPerSample    = ticksPerSecond / samplesPerSecond
+	windowTitle       = "Dendy Emulator"
 )
 
 type opts struct {
@@ -173,8 +173,8 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	w.ResetDelegate = bus.Reset
 	w.ShowFPS = o.showFPS
 
-	samples := make(chan float32, samplesPerSecond)
 	audio := ui.CreateAudio(samplesPerSecond, sampleSize, 1, samplesPerFrame)
+	samples := make(chan float32, samplesPerSecond)
 	audio.SetChannel(samples)
 	defer audio.Close()
 
@@ -187,17 +187,19 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 		tick := bus.Tick()
 		sampleAcc += sampleDuration
 
-		if sampleAcc >= 1.0 {
-			sample := bus.APU.Output()
-			sampleAcc -= 1.0
+		if o.sound && sampleAcc >= 1.0 {
+			output := bus.APU.Output()
+			sampleAcc = 0.0
 
 			select {
-			case samples <- sample:
+			case samples <- output:
 				// noop
 			default:
-				log.Printf("[WARN] audio buffer overrun")
-				samples <- sample
+				log.Printf("[DEBUG] audio buffer overrun")
+				samples <- output
 			}
+
+			audio.Update()
 		}
 
 		if tick.ScanlineComplete {
@@ -209,9 +211,8 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 				break
 			}
 
-			audio.Update()
-
 			bus.Zapper.VBlank()
+
 			w.UpdateJoystick()
 			w.HandleHotKeys()
 			w.Refresh()

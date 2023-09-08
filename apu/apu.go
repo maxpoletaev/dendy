@@ -67,7 +67,7 @@ func (a *APU) Write(addr uint16, value byte) {
 func (a *APU) mix(p1, p2, t, n, d float32) float32 {
 	const (
 		pWeight = 0.2
-		tWeight = 0.3
+		tWeight = 0.2
 		nWeight = 0.2
 	)
 
@@ -92,10 +92,15 @@ func (a *APU) Tick() {
 		return
 	}
 
-	a.time += 1.0 / 3.0 / 1789773.0 // Each APU tick is 1/3 CPU tick.
+	// One tick is 1/1789773 seconds.
+	a.time += 1.0 / 1789773.0
 	t := float32(a.time)
 
-	if a.cycle%6 == 0 {
+	// Triangle is clocked at CPU speed.
+	a.triangle.tickTimer(t)
+
+	// Everything else is clocked at half CPU speed.
+	if a.cycle%2 == 0 {
 		var (
 			quarterFrame = a.frame%3729 == 0
 			halfFrame    = a.frame%7457 == 0
@@ -118,7 +123,6 @@ func (a *APU) Tick() {
 		a.pulse1.tickTimer(t)
 		a.pulse2.tickTimer(t)
 		a.noise.tickTimer(t)
-		a.triangle.tickTimer(t)
 
 		a.frame++
 		if a.frame == 14916 {

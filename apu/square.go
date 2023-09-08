@@ -7,22 +7,21 @@ var squareDuty = [4]float32{
 	0.750,
 }
 
-func approxSin(t float32) float32 {
-	j := t * 0.15915
-	j = j - float32(int(j))
-	return 20.785 * j * (j - 0.5) * (j - 1.0)
-}
-
 func squareWaveFourier(duty, frequency, amplitude, t float32) float32 {
-	const harmonics = 30
+	sin := func(t float32) float32 {
+		j := t * 0.15915
+		j = j - float32(int(j))
+		return 20.785 * j * (j - 0.5) * (j - 1.0)
+	}
 
+	const harmonics = 20
 	var p = duty * 2.0 * pi
 	var a, b, n float32
 
 	for n = 1; n <= harmonics; n++ {
 		c := n * frequency * 2.0 * pi * t
-		b += -approxSin(c-p*n) / n
-		a += -approxSin(c) / n
+		b += -sin(c-p*n) / n
+		a += -sin(c) / n
 	}
 
 	return (2.0 * amplitude / pi) * (a - b)
