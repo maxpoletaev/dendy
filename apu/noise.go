@@ -50,6 +50,7 @@ func (n *noise) write(addr uint16, value byte) {
 }
 
 func (n *noise) tickEnvelope() {
+	n.env.tick()
 }
 
 func (n *noise) tickLength() {
