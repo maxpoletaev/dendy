@@ -20,16 +20,18 @@ import (
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/loglevel"
 	"github.com/maxpoletaev/dendy/netplay"
-	"github.com/maxpoletaev/dendy/screen"
+	"github.com/maxpoletaev/dendy/ui"
 )
 
 const (
 	sampleSize       = 32
-	samplesPerSecond = 48000
+	framesPerSecond  = 60
+	samplesPerSecond = 44100
 	ticksPerSecond   = 1789773 * 3
-	ticksPerFrame    = ticksPerSecond / 60
-	samplesPerFrame  = samplesPerSecond / 60
+	ticksPerFrame    = ticksPerSecond / framesPerSecond
+	samplesPerFrame  = samplesPerSecond / framesPerSecond
 	ticksPerSample   = ticksPerSecond / samplesPerSecond
+	windowTitle      = "Dendy Emulator"
 )
 
 type opts struct {
@@ -44,7 +46,6 @@ type opts struct {
 	disasm        string
 	cpuprof       string
 	sound         bool
-	fps           int
 }
 
 func (o *opts) parse() *opts {
@@ -55,12 +56,12 @@ func (o *opts) parse() *opts {
 	flag.IntVar(&o.bufsize, "bufsize", 0, "netplay input buffer size (default: 0)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
+	flag.BoolVar(&o.sound, "sound", false, "enable sound emulation")
 
 	// Debugging flags.
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
 	flag.StringVar(&o.disasm, "disasm", "", "write cpu disassembly to file")
 	flag.BoolVar(&o.verbose, "verbose", false, "enable verbose logging")
-	flag.IntVar(&o.fps, "fps", 0, "set emulator speed (default: 60)")
 
 	flag.Parse()
 	return o
@@ -162,7 +163,9 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 		}
 	}
 
-	w := screen.CreateWindow(&bus.PPU.Frame, o.scale)
+	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w.SetFrameRate(framesPerSecond)
+	w.SetTitle(windowTitle)
 	defer w.Close()
 
 	w.InputDelegate = bus.Joy1.SetButtons
@@ -171,22 +174,18 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	w.ShowFPS = o.showFPS
 
 	samples := make(chan float32, samplesPerSecond)
-	audio := screen.CreateAudio(samplesPerSecond, sampleSize, 1, samplesPerFrame)
+	audio := ui.CreateAudio(samplesPerSecond, sampleSize, 1, samplesPerFrame)
 	audio.SetChannel(samples)
 	defer audio.Close()
 
-	if o.fps > 0 {
-		w.SetFrameRate(o.fps)
-	}
-
 	var (
-		sampleAcc  = float32(0.0)
-		sampleFrac = float32(1.0 / ticksPerSample)
+		sampleAcc      = float32(0.0)
+		sampleDuration = float32(1.0 / ticksPerSample)
 	)
 
 	for {
 		tick := bus.Tick()
-		sampleAcc += sampleFrac
+		sampleAcc += sampleDuration
 
 		if sampleAcc >= 1.0 {
 			sample := bus.APU.Output()
@@ -194,6 +193,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 
 			select {
 			case samples <- sample:
+				// noop
 			default:
 				log.Printf("[WARN] audio buffer overrun")
 				samples <- sample
@@ -275,16 +275,13 @@ func runAsServer(bus *console.Bus, o *opts) {
 	log.Printf("[INFO] client connected: %s", addr)
 	log.Printf("[INFO] starting game...")
 
-	w := screen.CreateWindow(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P1)", screen.Title))
+	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w.SetTitle(fmt.Sprintf("%s (P1)", windowTitle))
+	w.SetFrameRate(framesPerSecond)
 	w.InputDelegate = sess.SendButtons
 	w.ResetDelegate = sess.SendReset
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
-
-	if o.fps > 0 {
-		w.SetFrameRate(o.fps)
-	}
 
 	sess.SendReset()
 	sess.Start()
@@ -341,15 +338,12 @@ func runAsClient(bus *console.Bus, o *opts) {
 	log.Printf("[INFO] connected to server: %s", addr)
 	log.Printf("[INFO] starting game...")
 
-	w := screen.CreateWindow(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
+	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
+	w.SetFrameRate(framesPerSecond)
 	w.InputDelegate = sess.SendButtons
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
-
-	if o.fps > 0 {
-		w.SetFrameRate(o.fps)
-	}
 
 	sess.Start()
 
@@ -409,8 +403,16 @@ func main() {
 	}
 
 	apu := apupkg.New()
+	apu.Enabled = o.sound
+
+	if o.sound && (o.listenAddr != "" || o.connectAddr != "") {
+		log.Printf("[WARN] sound is not supported in netplay mode")
+		apu.Enabled = false
+	}
+
 	cpu := cpupkg.New()
 	cpu.AllowIllegal = true
+
 	ppu := ppupkg.New(cart)
 	ppu.NoSpriteLimit = o.noSpriteLimit
 

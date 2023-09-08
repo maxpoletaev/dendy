@@ -131,9 +131,17 @@ latencies of up to 150ms felt pretty comfortable.
 
 ### Sound (WIP)
 
-* [ ] Pulse
-* [ ] Triangle
-* [ ] Noise
+The sound chip emulation is still work in progress and is not very pleasant
+to listen to at the moment. It may occasionally produce some crackling and
+popping sounds, so it is disabled by default. You can enable it with the
+`-sound` flag.
+
+* [x] Square channels
+* [x] Triangle channel
+* [x] Noise channel
+* [x] Length counter
+* [x] Envelope
+* [ ] Sweep
 * [ ] DMC
 
 ### Mappers

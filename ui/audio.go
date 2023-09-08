@@ -1,4 +1,4 @@
-package screen
+package ui
 
 import (
 	"log"
@@ -18,7 +18,7 @@ func CreateAudio(sampleRate, sampleSize, channels, bufferSize int) *AudioOut {
 	rl.InitAudioDevice()
 
 	stream := rl.LoadAudioStream(uint32(sampleRate), uint32(sampleSize), uint32(channels))
-	rl.SetAudioStreamVolume(stream, 0.1)
+	rl.SetAudioStreamVolume(stream, 1.0)
 	rl.PlayAudioStream(stream)
 
 	return &AudioOut{

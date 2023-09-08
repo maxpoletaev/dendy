@@ -13,7 +13,7 @@ help:  ## print help (this message)
 .PHONY: build
 build: ## build dendy
 	@echo "--------- running: $@ ---------"
-	go build -o bin/dendy ./cmd/dendy
+	GODEBUG=cgocheck=0 go build -o bin/dendy ./cmd/dendy
 
 .PHONY: build_win64
 build_win64: ## build dendy for windows

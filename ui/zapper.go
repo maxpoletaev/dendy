@@ -1,4 +1,4 @@
-package screen
+package ui
 
 import (
 	"github.com/gen2brain/raylib-go/raylib"
@@ -7,7 +7,7 @@ import (
 func (w *Window) getFrameMousePosition() (int, int, bool) {
 	pos := rl.GetMousePosition()
 	x, y := int(pos.X)/w.scale, int(pos.Y)/w.scale
-	if x < 0 || x >= Width || y < 0 || y >= Height {
+	if x < 0 || x >= width || y < 0 || y >= height {
 		return 0, 0, false
 	}
 

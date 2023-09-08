@@ -109,6 +109,7 @@ func (b *Bus) Reset() {
 	b.Cart.Reset()
 	b.CPU.Reset(b)
 	b.PPU.Reset()
+	b.APU.Reset()
 	b.cycles = 0
 }
 

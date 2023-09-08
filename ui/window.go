@@ -1,4 +1,4 @@
-package screen
+package ui
 
 import (
 	"fmt"
@@ -8,11 +8,8 @@ import (
 )
 
 const (
-	Width         = 256
-	Height        = 240
-	Title         = "Dendy Emulator"
-	FrameRate     = 60
-	SlowFrameRate = 10
+	width  = 256
+	height = 240
 )
 
 type Window struct {
@@ -23,30 +20,30 @@ type Window struct {
 	ShowFPS        bool
 	FPS            int
 
-	latency  int64
-	frame    *[256][240]color.RGBA
-	texture  rl.RenderTexture2D
-	pixels   []color.RGBA
-	slowMode bool
-	scale    int
+	latency int64
+	frame   *[width][height]color.RGBA
+	texture rl.RenderTexture2D
+	pixels  []color.RGBA
+	scale   int
 
 	sourceRec rl.Rectangle
 	targetRec rl.Rectangle
 }
 
-func CreateWindow(frame *[256][240]color.RGBA, scale int) *Window {
-	rl.SetTraceLog(rl.LogInfo)
+func CreateWindow(frame *[width][height]color.RGBA, scale int, verbose bool) *Window {
+	if !verbose {
+		rl.SetTraceLog(rl.LogNone)
+	}
 
-	rl.InitWindow(Width*int32(scale), Height*int32(scale), Title)
-	rl.SetTargetFPS(FrameRate)
-
-	texture := rl.LoadRenderTexture(Width, Height)
+	rl.InitWindow(width*int32(scale), height*int32(scale), "")
+	texture := rl.LoadRenderTexture(width, height)
 	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
-	sourceRec := rl.NewRectangle(0, 0, Width, Height)
-	targetRec := rl.NewRectangle(0, 0, float32(Width*scale), float32(Height*scale))
+
+	sourceRec := rl.NewRectangle(0, 0, width, height)
+	targetRec := rl.NewRectangle(0, 0, float32(width*scale), float32(height*scale))
 
 	return &Window{
-		pixels:    make([]color.RGBA, Width*Height),
+		pixels:    make([]color.RGBA, width*height),
 		texture:   texture,
 		frame:     frame,
 		scale:     scale,
@@ -63,17 +60,6 @@ func (w *Window) SetFrameRate(fps int) {
 	rl.SetTargetFPS(int32(fps))
 }
 
-func (w *Window) toggleSlowMode() {
-	w.slowMode = !w.slowMode
-	w.ShowFPS = true
-
-	if w.slowMode {
-		rl.SetTargetFPS(SlowFrameRate)
-	} else {
-		rl.SetTargetFPS(FrameRate)
-	}
-}
-
 func (w *Window) Close() {
 	rl.CloseWindow()
 }
@@ -83,9 +69,9 @@ func (w *Window) ShouldClose() bool {
 }
 
 func (w *Window) updateTexture() {
-	for x := 0; x < Width; x++ {
-		for y := 0; y < Height; y++ {
-			w.pixels[x+y*Width] = w.frame[x][y]
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			w.pixels[x+y*width] = w.frame[x][y]
 		}
 	}
 
@@ -147,9 +133,6 @@ func (w *Window) isModifierPressed() bool {
 
 func (w *Window) HandleHotKeys() {
 	switch {
-	case rl.IsKeyPressed(rl.KeyF1):
-		w.toggleSlowMode()
-
 	case rl.IsKeyPressed(rl.KeyF12):
 		rl.TakeScreenshot("screenshot.png")
 
