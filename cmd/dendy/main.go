@@ -11,14 +11,27 @@ import (
 	"runtime/pprof"
 	"strings"
 
+	apupkg "github.com/maxpoletaev/dendy/apu"
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
+	ppupkg "github.com/maxpoletaev/dendy/ppu"
+
+	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/loglevel"
-	"github.com/maxpoletaev/dendy/nes"
 	"github.com/maxpoletaev/dendy/netplay"
-	ppupkg "github.com/maxpoletaev/dendy/ppu"
-	"github.com/maxpoletaev/dendy/screen"
+	"github.com/maxpoletaev/dendy/ui"
+)
+
+const (
+	sampleSize       = 32
+	framesPerSecond  = 60
+	samplesPerSecond = 44100
+	ticksPerSecond   = 1789773 * 3
+	ticksPerFrame    = ticksPerSecond / framesPerSecond
+	samplesPerFrame  = samplesPerSecond / framesPerSecond
+	ticksPerSample   = ticksPerSecond / samplesPerSecond
+	windowTitle      = "Dendy Emulator"
 )
 
 type opts struct {
@@ -32,7 +45,7 @@ type opts struct {
 	verbose       bool
 	disasm        string
 	cpuprof       string
-	fps           int
+	sound         bool
 }
 
 func (o *opts) parse() *opts {
@@ -43,12 +56,12 @@ func (o *opts) parse() *opts {
 	flag.IntVar(&o.bufsize, "bufsize", 0, "netplay input buffer size (default: 0)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
+	flag.BoolVar(&o.sound, "sound", false, "enable sound emulation")
 
 	// Debugging flags.
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
 	flag.StringVar(&o.disasm, "disasm", "", "write cpu disassembly to file")
 	flag.BoolVar(&o.verbose, "verbose", false, "enable verbose logging")
-	flag.IntVar(&o.fps, "fps", 0, "set emulator speed (default: 60)")
 
 	flag.Parse()
 	return o
@@ -68,7 +81,7 @@ func (o *opts) logLevel() loglevel.Level {
 	return loglevel.LevelInfo
 }
 
-func loadState(bus *nes.Bus, saveFile string) (bool, error) {
+func loadState(bus *console.Bus, saveFile string) (bool, error) {
 	f, err := os.OpenFile(saveFile, os.O_RDONLY, 0644)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -92,7 +105,7 @@ func loadState(bus *nes.Bus, saveFile string) (bool, error) {
 	return true, nil
 }
 
-func saveState(bus *nes.Bus, saveFile string) error {
+func saveState(bus *console.Bus, saveFile string) error {
 	tmpFile := saveFile + ".tmp"
 
 	f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY, 0644)
@@ -118,7 +131,7 @@ func saveState(bus *nes.Bus, saveFile string) error {
 	return nil
 }
 
-func runOffline(bus *nes.Bus, o *opts, saveFile string) {
+func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 	bus.Zapper = input.NewZapper()
@@ -150,18 +163,42 @@ func runOffline(bus *nes.Bus, o *opts, saveFile string) {
 		}
 	}
 
-	w := screen.Show(&bus.PPU.Frame, o.scale)
+	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w.SetFrameRate(framesPerSecond)
+	w.SetTitle(windowTitle)
+	defer w.Close()
+
 	w.InputDelegate = bus.Joy1.SetButtons
 	w.ZapperDelegate = bus.Zapper.Update
 	w.ResetDelegate = bus.Reset
 	w.ShowFPS = o.showFPS
 
-	if o.fps > 0 {
-		w.SetFrameRate(o.fps)
-	}
+	samples := make(chan float32, samplesPerSecond)
+	audio := ui.CreateAudio(samplesPerSecond, sampleSize, 1, samplesPerFrame)
+	audio.SetChannel(samples)
+	defer audio.Close()
+
+	var (
+		sampleAcc      = float32(0.0)
+		sampleDuration = float32(1.0 / ticksPerSample)
+	)
 
 	for {
 		tick := bus.Tick()
+		sampleAcc += sampleDuration
+
+		if sampleAcc >= 1.0 {
+			sample := bus.APU.Output()
+			sampleAcc -= 1.0
+
+			select {
+			case samples <- sample:
+				// noop
+			default:
+				log.Printf("[WARN] audio buffer overrun")
+				samples <- sample
+			}
+		}
 
 		if tick.ScanlineComplete {
 			w.UpdateZapper()
@@ -171,6 +208,8 @@ func runOffline(bus *nes.Bus, o *opts, saveFile string) {
 			if w.ShouldClose() {
 				break
 			}
+
+			audio.Update()
 
 			bus.Zapper.VBlank()
 			w.UpdateJoystick()
@@ -197,7 +236,7 @@ func runOffline(bus *nes.Bus, o *opts, saveFile string) {
 	}
 }
 
-func runAsServer(bus *nes.Bus, o *opts) {
+func runAsServer(bus *console.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 
@@ -236,16 +275,13 @@ func runAsServer(bus *nes.Bus, o *opts) {
 	log.Printf("[INFO] client connected: %s", addr)
 	log.Printf("[INFO] starting game...")
 
-	w := screen.Show(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P1)", screen.Title))
+	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w.SetTitle(fmt.Sprintf("%s (P1)", windowTitle))
+	w.SetFrameRate(framesPerSecond)
 	w.InputDelegate = sess.SendButtons
 	w.ResetDelegate = sess.SendReset
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
-
-	if o.fps > 0 {
-		w.SetFrameRate(o.fps)
-	}
 
 	sess.SendReset()
 	sess.Start()
@@ -263,7 +299,7 @@ func runAsServer(bus *nes.Bus, o *opts) {
 	}
 }
 
-func runAsClient(bus *nes.Bus, o *opts) {
+func runAsClient(bus *console.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 
@@ -302,15 +338,12 @@ func runAsClient(bus *nes.Bus, o *opts) {
 	log.Printf("[INFO] connected to server: %s", addr)
 	log.Printf("[INFO] starting game...")
 
-	w := screen.Show(&bus.PPU.Frame, o.scale)
-	w.SetTitle(fmt.Sprintf("%s (P2)", screen.Title))
+	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
+	w.SetFrameRate(framesPerSecond)
 	w.InputDelegate = sess.SendButtons
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
-
-	if o.fps > 0 {
-		w.SetFrameRate(o.fps)
-	}
 
 	sess.Start()
 
@@ -338,7 +371,7 @@ func main() {
 	})
 
 	if flag.NArg() != 1 {
-		fmt.Println("usage: dendy [-scale=2] [-nosave] [-nospritelimit] [-listen=<addr>:<port>] [-connect=<addr>:<port>] romfile")
+		fmt.Println("usage: dendy [-scale=2] [-nosave] [-nospritelimit] [-listen=addr:port] [-connect=addr:port] romfile")
 		os.Exit(1)
 	}
 
@@ -369,16 +402,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	apu := apupkg.New()
+	apu.Enabled = o.sound
+
+	if o.sound && (o.listenAddr != "" || o.connectAddr != "") {
+		log.Printf("[WARN] sound is not supported in netplay mode")
+		apu.Enabled = false
+	}
+
 	cpu := cpupkg.New()
 	cpu.AllowIllegal = true
 
 	ppu := ppupkg.New(cart)
 	ppu.NoSpriteLimit = o.noSpriteLimit
 
-	bus := &nes.Bus{
+	bus := &console.Bus{
 		Cart: cart,
 		CPU:  cpu,
 		PPU:  ppu,
+		APU:  apu,
 	}
 
 	switch {

@@ -172,6 +172,7 @@ loop:
 		}
 	}
 
+	// Inject a ping message every 100 frames.
 	if np.game.Frame()%100 == 0 {
 		np.sendMsg(Message{
 			Generation: np.game.Gen(),

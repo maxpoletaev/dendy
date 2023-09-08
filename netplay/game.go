@@ -7,9 +7,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/generic"
-	"github.com/maxpoletaev/dendy/nes"
 )
 
 const (
@@ -36,7 +36,7 @@ type PlayerInput struct {
 // players and makes sure their state is synchronized.
 type Game struct {
 	frame      uint32
-	bus        *nes.Bus
+	bus        *console.Bus
 	checkpoint *Checkpoint
 	generation uint32
 
@@ -50,7 +50,7 @@ type Game struct {
 	BufferSize    int
 }
 
-func NewGame(bus *nes.Bus) *Game {
+func NewGame(bus *console.Bus) *Game {
 	return &Game{
 		bus:        bus,
 		checkpoint: &Checkpoint{},
