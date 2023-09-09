@@ -6,12 +6,12 @@ var noiseTable = [16]uint16{
 }
 
 type noise struct {
-	enabled bool
-	sample  float32
-	seq     uint16
-	mode6   bool
-	volume  uint8
-	env     envelope
+	enabled  bool
+	sample   float32
+	seq      uint16
+	mode6    bool
+	volume   uint8
+	envelope envelope
 
 	// Timer
 	timerLoad  uint16
@@ -50,7 +50,7 @@ func (n *noise) write(addr uint16, value byte) {
 }
 
 func (n *noise) tickEnvelope() {
-	n.env.tick()
+	n.envelope.tick()
 }
 
 func (n *noise) tickLength() {

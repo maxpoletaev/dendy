@@ -12,8 +12,8 @@ var lengthTable = []byte{
 }
 
 type APU struct {
-	Enabled  bool
-	samples  chan float32
+	Enabled bool
+
 	time     float64
 	cycle    uint64
 	frame    uint64
@@ -24,11 +24,7 @@ type APU struct {
 }
 
 func New() *APU {
-	apu := &APU{
-		samples: make(chan float32, 48000),
-	}
-
-	return apu
+	return &APU{}
 }
 
 func (a *APU) Reset() {

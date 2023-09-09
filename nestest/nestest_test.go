@@ -41,13 +41,9 @@ func (r *Memory) Write(addr uint16, value byte) {
 func disableLogger(t *testing.T) {
 	t.Helper()
 
-	log.SetOutput(&loglevel.LevelFilter{
-		Level: loglevel.LevelNone,
-	})
+	log.SetOutput(loglevel.New(os.Stderr, loglevel.LevelNone))
 
-	t.Cleanup(func() {
-		log.SetOutput(os.Stderr)
-	})
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
 }
 
 func TestNestestROM(t *testing.T) {

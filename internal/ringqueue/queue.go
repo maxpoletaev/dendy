@@ -1,4 +1,4 @@
-package generic
+package ringqueue
 
 type Queue[T any] struct {
 	EmptyValue T
@@ -9,7 +9,7 @@ type Queue[T any] struct {
 	size  int
 }
 
-func NewQueue[T any](capacity int) *Queue[T] {
+func New[T any](capacity int) *Queue[T] {
 	return &Queue[T]{
 		items: make([]T, capacity),
 	}

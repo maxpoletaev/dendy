@@ -366,10 +366,7 @@ func main() {
 	o.sanitize()
 
 	log.Default().SetFlags(0)
-	log.Default().SetOutput(&loglevel.LevelFilter{
-		Level:  o.logLevel(),
-		Output: os.Stderr,
-	})
+	log.Default().SetOutput(loglevel.New(os.Stderr, o.logLevel()))
 
 	if flag.NArg() != 1 {
 		fmt.Println("usage: dendy [-scale=2] [-nosave] [-nospritelimit] [-listen=addr:port] [-connect=addr:port] romfile")

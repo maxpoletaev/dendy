@@ -36,17 +36,24 @@ func extractLevel(msg []byte) Level {
 }
 
 type LevelFilter struct {
-	Output io.Writer
-	Level  Level
+	output io.Writer
+	level  Level
+}
+
+func New(output io.Writer, level Level) *LevelFilter {
+	return &LevelFilter{
+		output: output,
+		level:  level,
+	}
 }
 
 func (f *LevelFilter) Write(p []byte) (n int, err error) {
-	if f.Level == LevelNone {
+	if f.level == LevelNone {
 		return len(p), nil
 	}
 
-	if extractLevel(p) >= f.Level {
-		return f.Output.Write(p)
+	if extractLevel(p) >= f.level {
+		return f.output.Write(p)
 	}
 
 	return len(p), nil

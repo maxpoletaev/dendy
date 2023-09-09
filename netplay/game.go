@@ -9,7 +9,7 @@ import (
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
-	"github.com/maxpoletaev/dendy/internal/generic"
+	"github.com/maxpoletaev/dendy/internal/ringqueue"
 )
 
 const (
@@ -41,7 +41,7 @@ type Game struct {
 	generation uint32
 
 	localInput     []uint8
-	remoteInput    *generic.Queue[PlayerInput]
+	remoteInput    *ringqueue.Queue[PlayerInput]
 	predictedInput uint8
 
 	LocalJoy      *input.Joystick
@@ -65,7 +65,7 @@ func (g *Game) Reset(cp *Checkpoint) {
 
 	g.predictedInput = 0
 	g.localInput = make([]uint8, 0, cap(g.localInput))
-	g.remoteInput = generic.NewQueue[PlayerInput](300)
+	g.remoteInput = ringqueue.New[PlayerInput](300)
 
 	if cp != nil {
 		g.checkpoint = cp

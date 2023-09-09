@@ -1,4 +1,4 @@
-package generic
+package ringqueue
 
 import (
 	"testing"
@@ -14,7 +14,7 @@ func shouldPanic(t *testing.T, f func()) {
 }
 
 func TestQueue_PushPop(t *testing.T) {
-	q := NewQueue[int](3)
+	q := New[int](3)
 
 	q.Enqueue(1)
 	q.Enqueue(2)
