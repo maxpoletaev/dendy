@@ -78,6 +78,10 @@ func (a *APU) mix(p1, p2, t, n, d float32) float32 {
 }
 
 func (a *APU) Output() float32 {
+	if !a.Enabled {
+		return 0
+	}
+
 	p1 := a.pulse1.output()
 	p2 := a.pulse2.output()
 	t := a.triangle.output()
@@ -115,7 +119,9 @@ func (a *APU) Tick() {
 
 		if halfFrame {
 			a.pulse1.tickLength()
+			a.pulse1.tickSweep()
 			a.pulse2.tickLength()
+			a.pulse2.tickSweep()
 			a.noise.tickLength()
 			a.triangle.tickLength()
 		}

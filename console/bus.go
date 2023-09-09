@@ -133,8 +133,8 @@ func (b *Bus) Tick() (r TickInfo) {
 	if b.cycles%3 == 0 {
 		b.APU.Tick()
 
-		// CPU runs 3x slower than PPU.
 		r.InstrComplete = b.CPU.Tick(b)
+
 		if b.DisasmEnabled && r.InstrComplete {
 			b.disassemble()
 		}

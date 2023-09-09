@@ -28,11 +28,12 @@ func squareWaveFourier(duty, frequency, amplitude, t float32) float32 {
 }
 
 type square struct {
-	enabled bool
-	sample  float32
-	volume  uint8
-	duty    uint8
-	env     envelope
+	enabled  bool
+	sample   float32
+	volume   uint8
+	mode2    bool
+	duty     uint8
+	envelope envelope
 
 	// Timer
 	timerValue uint16
@@ -41,6 +42,14 @@ type square struct {
 	// Length counter
 	lengthValue uint8
 	lengthHalt  bool
+
+	// Sweep
+	sweepEnabled bool
+	sweepValue   uint8
+	sweepLoad    uint8
+	sweepNegate  bool
+	sweepShift   uint8
+	sweepReload  bool
 }
 
 func (s *square) reset() {
@@ -55,7 +64,14 @@ func (s *square) reset() {
 	s.lengthValue = 0
 	s.lengthHalt = false
 
-	s.env.reset()
+	s.sweepEnabled = false
+	s.sweepValue = 0
+	s.sweepLoad = 0
+	s.sweepNegate = false
+	s.sweepShift = 0
+	s.sweepReload = false
+
+	s.envelope.reset()
 }
 
 func (s *square) write(addr uint16, value byte) {
@@ -64,22 +80,52 @@ func (s *square) write(addr uint16, value byte) {
 		s.volume = value & 0x0F
 		s.duty = value >> 6 & 0x03
 		s.lengthHalt = value&0x20 != 0
+	case 0x0001:
+		s.sweepEnabled = value&0x80 != 0
+		s.sweepNegate = value&0x08 != 0
+		s.sweepLoad = value >> 4 & 0x07
+		s.sweepShift = value & 0x07
+		s.sweepReload = true
 	case 0x0002:
 		s.timerLoad = s.timerLoad&0xFF00 | uint16(value)
+		s.timerValue = s.timerLoad
 	case 0x0003:
 		s.timerLoad = s.timerLoad&0x00FF | uint16(value&0x07)<<8
 		s.lengthValue = lengthTable[value>>3]
 		s.timerValue = s.timerLoad
-		s.env.start = true
+		s.envelope.start = true
 	case 0x0004:
-		s.env.enabled = value&0x10 != 0
-		s.env.loop = value&0x20 != 0
-		s.env.load = value & 0x0F
+		s.envelope.enabled = value&0x10 != 0
+		s.envelope.loop = value&0x20 != 0
+		s.envelope.load = value & 0x0F
 	}
 }
 
 func (s *square) tickEnvelope() {
-	s.env.tick()
+	s.envelope.tick()
+}
+
+func (s *square) tickSweep() {
+	if s.sweepReload {
+		s.sweepValue = s.sweepLoad
+		s.sweepReload = false
+	} else if s.sweepValue > 0 {
+		s.sweepValue--
+	} else {
+		s.sweepValue = s.sweepLoad
+
+		if s.sweepEnabled && s.sweepShift > 0 {
+			if s.sweepNegate {
+				s.timerValue -= s.timerValue >> s.sweepShift
+
+				if !s.mode2 {
+					s.timerValue++
+				}
+			} else {
+				s.timerValue += s.timerValue >> s.sweepShift
+			}
+		}
+	}
 }
 
 func (s *square) tickLength() {
@@ -89,18 +135,18 @@ func (s *square) tickLength() {
 }
 
 func (s *square) tickTimer(t float32) {
-	freq := 1789773.0 / (16.0 * (float32(s.timerLoad) + 1.0))
+	freq := 1789773.0 / (16.0 * (float32(s.timerValue) + 1.0))
 	s.sample = squareWaveFourier(squareDuty[s.duty], freq, 1.0, t)
 }
 
 func (s *square) output() float32 {
-	if !s.enabled || s.lengthValue == 0 || s.timerLoad < 8 {
+	if !s.enabled || s.lengthValue == 0 || s.timerValue < 8 {
 		return 0
 	}
 
 	vol := s.volume
-	if s.env.enabled {
-		vol = s.env.volume
+	if s.envelope.enabled {
+		vol = s.envelope.volume
 	}
 
 	return s.sample * float32(vol) / 15.0
