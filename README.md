@@ -141,7 +141,7 @@ popping sounds, so it is disabled by default. You can enable it with the
 * [x] Noise channel
 * [x] Length counter
 * [x] Envelope
-* [ ] Sweep
+* [x] Sweep
 * [ ] DMC
 
 ### Mappers
