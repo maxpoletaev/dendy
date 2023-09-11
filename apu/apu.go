@@ -21,10 +21,19 @@ type APU struct {
 	pulse1   square
 	pulse2   square
 	noise    noise
+	filter   filter
 }
 
 func New() *APU {
-	return &APU{}
+	filters := &filterChain{
+		filters: []filter{
+			&lowPassFilter{alpha: 0.4},
+		},
+	}
+
+	return &APU{
+		filter: filters,
+	}
 }
 
 func (a *APU) Reset() {
@@ -67,10 +76,7 @@ func (a *APU) mix(p1, p2, t, n, d float32) float32 {
 		nWeight = 0.2
 	)
 
-	return p1*pWeight +
-		p2*pWeight +
-		t*tWeight +
-		n*nWeight
+	return p1*pWeight + p2*pWeight + t*tWeight + n*nWeight
 }
 
 func (a *APU) Output() float32 {
@@ -84,7 +90,8 @@ func (a *APU) Output() float32 {
 	n := a.noise.output()
 	d := float32(0.0)
 
-	return a.mix(p1, p2, t, n, d)
+	out := a.mix(p1, p2, t, n, d)
+	return a.filter.filter(out)
 }
 
 func (a *APU) Tick() {

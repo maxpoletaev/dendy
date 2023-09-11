@@ -7,6 +7,15 @@ var squareDuty = [4]float32{
 	0.750,
 }
 
+func squareWave(duty, frequency, amplitude, t float32) float32 {
+	phase := t*frequency - float32(int(t*frequency))
+	if phase < duty {
+		return amplitude
+	}
+
+	return -amplitude
+}
+
 func squareWaveFourier(duty, frequency, amplitude, t float32) float32 {
 	sin := func(t float32) float32 {
 		j := t * 0.15915
@@ -136,7 +145,7 @@ func (s *square) tickLength() {
 
 func (s *square) tickTimer(t float32) {
 	freq := 1789773.0 / (16.0 * (float32(s.timerValue) + 1.0))
-	s.sample = squareWaveFourier(squareDuty[s.duty], freq, 1.0, t)
+	s.sample = squareWave(squareDuty[s.duty], freq, 1.0, t)
 }
 
 func (s *square) output() float32 {

@@ -26,9 +26,10 @@ type triangle struct {
 	lengthHalt  bool
 
 	// Linear counter
-	linearLoad   uint8
-	linearValue  uint8
-	linearReload bool
+	linearEnabled bool
+	linearLoad    uint8
+	linearValue   uint8
+	linearReload  bool
 }
 
 func (tr *triangle) reset() {
@@ -51,12 +52,15 @@ func (tr *triangle) write(addr uint16, value byte) {
 	switch addr {
 	case 0x4008:
 		tr.linearLoad = value & 0x7F
-		tr.lengthHalt = value&0x80 != 0
+		tr.lengthHalt = value&0x80 == 0
+		tr.linearEnabled = value&0x80 == 0
 	case 0x400A:
 		tr.timerLoad = tr.timerLoad&0xFF00 | uint16(value)
+		tr.timerValue = tr.timerLoad
 	case 0x400B:
 		tr.timerLoad = tr.timerLoad&0x00FF | uint16(value&0x07)<<8
 		tr.lengthValue = lengthTable[value>>3]
+		tr.timerValue = tr.timerLoad
 		tr.linearReload = true
 	}
 }
@@ -74,17 +78,17 @@ func (tr *triangle) tickLinear() {
 		tr.linearValue--
 	}
 
-	if !tr.lengthHalt {
+	if tr.linearEnabled {
 		tr.linearReload = false
 	}
 }
 
 func (tr *triangle) tickTimer(t float32) {
-	if tr.lengthValue == 0 || tr.linearValue == 0 || tr.timerLoad < 3 {
+	if tr.lengthValue == 0 || tr.linearValue == 0 || tr.timerValue < 3 {
 		return
 	}
 
-	freq := 1789773.0 / (32.0 * (float32(tr.timerLoad) + 1.0))
+	freq := 1789773.0 / (32.0 * (float32(tr.timerValue) + 1.0))
 	tr.sample = triangleWave(t * freq)
 }
 

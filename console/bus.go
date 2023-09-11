@@ -73,9 +73,7 @@ func (b *Bus) Read(addr uint16) uint8 {
 }
 
 func (b *Bus) writeStrobe(data uint8) {
-	if b.Joy1 != nil {
-		b.Joy1.Write(data)
-	}
+	b.Joy1.Write(data)
 
 	if b.Joy2 != nil {
 		b.Joy2.Write(data)
@@ -128,6 +126,7 @@ func (b *Bus) disassemble() {
 
 func (b *Bus) Tick() (r TickInfo) {
 	b.cycles++
+
 	b.PPU.Tick()
 
 	if b.cycles%3 == 0 {
