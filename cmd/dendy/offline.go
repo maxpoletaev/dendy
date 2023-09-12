@@ -19,7 +19,7 @@ const (
 	ticksPerSecond    = cpuTicksPerSecond * 3
 	samplesPerFrame   = samplesPerSecond / framesPerSecond
 	ticksPerSample    = ticksPerSecond / samplesPerSecond
-	audioBufferSize   = samplesPerFrame * 2
+	audioBufferSize   = samplesPerFrame * 3
 )
 
 func loadState(bus *console.Bus, saveFile string) (bool, error) {
@@ -152,6 +152,7 @@ gameloop:
 			audioBuffer[i] = bus.APU.Output()
 		}
 
+		audio.WaitStreamProcessed()
 		audio.UpdateStream(audioBuffer)
 	}
 

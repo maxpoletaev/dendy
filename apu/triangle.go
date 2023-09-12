@@ -1,17 +1,5 @@
 package apu
 
-func triangleWave(phase float32) float32 {
-	abs := func(x float32) float32 {
-		if x < 0 {
-			return -x
-		}
-		return x
-	}
-
-	phase = phase - float32(int(phase))
-	return 4.0 * (abs(phase-0.5) - 0.25)
-}
-
 type triangle struct {
 	enabled  bool
 	sample   float32
@@ -56,11 +44,9 @@ func (tr *triangle) write(addr uint16, value byte) {
 		tr.linearEnabled = value&0x80 == 0
 	case 0x400A:
 		tr.timerLoad = tr.timerLoad&0xFF00 | uint16(value)
-		tr.timerValue = tr.timerLoad
 	case 0x400B:
 		tr.timerLoad = tr.timerLoad&0x00FF | uint16(value&0x07)<<8
 		tr.lengthValue = lengthTable[value>>3]
-		tr.timerValue = tr.timerLoad
 		tr.linearReload = true
 	}
 }
@@ -84,12 +70,22 @@ func (tr *triangle) tickLinear() {
 }
 
 func (tr *triangle) tickTimer(t float32) {
-	if tr.lengthValue == 0 || tr.linearValue == 0 || tr.timerValue < 3 {
+	if tr.lengthValue == 0 || tr.linearValue == 0 || tr.timerLoad < 3 {
 		return
 	}
 
-	freq := 1789773.0 / (32.0 * (float32(tr.timerValue) + 1.0))
-	tr.sample = triangleWave(t * freq)
+	if tr.timerValue > 0 {
+		tr.timerValue--
+	} else {
+		tr.sequence = (tr.sequence + 1) & 0x1F
+		tr.timerValue = tr.timerLoad
+
+		if tr.sequence&0x10 == 0 {
+			tr.sample = float32(tr.sequence ^ 0x1F)
+		} else {
+			tr.sample = float32(tr.sequence)
+		}
+	}
 }
 
 func (tr *triangle) output() float32 {
@@ -97,5 +93,5 @@ func (tr *triangle) output() float32 {
 		return 0
 	}
 
-	return tr.sample
+	return tr.sample / 15.0
 }

@@ -33,7 +33,7 @@ type opts struct {
 	verbose       bool
 	disasm        string
 	cpuprof       string
-	sound         bool
+	mute          bool
 }
 
 func (o *opts) parse() *opts {
@@ -44,7 +44,7 @@ func (o *opts) parse() *opts {
 	flag.IntVar(&o.bufsize, "bufsize", 0, "netplay input buffer size (default: 0)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
-	flag.BoolVar(&o.sound, "sound", false, "enable sound emulation")
+	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")
 
 	// Debugging flags.
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
@@ -109,10 +109,10 @@ func main() {
 	}
 
 	apu := apupkg.New()
-	apu.Enabled = o.sound
+	apu.Enabled = !o.mute
 
-	if o.sound && (o.listenAddr != "" || o.connectAddr != "") {
-		log.Printf("[WARN] sound is not supported in netplay mode")
+	if apu.Enabled && (o.listenAddr != "" || o.connectAddr != "") {
+		log.Printf("[WARN] sound is not yet supported in netplay mode")
 		apu.Enabled = false
 	}
 

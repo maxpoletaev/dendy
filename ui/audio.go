@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -27,19 +29,17 @@ func (s *AudioOut) SetVolume(volume float32) {
 	rl.SetMasterVolume(volume)
 }
 
-func (s *AudioOut) Mute() {
-	rl.SetMasterVolume(0)
-}
-
 func (s *AudioOut) Close() {
 	rl.StopAudioStream(s.stream)
 	rl.CloseAudioDevice()
 }
 
-func (s *AudioOut) UpdateStream(buf []float32) {
+func (s *AudioOut) WaitStreamProcessed() {
 	for !rl.IsAudioStreamProcessed(s.stream) {
-		// sync to audio stream
+		time.Sleep(time.Millisecond * 10)
 	}
+}
 
+func (s *AudioOut) UpdateStream(buf []float32) {
 	rl.UpdateAudioStream(s.stream, buf)
 }

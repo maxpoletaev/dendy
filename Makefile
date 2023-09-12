@@ -13,12 +13,12 @@ help:  ## print help (this message)
 .PHONY: build
 build: ## build dendy
 	@echo "--------- running: $@ ---------"
-	GODEBUG=cgocheck=0 go build -o bin/dendy ./cmd/dendy
+	CGO_ENABLED=1 GODEBUG=cgocheck=0 go build -o bin/dendy ./cmd/dendy
 
 .PHONY: build_win64
 build_win64: ## build dendy for windows
 	@echo "--------- running: $@ ---------"
-	CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 CGO_LDFLAGS="-static-libgcc -static -lpthread" go build -o bin/dendy_win64.exe ./cmd/dendy
+	CGO_ENABLED=1 GODEBUG=cgocheck=0 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 CGO_LDFLAGS="-static-libgcc -static -lpthread" go build -o bin/dendy_win64.exe ./cmd/dendy
 
 PHONY: test
 test: ## run tests
