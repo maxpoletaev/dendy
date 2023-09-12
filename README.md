@@ -129,12 +129,11 @@ latencies of up to 150ms felt pretty comfortable.
 * [x] Controllers
 * [x] Zapper
 
-### Sound (WIP)
+### Sound
 
-The sound chip emulation is still work in progress and is not very pleasant
-to listen to at the moment. It may occasionally produce some crackling and
-popping sounds, so it is disabled by default. You can enable it with the
-`-sound` flag.
+The sound chip emulation is still work in progress and is not very reliable yet.
+It may occasionally produce some pops and crackles, but it should be good enough
+for most games.
 
 * [x] Square channels
 * [x] Triangle channel
