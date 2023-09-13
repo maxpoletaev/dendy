@@ -1,5 +1,10 @@
 package apu
 
+import (
+	"encoding/gob"
+	"errors"
+)
+
 type triangle struct {
 	enabled  bool
 	sample   float32
@@ -94,4 +99,36 @@ func (tr *triangle) output() float32 {
 	}
 
 	return tr.sample / 15.0
+}
+
+func (tr *triangle) save(enc *gob.Encoder) error {
+	return errors.Join(
+		enc.Encode(tr.enabled),
+		enc.Encode(tr.sample),
+		enc.Encode(tr.sequence),
+		enc.Encode(tr.timerLoad),
+		enc.Encode(tr.timerValue),
+		enc.Encode(tr.lengthValue),
+		enc.Encode(tr.lengthHalt),
+		enc.Encode(tr.linearEnabled),
+		enc.Encode(tr.linearLoad),
+		enc.Encode(tr.linearValue),
+		enc.Encode(tr.linearReload),
+	)
+}
+
+func (tr *triangle) load(dec *gob.Decoder) error {
+	return errors.Join(
+		dec.Decode(&tr.enabled),
+		dec.Decode(&tr.sample),
+		dec.Decode(&tr.sequence),
+		dec.Decode(&tr.timerLoad),
+		dec.Decode(&tr.timerValue),
+		dec.Decode(&tr.lengthValue),
+		dec.Decode(&tr.lengthHalt),
+		dec.Decode(&tr.linearEnabled),
+		dec.Decode(&tr.linearLoad),
+		dec.Decode(&tr.linearValue),
+		dec.Decode(&tr.linearReload),
+	)
 }

@@ -1,5 +1,10 @@
 package apu
 
+import (
+	"encoding/gob"
+	"errors"
+)
+
 var noiseTable = [16]uint16{
 	0, 4, 8, 16, 32, 64, 96, 128,
 	160, 202, 254, 380, 508, 1016, 2034, 4068,
@@ -82,4 +87,34 @@ func (n *noise) output() float32 {
 	}
 
 	return n.sample * float32(n.volume) / 15.0
+}
+
+func (n *noise) save(enc *gob.Encoder) error {
+	return errors.Join(
+		n.envelope.save(enc),
+		enc.Encode(n.enabled),
+		enc.Encode(n.sample),
+		enc.Encode(n.seq),
+		enc.Encode(n.mode6),
+		enc.Encode(n.volume),
+		enc.Encode(n.timerLoad),
+		enc.Encode(n.timerValue),
+		enc.Encode(n.lengthValue),
+		enc.Encode(n.lengthHalt),
+	)
+}
+
+func (n *noise) load(dec *gob.Decoder) error {
+	return errors.Join(
+		n.envelope.load(dec),
+		dec.Decode(&n.enabled),
+		dec.Decode(&n.sample),
+		dec.Decode(&n.seq),
+		dec.Decode(&n.mode6),
+		dec.Decode(&n.volume),
+		dec.Decode(&n.timerLoad),
+		dec.Decode(&n.timerValue),
+		dec.Decode(&n.lengthValue),
+		dec.Decode(&n.lengthHalt),
+	)
 }

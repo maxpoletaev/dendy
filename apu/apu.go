@@ -1,6 +1,10 @@
 package apu
 
-import "math"
+import (
+	"encoding/gob"
+	"errors"
+	"math"
+)
 
 const (
 	pi = float32(math.Pi)
@@ -188,4 +192,36 @@ func (a *APU) Tick() {
 	}
 
 	a.cycle++
+}
+
+func (a *APU) Save(enc *gob.Encoder) error {
+	return errors.Join(
+		a.pulse1.save(enc),
+		a.pulse2.save(enc),
+		a.triangle.save(enc),
+		a.noise.save(enc),
+		enc.Encode(a.PendingIRQ),
+		enc.Encode(a.mode),
+		enc.Encode(a.time),
+		enc.Encode(a.cycle),
+		enc.Encode(a.frame),
+		enc.Encode(a.irqDisable),
+		enc.Encode(a.frameIRQ),
+	)
+}
+
+func (a *APU) Load(dec *gob.Decoder) error {
+	return errors.Join(
+		a.pulse1.load(dec),
+		a.pulse2.load(dec),
+		a.triangle.load(dec),
+		a.noise.load(dec),
+		dec.Decode(&a.PendingIRQ),
+		dec.Decode(&a.mode),
+		dec.Decode(&a.time),
+		dec.Decode(&a.cycle),
+		dec.Decode(&a.frame),
+		dec.Decode(&a.irqDisable),
+		dec.Decode(&a.frameIRQ),
+	)
 }

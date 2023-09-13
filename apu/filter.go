@@ -1,6 +1,8 @@
 package apu
 
-import "math"
+import (
+	"math"
+)
 
 type filter struct {
 	b0    float32

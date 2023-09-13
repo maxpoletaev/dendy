@@ -1,5 +1,10 @@
 package apu
 
+import (
+	"encoding/gob"
+	"errors"
+)
+
 var squareDuty = [4]float32{
 	0.125,
 	0.250,
@@ -106,7 +111,7 @@ func (s *square) write(addr uint16, value byte) {
 	case 0x0004:
 		s.envelope.enabled = value&0x10 != 0
 		s.envelope.loop = value&0x20 != 0
-		s.envelope.load = value & 0x0F
+		s.envelope.loadValue = value & 0x0F
 	}
 }
 
@@ -159,4 +164,44 @@ func (s *square) output() float32 {
 	}
 
 	return s.sample * float32(vol) / 15.0
+}
+
+func (s *square) save(enc *gob.Encoder) error {
+	return errors.Join(
+		s.envelope.save(enc),
+		enc.Encode(s.enabled),
+		enc.Encode(s.sample),
+		enc.Encode(s.volume),
+		enc.Encode(s.duty),
+		enc.Encode(s.timerValue),
+		enc.Encode(s.timerLoad),
+		enc.Encode(s.lengthValue),
+		enc.Encode(s.lengthHalt),
+		enc.Encode(s.sweepEnabled),
+		enc.Encode(s.sweepValue),
+		enc.Encode(s.sweepLoad),
+		enc.Encode(s.sweepNegate),
+		enc.Encode(s.sweepShift),
+		enc.Encode(s.sweepReload),
+	)
+}
+
+func (s *square) load(dec *gob.Decoder) error {
+	return errors.Join(
+		s.envelope.load(dec),
+		dec.Decode(&s.enabled),
+		dec.Decode(&s.sample),
+		dec.Decode(&s.volume),
+		dec.Decode(&s.duty),
+		dec.Decode(&s.timerValue),
+		dec.Decode(&s.timerLoad),
+		dec.Decode(&s.lengthValue),
+		dec.Decode(&s.lengthHalt),
+		dec.Decode(&s.sweepEnabled),
+		dec.Decode(&s.sweepValue),
+		dec.Decode(&s.sweepLoad),
+		dec.Decode(&s.sweepNegate),
+		dec.Decode(&s.sweepShift),
+		dec.Decode(&s.sweepReload),
+	)
 }
