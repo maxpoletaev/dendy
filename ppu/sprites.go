@@ -108,8 +108,8 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 }
 
 func (p *PPU) evaluateSprites() {
-	scanline := p.scanline + 1
 	height := p.spriteHeight()
+	scanline := p.scanline + 1
 	p.spriteCount = 0
 
 	for i := 0; i < 64; i++ {
@@ -149,9 +149,6 @@ func (p *PPU) renderSpriteScanline() {
 
 	for i := p.spriteCount - 1; i >= 0; i-- {
 		sprite := p.spriteScanline[i]
-		if sprite.Y > 239 || sprite.Y == 0 {
-			continue
-		}
 
 		pixels := flipPixels(sprite.Pixels, sprite.FlipX, sprite.FlipY, height)
 		pixelY := (p.scanline - int(sprite.Y)) % height

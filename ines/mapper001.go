@@ -37,7 +37,7 @@ func (m *Mapper1) Reset() {
 	m.writeCount = 0
 }
 
-func (m *Mapper1) Scanline() TickInfo {
+func (m *Mapper1) ScanlineTick() TickInfo {
 	return TickInfo{}
 }
 

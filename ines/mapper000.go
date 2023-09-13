@@ -24,7 +24,7 @@ func (m *Mapper0) Reset() {
 
 }
 
-func (m *Mapper0) Scanline() TickInfo {
+func (m *Mapper0) ScanlineTick() TickInfo {
 	return TickInfo{}
 }
 

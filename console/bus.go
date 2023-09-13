@@ -127,28 +127,30 @@ func (b *Bus) disassemble() {
 func (b *Bus) Tick() (r TickInfo) {
 	b.cycles++
 
-	b.PPU.Tick()
-
 	if b.cycles%3 == 0 {
-		b.APU.Tick()
-
 		r.InstrComplete = b.CPU.Tick(b)
-
 		if b.DisasmEnabled && r.InstrComplete {
 			b.disassemble()
 		}
+
+		b.APU.Tick()
+		if b.APU.PendingIRQ {
+			b.CPU.TriggerIRQ()
+			b.APU.PendingIRQ = false
+		}
 	}
 
-	if b.PPU.RequestNMI {
-		b.PPU.RequestNMI = false
+	b.PPU.Tick()
+	if b.PPU.PendingNMI {
 		b.CPU.TriggerNMI()
+		b.PPU.PendingNMI = false
 	}
 
 	if b.PPU.ScanlineComplete {
 		b.PPU.ScanlineComplete = false
 		r.ScanlineComplete = true
 
-		if t := b.Cart.Scanline(); t.RequestIRQ {
+		if t := b.Cart.ScanlineTick(); t.IRQ {
 			b.CPU.TriggerIRQ()
 		}
 	}

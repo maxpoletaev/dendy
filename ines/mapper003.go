@@ -25,7 +25,7 @@ func (m *Mapper3) Reset() {
 	m.prgBank1 = m.rom.PRGBanks - 1
 }
 
-func (m *Mapper3) Scanline() TickInfo {
+func (m *Mapper3) ScanlineTick() TickInfo {
 	return TickInfo{}
 }
 

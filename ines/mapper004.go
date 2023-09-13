@@ -137,13 +137,13 @@ func (m *Mapper4) writeRegister(addr uint16, data byte) {
 	}
 }
 
-func (m *Mapper4) Scanline() (t TickInfo) {
+func (m *Mapper4) ScanlineTick() (t TickInfo) {
 	if m.irqCounter == 0 {
 		m.irqCounter = m.irqReload
 	} else {
 		m.irqCounter--
 		if m.irqCounter == 0 {
-			t.RequestIRQ = m.irqEnable
+			t.IRQ = m.irqEnable
 		}
 	}
 

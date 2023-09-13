@@ -8,7 +8,7 @@ import (
 
 func (p *PPU) Save(enc *gob.Encoder) error {
 	err := errors.Join(
-		enc.Encode(p.RequestNMI),
+		enc.Encode(p.PendingNMI),
 		enc.Encode(p.FrameComplete),
 		enc.Encode(p.ScanlineComplete),
 		enc.Encode(p.ctrl),
@@ -37,7 +37,7 @@ func (p *PPU) Save(enc *gob.Encoder) error {
 
 func (p *PPU) Load(dec *gob.Decoder) error {
 	err := errors.Join(
-		dec.Decode(&p.RequestNMI),
+		dec.Decode(&p.PendingNMI),
 		dec.Decode(&p.FrameComplete),
 		dec.Decode(&p.ScanlineComplete),
 		dec.Decode(&p.ctrl),

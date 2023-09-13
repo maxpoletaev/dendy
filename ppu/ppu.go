@@ -44,7 +44,7 @@ type PPU struct {
 	Frame       [256][240]color.RGBA
 	transparent [256][240]bool
 
-	RequestNMI       bool
+	PendingNMI       bool
 	ScanlineComplete bool
 	FrameComplete    bool
 	NoSpriteLimit    bool
@@ -108,7 +108,7 @@ func (p *PPU) incrementAddr() {
 }
 
 func (p *PPU) Reset() {
-	p.RequestNMI = false
+	p.PendingNMI = false
 	p.FrameComplete = false
 	p.ctrl = 0
 	p.mask = 0
@@ -442,7 +442,7 @@ func (p *PPU) Tick() {
 			p.FrameComplete = true
 
 			if p.getCtrl(CtrlNMI) {
-				p.RequestNMI = true
+				p.PendingNMI = true
 			}
 		}
 	}

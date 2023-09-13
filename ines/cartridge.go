@@ -7,14 +7,14 @@ import (
 )
 
 type TickInfo struct {
-	RequestIRQ bool
+	IRQ bool
 }
 
 type Cartridge interface {
 	// Reset resets the cartridge to its initial state.
 	Reset()
-	// Scanline performs a scanline tick used by some mappers.
-	Scanline() TickInfo
+	// ScanlineTick performs a scanline tick used by some mappers.
+	ScanlineTick() TickInfo
 	// MirrorMode returns the cartridge's mirroring mode.
 	MirrorMode() MirrorMode
 	// ReadPRG handles CPU reads from PRG ROM (0x8000-0xFFFF).

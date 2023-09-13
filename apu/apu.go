@@ -12,8 +12,10 @@ var lengthTable = []byte{
 }
 
 type APU struct {
-	Enabled bool
+	Enabled    bool
+	PendingIRQ bool
 
+	mode     uint8
 	time     float64
 	cycle    uint64
 	frame    uint64
@@ -21,16 +23,27 @@ type APU struct {
 	pulse1   square
 	pulse2   square
 	noise    noise
+	filters  []*filter
+
+	irqDisable bool
+	frameIRQ   bool
 }
 
 func New() *APU {
-	return &APU{}
+	return &APU{
+		Enabled: true,
+		filters: []*filter{
+			highPassFilter(44100.0, 90.0),
+			lowPassFilter(44100.0, 14000.0),
+		},
+	}
 }
 
 func (a *APU) Reset() {
 	a.time = 0
 	a.cycle = 0
 	a.frame = 0
+	a.mode = 0
 
 	a.noise.reset()
 	a.pulse1.reset()
@@ -38,8 +51,31 @@ func (a *APU) Reset() {
 	a.triangle.reset()
 }
 
-func (a *APU) Read(addr uint16) byte {
-	return 0
+func (a *APU) Read(addr uint16) (status byte) {
+	if addr == 0x4015 {
+		if a.pulse1.lengthValue > 0 {
+			status |= 0b0000_0001
+		}
+
+		if a.pulse2.lengthValue > 0 {
+			status |= 0b0000_0010
+		}
+
+		if a.triangle.lengthValue > 0 {
+			status |= 0b0000_0100
+		}
+
+		if a.noise.lengthValue > 0 {
+			status |= 0b0000_1000
+		}
+
+		if a.frameIRQ {
+			status |= 0b0100_0000
+			a.frameIRQ = false
+		}
+	}
+
+	return status
 }
 
 func (a *APU) Write(addr uint16, value byte) {
@@ -57,6 +93,10 @@ func (a *APU) Write(addr uint16, value byte) {
 		a.pulse2.enabled = value&0x02 != 0
 		a.triangle.enabled = value&0x03 != 0
 		a.noise.enabled = value&0x04 != 0
+	case addr == 0x4017:
+		a.frame = 0
+		a.mode = (value & 0x80) >> 7
+		a.irqDisable = value&0x40 != 0
 	}
 }
 
@@ -81,7 +121,12 @@ func (a *APU) Output() float32 {
 	n := a.noise.output()
 	d := float32(0.0)
 
-	return a.mix(p1, p2, t, n, d)
+	out := a.mix(p1, p2, t, n, d)
+	for _, f := range a.filters {
+		out = f.do(out)
+	}
+
+	return out
 }
 
 func (a *APU) Tick() {
@@ -98,10 +143,18 @@ func (a *APU) Tick() {
 
 	// Everything else is clocked at half CPU speed.
 	if a.cycle%2 == 0 {
-		var (
-			quarterFrame = a.frame%3729 == 0
-			halfFrame    = a.frame%7457 == 0
-		)
+		var quarterFrame, halfFrame bool
+		var maxFrame uint64
+
+		if a.mode == 0 {
+			quarterFrame = a.frame == 3728 || a.frame == 7456 || a.frame == 11185 || a.frame == 14914
+			halfFrame = a.frame == 7456 || a.frame == 14914
+			maxFrame = 14915
+		} else {
+			quarterFrame = a.frame == 3728 || a.frame == 7456 || a.frame == 11185 || a.frame == 18640
+			halfFrame = a.frame == 7456 || a.frame == 18640
+			maxFrame = 18641
+		}
 
 		if quarterFrame {
 			a.pulse1.tickEnvelope()
@@ -117,6 +170,11 @@ func (a *APU) Tick() {
 			a.pulse2.tickSweep()
 			a.noise.tickLength()
 			a.triangle.tickLength()
+
+			if a.mode == 0 && !a.irqDisable {
+				a.PendingIRQ = true
+				a.frameIRQ = true
+			}
 		}
 
 		a.pulse1.tickTimer(t)
@@ -124,7 +182,7 @@ func (a *APU) Tick() {
 		a.noise.tickTimer(t)
 
 		a.frame++
-		if a.frame == 14916 {
+		if a.frame == maxFrame {
 			a.frame = 0
 		}
 	}
