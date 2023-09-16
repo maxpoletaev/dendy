@@ -6,15 +6,13 @@ import (
 	"log"
 )
 
-type TickInfo struct {
-	IRQ bool
-}
-
 type Cartridge interface {
 	// Reset resets the cartridge to its initial state.
 	Reset()
 	// ScanlineTick performs a scanline tick used by some mappers.
-	ScanlineTick() TickInfo
+	ScanlineTick()
+	// PendingIRQ returns true if the cartridge has an IRQ pending.
+	PendingIRQ() bool
 	// MirrorMode returns the cartridge's mirroring mode.
 	MirrorMode() MirrorMode
 	// ReadPRG handles CPU reads from PRG ROM (0x8000-0xFFFF).

@@ -24,8 +24,11 @@ func (m *Mapper0) Reset() {
 
 }
 
-func (m *Mapper0) ScanlineTick() TickInfo {
-	return TickInfo{}
+func (m *Mapper0) ScanlineTick() {
+}
+
+func (m *Mapper0) PendingIRQ() bool {
+	return false
 }
 
 func (m *Mapper0) MirrorMode() MirrorMode {

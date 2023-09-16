@@ -14,12 +14,6 @@ import (
 	"github.com/maxpoletaev/dendy/input"
 )
 
-type TickInfo struct {
-	InstrComplete    bool
-	ScanlineComplete bool
-	FrameComplete    bool
-}
-
 type Bus struct {
 	RAM    [2048]uint8
 	CPU    *cpupkg.CPU
@@ -29,6 +23,9 @@ type Bus struct {
 	Joy1   *input.Joystick
 	Joy2   *input.Joystick
 	Zapper *input.Zapper
+
+	scanlineComplete bool
+	frameComplete    bool
 
 	DisasmWriter  io.StringWriter
 	DisasmEnabled bool
@@ -124,41 +121,46 @@ func (b *Bus) disassemble() {
 	}
 }
 
-func (b *Bus) Tick() (r TickInfo) {
+func (b *Bus) Tick() {
 	b.cycles++
 
 	if b.cycles%3 == 0 {
-		r.InstrComplete = b.CPU.Tick(b)
-		if b.DisasmEnabled && r.InstrComplete {
+		instructionComplete := b.CPU.Tick(b)
+		if b.DisasmEnabled && instructionComplete {
 			b.disassemble()
 		}
 
 		b.APU.Tick()
-		if b.APU.PendingIRQ {
+		if b.APU.PendingIRQ() {
 			b.CPU.TriggerIRQ()
-			b.APU.PendingIRQ = false
 		}
 	}
 
 	b.PPU.Tick()
-	if b.PPU.PendingNMI {
+	if b.PPU.PendingNMI() {
 		b.CPU.TriggerNMI()
-		b.PPU.PendingNMI = false
 	}
 
-	if b.PPU.ScanlineComplete {
-		b.PPU.ScanlineComplete = false
-		r.ScanlineComplete = true
+	if b.PPU.ScanlineComplete() {
+		b.scanlineComplete = true
 
-		if t := b.Cart.ScanlineTick(); t.IRQ {
+		b.Cart.ScanlineTick()
+		if b.Cart.PendingIRQ() {
 			b.CPU.TriggerIRQ()
 		}
 	}
 
-	if b.PPU.FrameComplete {
-		b.PPU.FrameComplete = false
-		r.FrameComplete = true
+	if b.PPU.FrameComplete() {
+		b.frameComplete = true
 	}
+}
 
-	return r
+func (b *Bus) ScanlineComplete() (v bool) {
+	v, b.scanlineComplete = b.scanlineComplete, false
+	return v
+}
+
+func (b *Bus) FrameComplete() (v bool) {
+	v, b.frameComplete = b.frameComplete, false
+	return v
 }

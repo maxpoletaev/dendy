@@ -121,9 +121,9 @@ func (g *Game) handleDelayedInput() {
 
 func (g *Game) playFrame() {
 	for {
-		tick := g.bus.Tick()
+		g.bus.Tick()
 
-		if tick.FrameComplete {
+		if g.bus.FrameComplete() {
 			g.frame++
 			break
 		}

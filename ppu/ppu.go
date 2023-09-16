@@ -44,11 +44,8 @@ type PPU struct {
 	Frame       [256][240]color.RGBA
 	transparent [256][240]bool
 
-	PendingNMI       bool
-	ScanlineComplete bool
-	FrameComplete    bool
-	NoSpriteLimit    bool
-	FastForward      bool
+	NoSpriteLimit bool
+	FastForward   bool
 
 	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
 	ctrl         CtrlFlags      // $2000
@@ -69,8 +66,11 @@ type PPU struct {
 	spriteCount    int
 	spriteScanline [64]Sprite
 
-	cycle    int
-	scanline int
+	cycle            int
+	scanline         int
+	pendingNMI       bool
+	scanlineComplete bool
+	frameComplete    bool
 }
 
 func New(cart ines.Cartridge) *PPU {
@@ -108,8 +108,8 @@ func (p *PPU) incrementAddr() {
 }
 
 func (p *PPU) Reset() {
-	p.PendingNMI = false
-	p.FrameComplete = false
+	p.pendingNMI = false
+	p.frameComplete = false
 	p.ctrl = 0
 	p.mask = 0
 	p.status = 0
@@ -412,7 +412,7 @@ func (p *PPU) Tick() {
 				p.evaluateSprites()
 			}
 
-			p.ScanlineComplete = true
+			p.scanlineComplete = true
 		}
 
 		// During cycles 280-304 of the pre-render scanline, vertical scroll
@@ -439,10 +439,10 @@ func (p *PPU) Tick() {
 	if p.scanline == 241 {
 		if p.cycle == 1 {
 			p.setStatus(StatusVBlank, true)
-			p.FrameComplete = true
+			p.frameComplete = true
 
 			if p.getCtrl(CtrlNMI) {
-				p.PendingNMI = true
+				p.pendingNMI = true
 			}
 		}
 	}
@@ -457,4 +457,21 @@ func (p *PPU) Tick() {
 			p.scanline = -1
 		}
 	}
+}
+
+func (p *PPU) PendingNMI() (v bool) {
+	v, p.pendingNMI = p.pendingNMI, false
+	return v
+}
+
+func (p *PPU) ScanlineComplete() (v bool) {
+	v = p.scanlineComplete
+	p.scanlineComplete = false
+	return v
+}
+
+func (p *PPU) FrameComplete() (v bool) {
+	v = p.frameComplete
+	p.frameComplete = false
+	return v
 }

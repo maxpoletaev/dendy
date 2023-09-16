@@ -16,8 +16,7 @@ var lengthTable = []byte{
 }
 
 type APU struct {
-	Enabled    bool
-	PendingIRQ bool
+	Enabled bool
 
 	mode     uint8
 	time     float64
@@ -31,6 +30,7 @@ type APU struct {
 
 	irqDisable bool
 	frameIRQ   bool
+	pendingIRQ bool
 }
 
 func New() *APU {
@@ -176,7 +176,7 @@ func (a *APU) Tick() {
 			a.triangle.tickLength()
 
 			if a.mode == 0 && !a.irqDisable {
-				a.PendingIRQ = true
+				a.pendingIRQ = true
 				a.frameIRQ = true
 			}
 		}
@@ -194,13 +194,18 @@ func (a *APU) Tick() {
 	a.cycle++
 }
 
+func (a *APU) PendingIRQ() (v bool) {
+	v, a.pendingIRQ = a.pendingIRQ, false
+	return v
+}
+
 func (a *APU) Save(enc *gob.Encoder) error {
 	return errors.Join(
 		a.pulse1.save(enc),
 		a.pulse2.save(enc),
 		a.triangle.save(enc),
 		a.noise.save(enc),
-		enc.Encode(a.PendingIRQ),
+		enc.Encode(a.pendingIRQ),
 		enc.Encode(a.mode),
 		enc.Encode(a.time),
 		enc.Encode(a.cycle),
@@ -216,7 +221,7 @@ func (a *APU) Load(dec *gob.Decoder) error {
 		a.pulse2.load(dec),
 		a.triangle.load(dec),
 		a.noise.load(dec),
-		dec.Decode(&a.PendingIRQ),
+		dec.Decode(&a.pendingIRQ),
 		dec.Decode(&a.mode),
 		dec.Decode(&a.time),
 		dec.Decode(&a.cycle),

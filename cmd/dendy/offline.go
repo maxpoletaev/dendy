@@ -122,13 +122,13 @@ gameloop:
 	for {
 		for i := 0; i < audioBufferSize; i++ {
 			for j := 0; j < ticksPerSample; j++ {
-				tick := bus.Tick()
+				bus.Tick()
 
-				if tick.ScanlineComplete {
+				if bus.ScanlineComplete() {
 					w.UpdateZapper()
 				}
 
-				if tick.FrameComplete {
+				if bus.FrameComplete() {
 					if w.ShouldClose() {
 						break gameloop
 					}

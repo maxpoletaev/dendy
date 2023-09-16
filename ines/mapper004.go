@@ -22,6 +22,7 @@ type Mapper4 struct {
 	irqCounter byte
 	irqReload  byte
 	irqEnable  bool
+	irqPending bool
 }
 
 func NewMapper4(rom *ROM) *Mapper4 {
@@ -137,17 +138,22 @@ func (m *Mapper4) writeRegister(addr uint16, data byte) {
 	}
 }
 
-func (m *Mapper4) ScanlineTick() (t TickInfo) {
+func (m *Mapper4) ScanlineTick() {
 	if m.irqCounter == 0 {
 		m.irqCounter = m.irqReload
 	} else {
 		m.irqCounter--
 		if m.irqCounter == 0 {
-			t.IRQ = m.irqEnable
+			m.irqPending = m.irqEnable
 		}
 	}
 
 	return
+}
+
+func (m *Mapper4) PendingIRQ() (v bool) {
+	v, m.irqPending = m.irqPending, false
+	return v
 }
 
 func (m *Mapper4) MirrorMode() MirrorMode {

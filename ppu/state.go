@@ -8,9 +8,9 @@ import (
 
 func (p *PPU) Save(enc *gob.Encoder) error {
 	err := errors.Join(
-		enc.Encode(p.PendingNMI),
-		enc.Encode(p.FrameComplete),
-		enc.Encode(p.ScanlineComplete),
+		enc.Encode(p.pendingNMI),
+		enc.Encode(p.frameComplete),
+		enc.Encode(p.scanlineComplete),
 		enc.Encode(p.ctrl),
 		enc.Encode(p.mask),
 		enc.Encode(p.status),
@@ -37,9 +37,9 @@ func (p *PPU) Save(enc *gob.Encoder) error {
 
 func (p *PPU) Load(dec *gob.Decoder) error {
 	err := errors.Join(
-		dec.Decode(&p.PendingNMI),
-		dec.Decode(&p.FrameComplete),
-		dec.Decode(&p.ScanlineComplete),
+		dec.Decode(&p.pendingNMI),
+		dec.Decode(&p.frameComplete),
+		dec.Decode(&p.scanlineComplete),
 		dec.Decode(&p.ctrl),
 		dec.Decode(&p.mask),
 		dec.Decode(&p.status),

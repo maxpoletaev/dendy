@@ -37,8 +37,11 @@ func (m *Mapper1) Reset() {
 	m.writeCount = 0
 }
 
-func (m *Mapper1) ScanlineTick() TickInfo {
-	return TickInfo{}
+func (m *Mapper1) ScanlineTick() {
+}
+
+func (m *Mapper1) PendingIRQ() bool {
+	return false
 }
 
 func (m *Mapper1) MirrorMode() MirrorMode {
