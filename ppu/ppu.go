@@ -79,6 +79,28 @@ func New(cart ines.Cartridge) *PPU {
 	}
 }
 
+func (p *PPU) Reset() {
+	p.ctrl = 0
+	p.mask = 0
+	p.status = 0
+	p.oamAddr = 0
+
+	p.vramAddr = 0
+	p.tmpAddr = 0
+	p.vramBuffer = 0
+	p.addrLatch = false
+	p.fineX = 0
+	p.oddFrame = false
+
+	p.spriteCount = 0
+
+	p.cycle = 0
+	p.scanline = 0
+	p.scanlineComplete = false
+	p.pendingNMI = false
+	p.frameComplete = false
+}
+
 func (p *PPU) getStatus(flag StatusFlags) bool {
 	return p.status&flag != 0
 }
@@ -105,21 +127,6 @@ func (p *PPU) incrementAddr() {
 	} else {
 		p.vramAddr += 1
 	}
-}
-
-func (p *PPU) Reset() {
-	p.pendingNMI = false
-	p.frameComplete = false
-	p.ctrl = 0
-	p.mask = 0
-	p.status = 0
-	p.oamAddr = 0
-	p.vramAddr = 0
-	p.tmpAddr = 0
-	p.vramBuffer = 0
-	p.addrLatch = false
-	p.scanline = 0
-	p.cycle = 0
 }
 
 func (p *PPU) Read(addr uint16) uint8 {

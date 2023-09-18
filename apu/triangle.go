@@ -36,6 +36,7 @@ func (tr *triangle) reset() {
 	tr.lengthValue = 0
 	tr.lengthHalt = false
 
+	tr.linearEnabled = false
 	tr.linearLoad = 0
 	tr.linearValue = 0
 	tr.linearReload = false

@@ -22,10 +22,10 @@ type APU struct {
 	time     float64
 	cycle    uint64
 	frame    uint64
-	triangle triangle
 	pulse1   square
 	pulse2   square
 	noise    noise
+	triangle triangle
 	filters  []*filter
 
 	irqDisable bool
@@ -44,10 +44,10 @@ func New() *APU {
 }
 
 func (a *APU) Reset() {
+	a.mode = 0
 	a.time = 0
 	a.cycle = 0
 	a.frame = 0
-	a.mode = 0
 
 	a.noise.reset()
 	a.pulse1.reset()

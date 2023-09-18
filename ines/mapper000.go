@@ -21,7 +21,6 @@ func NewMapper0(cart *ROM) *Mapper0 {
 }
 
 func (m *Mapper0) Reset() {
-
 }
 
 func (m *Mapper0) ScanlineTick() {
@@ -47,7 +46,6 @@ func (m *Mapper0) ReadPRG(addr uint16) byte {
 }
 
 func (m *Mapper0) WritePRG(addr uint16, data byte) {
-
 }
 
 func (m *Mapper0) ReadCHR(addr uint16) byte {
@@ -61,7 +59,6 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 }
 
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {
-
 }
 
 func (m *Mapper0) Save(enc *gob.Encoder) error {

@@ -29,11 +29,12 @@ func NewMapper1(rom *ROM) *Mapper1 {
 }
 
 func (m *Mapper1) Reset() {
-	m.shiftRegister = 0x10
 	m.control = 0x0C
 	m.prgBank = 0
 	m.chrBank0 = 0
 	m.chrBank1 = 0
+
+	m.shiftRegister = 0x10
 	m.writeCount = 0
 }
 

@@ -51,7 +51,7 @@ func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
 func (p *PPU) readTileColor(pixel, paletteID uint8) color.RGBA {
 	colorAddr := 0x3F00 + uint16(paletteID)*4 + uint16(pixel)
 	colorIdx := p.readVRAM(colorAddr)
-	return Colors[colorIdx]
+	return Colors[colorIdx%64]
 }
 
 func (p *PPU) renderTileScanline() {

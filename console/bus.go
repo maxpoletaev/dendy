@@ -70,7 +70,9 @@ func (b *Bus) Read(addr uint16) uint8 {
 }
 
 func (b *Bus) writeStrobe(data uint8) {
-	b.Joy1.Write(data)
+	if b.Joy1 != nil {
+		b.Joy1.Write(data)
+	}
 
 	if b.Joy2 != nil {
 		b.Joy2.Write(data)
@@ -105,7 +107,22 @@ func (b *Bus) Reset() {
 	b.CPU.Reset(b)
 	b.PPU.Reset()
 	b.APU.Reset()
+
+	if b.Joy1 != nil {
+		b.Joy1.Reset()
+	}
+
+	if b.Joy2 != nil {
+		b.Joy2.Reset()
+	}
+
+	if b.Zapper != nil {
+		b.Zapper.Reset()
+	}
+
 	b.cycles = 0
+	b.frameComplete = false
+	b.scanlineComplete = false
 }
 
 func (b *Bus) disassemble() {

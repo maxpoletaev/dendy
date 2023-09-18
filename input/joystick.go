@@ -3,7 +3,6 @@ package input
 import (
 	"encoding/gob"
 	"errors"
-	"fmt"
 )
 
 type Button int
@@ -27,6 +26,12 @@ type Joystick struct {
 
 func NewJoystick() *Joystick {
 	return &Joystick{}
+}
+
+func (c *Joystick) Reset() {
+	c.buttons = 0
+	c.index = 0
+	c.reset = 0
 }
 
 func (c *Joystick) SetButtons(buttons uint8) {
@@ -53,29 +58,17 @@ func (c *Joystick) Write(value byte) {
 }
 
 func (c *Joystick) Save(enc *gob.Encoder) error {
-	err := errors.Join(
+	return errors.Join(
 		enc.Encode(c.buttons),
 		enc.Encode(c.index),
 		enc.Encode(c.reset),
 	)
-
-	if err != nil {
-		return fmt.Errorf("failed to save joystick state: %w", err)
-	}
-
-	return nil
 }
 
 func (c *Joystick) Load(dec *gob.Decoder) error {
-	err := errors.Join(
+	return errors.Join(
 		dec.Decode(&c.buttons),
 		dec.Decode(&c.index),
 		dec.Decode(&c.reset),
 	)
-
-	if err != nil {
-		return fmt.Errorf("failed to load joystick state: %w", err)
-	}
-
-	return nil
 }

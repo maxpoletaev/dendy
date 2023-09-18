@@ -134,7 +134,7 @@ func (p *PPU) evaluateSprites() {
 func (p *PPU) readSpriteColor(pixel, paletteID uint8) color.RGBA {
 	colorAddr := 0x3F10 + uint16(paletteID)*4 + uint16(pixel)
 	colorIdx := p.readVRAM(colorAddr)
-	return Colors[colorIdx]
+	return Colors[colorIdx%64]
 }
 
 func (p *PPU) renderSpriteScanline() {

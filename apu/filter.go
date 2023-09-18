@@ -14,8 +14,8 @@ type filter struct {
 
 func (f *filter) do(x float32) float32 {
 	y := f.b0*x + f.b1*f.prevX - f.a1*f.prevY
-	f.prevY = y
-	f.prevX = x
+	f.prevX, f.prevY = x, y
+
 	return y
 }
 

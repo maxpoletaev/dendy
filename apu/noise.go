@@ -29,9 +29,11 @@ type noise struct {
 
 func (n *noise) reset() {
 	n.enabled = false
-	n.mode6 = false
 	n.sample = 0
 	n.seq = 1
+	n.mode6 = false
+	n.volume = 0
+	n.envelope.reset()
 
 	n.timerLoad = 0
 	n.timerValue = 0

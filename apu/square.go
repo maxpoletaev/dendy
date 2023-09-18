@@ -70,7 +70,9 @@ func (s *square) reset() {
 	s.enabled = false
 	s.sample = 0
 	s.volume = 0
+	s.mode2 = false
 	s.duty = 0
+	s.envelope.reset()
 
 	s.timerValue = 0
 	s.timerLoad = 0
@@ -84,8 +86,6 @@ func (s *square) reset() {
 	s.sweepNegate = false
 	s.sweepShift = 0
 	s.sweepReload = false
-
-	s.envelope.reset()
 }
 
 func (s *square) write(addr uint16, value byte) {

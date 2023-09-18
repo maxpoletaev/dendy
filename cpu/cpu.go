@@ -130,7 +130,10 @@ func (cpu *CPU) Reset(mem Memory) {
 	cpu.X = 0
 	cpu.Y = 0
 
+	cpu.Cycles = 0
 	cpu.Halt = 6
+
+	cpu.interrupt = 0
 }
 
 func (cpu *CPU) nmi(mem Memory) {

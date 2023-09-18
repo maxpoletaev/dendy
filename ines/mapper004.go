@@ -19,9 +19,9 @@ type Mapper4 struct {
 	targetReg  byte
 	chrMode    byte
 	prgMode    byte
+	irqEnable  bool
 	irqCounter byte
 	irqReload  byte
-	irqEnable  bool
 	irqPending bool
 }
 
@@ -33,14 +33,15 @@ func NewMapper4(rom *ROM) *Mapper4 {
 
 func (m *Mapper4) Reset() {
 	m.mirror = MirrorHorizontal
-	m.sram = [0x2000]byte{}
+
 	m.registers = [8]int{}
 	m.chrBank = [8]int{}
 	m.prgBank = [4]int{}
 	m.targetReg = 0
-	m.prgMode = 0
 	m.chrMode = 0
+	m.prgMode = 0
 
+	m.irqPending = false
 	m.irqEnable = false
 	m.irqCounter = 0
 	m.irqReload = 0

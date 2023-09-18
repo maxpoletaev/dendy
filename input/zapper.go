@@ -11,6 +11,11 @@ func NewZapper() *Zapper {
 	}
 }
 
+func (z *Zapper) Reset() {
+	z.lightDetected = false
+	z.triggerPressed = false
+}
+
 func (z *Zapper) Update(brightness uint8, trigger bool) {
 	z.lightDetected = brightness > 64
 	z.triggerPressed = trigger
