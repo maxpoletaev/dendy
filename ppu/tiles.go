@@ -9,13 +9,17 @@ type Tile struct {
 	PaletteID uint8
 }
 
-func (p *PPU) tilePatternTableAddr() uint16 {
+// tilePatternTableOffset returns the address offset in VRAM for the tile pattern table.
+func (p *PPU) tilePatternTableOffset() uint16 {
 	if p.getCtrl(CtrlPatternTableSelect) {
 		return 0x1000
 	}
+
 	return 0
 }
 
+// fetchTileLine fetches a 8x1 tile line from the pattern table.
+// We usually don’t need the full tile, just the line we’re currently rendering.
 func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
 	nametableID := p.vramAddr.nametable()
 
@@ -26,7 +30,7 @@ func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
 
 	nametableAddr := 0x2000 + uint16(nametableID)*0x0400
 	tileID := p.readVRAM(nametableAddr + uint16(tileY)*32 + uint16(tileX))
-	tileAddr := p.tilePatternTableAddr() + uint16(tileID)*16
+	tileAddr := p.tilePatternTableOffset() + uint16(tileID)*16
 
 	attrtableAddr := 0x23C0 + uint16(nametableID)*0x0400
 	attrAddr := attrtableAddr + uint16(tileX)/4 + uint16(tileY)/4*8
@@ -48,12 +52,14 @@ func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
 	return tile
 }
 
+// readTileColor returns the color for the given pixel and palette ID.
 func (p *PPU) readTileColor(pixel, paletteID uint8) color.RGBA {
 	colorAddr := 0x3F00 + uint16(paletteID)*4 + uint16(pixel)
 	colorIdx := p.readVRAM(colorAddr)
 	return Colors[colorIdx%64]
 }
 
+// renderTileScanline renders the current scanline using the background tiles.
 func (p *PPU) renderTileScanline() {
 	var (
 		scrollX = p.vramAddr.coarseX()*8 + uint16(p.fineX)

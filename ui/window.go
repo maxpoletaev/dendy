@@ -32,7 +32,7 @@ type Window struct {
 
 func CreateWindow(frame *[width][height]color.RGBA, scale int, verbose bool) *Window {
 	if !verbose {
-		rl.SetTraceLog(rl.LogNone)
+		rl.SetTraceLogLevel(rl.LogNone)
 	}
 
 	rl.InitWindow(width*int32(scale), height*int32(scale), "")

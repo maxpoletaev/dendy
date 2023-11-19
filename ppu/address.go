@@ -26,21 +26,36 @@ const (
 	bitsNametableX uint16 = 0b0_000_01_00000_00000
 	bitsNametableY uint16 = 0b0_000_10_00000_00000
 	bitsFineY      uint16 = 0b0_111_00_00000_00000
+
+	bitsInvCoarseX    = ^bitsCoarseX
+	bitsInvCoarseY    = ^bitsCoarseY
+	bitsInvNametable  = ^bitsNametable
+	bitsInvNametableX = ^bitsNametableX
+	bitsInvNametableY = ^bitsNametableY
+	bitsInvFineY      = ^bitsFineY
 )
 
-func (v *vramAddr) coarseX() uint16    { return (uint16(*v) & bitsCoarseX) >> 0 }
-func (v *vramAddr) coarseY() uint16    { return (uint16(*v) & bitsCoarseY) >> 5 }
-func (v *vramAddr) nametable() uint16  { return (uint16(*v) & bitsNametable) >> 10 }
-func (v *vramAddr) nametableX() uint16 { return (uint16(*v) & bitsNametableX) >> 10 }
-func (v *vramAddr) nametableY() uint16 { return (uint16(*v) & bitsNametableY) >> 11 }
-func (v *vramAddr) fineY() uint16      { return (uint16(*v) & bitsFineY) >> 12 }
+func (v *vramAddr) get(mask uint16, shift uint8) uint16 {
+	return (uint16(*v) & mask) >> shift
+}
 
-func (v *vramAddr) setCoarseX(x uint16)    { *v = vramAddr((uint16(*v) & ^bitsCoarseX) | (x << 0)) }
-func (v *vramAddr) setCoarseY(y uint16)    { *v = vramAddr((uint16(*v) & ^bitsCoarseY) | (y << 5)) }
-func (v *vramAddr) setNametable(n uint16)  { *v = vramAddr((uint16(*v) & ^bitsNametable) | (n << 10)) }
-func (v *vramAddr) setNametableX(n uint16) { *v = vramAddr((uint16(*v) & ^bitsNametableX) | (n << 10)) }
-func (v *vramAddr) setNametableY(n uint16) { *v = vramAddr((uint16(*v) & ^bitsNametableY) | (n << 11)) }
-func (v *vramAddr) setFineY(y uint16)      { *v = vramAddr((uint16(*v) & ^bitsFineY) | (y << 12)) }
+func (v *vramAddr) set(mask uint16, shift uint8, value uint16) {
+	*v = vramAddr((uint16(*v) & mask) | (value << shift))
+}
+
+func (v *vramAddr) coarseX() uint16    { return v.get(bitsCoarseX, 0) }
+func (v *vramAddr) coarseY() uint16    { return v.get(bitsCoarseY, 5) }
+func (v *vramAddr) nametable() uint16  { return v.get(bitsNametable, 10) }
+func (v *vramAddr) nametableX() uint16 { return v.get(bitsNametableX, 10) }
+func (v *vramAddr) nametableY() uint16 { return v.get(bitsNametableY, 11) }
+func (v *vramAddr) fineY() uint16      { return v.get(bitsFineY, 12) }
+
+func (v *vramAddr) setCoarseX(x uint16)    { v.set(bitsInvCoarseX, 0, x) }
+func (v *vramAddr) setCoarseY(y uint16)    { v.set(bitsInvCoarseY, 5, y) }
+func (v *vramAddr) setNametable(n uint16)  { v.set(bitsInvNametable, 10, n) }
+func (v *vramAddr) setNametableX(n uint16) { v.set(bitsInvNametableX, 10, n) }
+func (v *vramAddr) setNametableY(n uint16) { v.set(bitsInvNametableY, 11, n) }
+func (v *vramAddr) setFineY(y uint16)      { v.set(bitsInvFineY, 12, y) }
 
 func (v *vramAddr) flipNametableX() { *v ^= 0x0400 }
 func (v *vramAddr) flipNametableY() { *v ^= 0x0800 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"os"
 
@@ -117,6 +118,14 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	audio := ui.CreateAudio(samplesPerSecond, sampleSize, 1, audioBufferSize)
 	audioBuffer := make([]float32, audioBufferSize)
 	defer audio.Close()
+
+	defer func() {
+		if err := recover(); err != nil {
+			// Save state on crash to quickly reconstruct the faulty state.
+			_ = saveState(bus, fmt.Sprintf("%s.crash", saveFile))
+			panic(err)
+		}
+	}()
 
 gameloop:
 	for {

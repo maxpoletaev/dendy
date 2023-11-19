@@ -213,6 +213,8 @@ func (p *PPU) WriteOAM(data byte) {
 	p.oamAddr++
 }
 
+// nameTableIdx returns the index of the nametable (0 or 1) for the given vram
+// address, based on the cartridge’s mirroring mode.
 func (p *PPU) nameTableIdx(addr uint16) int {
 	switch p.cart.MirrorMode() {
 	case ines.MirrorHorizontal:
@@ -249,6 +251,9 @@ func (p *PPU) nameTableIdx(addr uint16) int {
 	panic(fmt.Sprintf("invalid nametable address: %04X", addr))
 }
 
+// readVRAM returns the value at the given VRAM address. Depending on the
+// address, it may read from the cartridge’s CHR-ROM, PPU nametables, or
+// palette table.
 func (p *PPU) readVRAM(addr uint16) uint8 {
 	if addr <= 0x1FFF {
 		return p.cart.ReadCHR(addr)
@@ -308,15 +313,23 @@ func (p *PPU) writeVRAM(addr uint16, data uint8) {
 	log.Printf("[WARN] write to invalid vram address: %04X", addr)
 }
 
+// clearFrame fills the frame with the given color.
 func (p *PPU) clearFrame(c color.RGBA) {
 	if p.FastForward {
 		return
 	}
 
-	for x := 0; x < 256; x++ {
-		for y := 0; y < 240; y++ {
-			p.Frame[x][y] = c
-		}
+	// Incremental copy optimization.
+	// See https://gist.github.com/taylorza/df2f89d5f9ab3ffd06865062a4cf015d
+
+	p.Frame[0][0] = c
+
+	for j := 1; j < 240; j *= 2 {
+		copy(p.Frame[0][j:], p.Frame[0][:j])
+	}
+
+	for i := 1; i < 256; i *= 2 {
+		copy(p.Frame[i:], p.Frame[:i])
 	}
 }
 
@@ -359,7 +372,7 @@ func (p *PPU) checkSpriteZeroHit() bool {
 	}
 
 	pixelX, pixelY := frameX%8, frameY%8
-	spritePixel := p.fetchSprite(0).Pixels[frameX-spriteX][frameY-spriteY]
+	spritePixel := p.fetchSpritePixel(0, frameX-spriteX, frameY-spriteY)
 	tilePixel := p.fetchTileLine(frameX/8, frameY/8, pixelY).Pixels[pixelX][pixelY]
 
 	return spritePixel != 0 && tilePixel != 0
@@ -423,14 +436,12 @@ func (p *PPU) Tick() {
 		}
 
 		// During cycles 280-304 of the pre-render scanline, vertical scroll
-		// bits are copied multiple times.
-		if p.scanline == -1 {
-			if p.cycle >= 280 && p.cycle <= 304 {
-				if p.renderingEnabled() {
-					p.vramAddr.setNametableY(p.tmpAddr.nametableY())
-					p.vramAddr.setCoarseY(p.tmpAddr.coarseY())
-					p.vramAddr.setFineY(p.tmpAddr.fineY())
-				}
+		// bits are copied multiple times. But I guess it's fine to do it once?
+		if p.scanline == -1 && p.cycle == 280 {
+			if p.renderingEnabled() {
+				p.vramAddr.setNametableY(p.tmpAddr.nametableY())
+				p.vramAddr.setCoarseY(p.tmpAddr.coarseY())
+				p.vramAddr.setFineY(p.tmpAddr.fineY())
 			}
 		}
 
