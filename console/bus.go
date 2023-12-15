@@ -33,6 +33,16 @@ type Bus struct {
 	cycles uint64
 }
 
+// InitDMA initializes direct memory access callbacks. Should be called after all
+// devices are connected to the bus.
+func (b *Bus) InitDMA() {
+	b.APU.SetDMACallback(func(addr uint16) byte {
+		data := b.Read(addr)
+		b.CPU.Halt += 4
+		return data
+	})
+}
+
 func (b *Bus) transferOAM(addr uint8) {
 	memAddr := uint16(addr) << 8
 	for i := uint16(0); i < 256; i++ {

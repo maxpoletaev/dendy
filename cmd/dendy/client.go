@@ -15,6 +15,7 @@ import (
 func runAsClient(bus *console.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
+	bus.InitDMA()
 
 	game := netplay.NewGame(bus)
 	game.BufferSize = o.bufsize

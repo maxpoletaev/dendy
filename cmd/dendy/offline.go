@@ -77,6 +77,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 	bus.Zapper = input.NewZapper()
+	bus.InitDMA()
 	bus.Reset()
 
 	if o.disasm != "" {

@@ -21,6 +21,9 @@ func squareWave(duty, frequency, amplitude, t float32) float32 {
 	return -amplitude
 }
 
+// squareWaveFourier is a forier series approximation of a square wave, ported
+// from the olcNES emulator. It might sound better, but apparently much slower,
+// even with sine approximation. It’s here just for reference.
 func squareWaveFourier(duty, frequency, amplitude, t float32) float32 {
 	sin := func(t float32) float32 {
 		j := t * 0.15915

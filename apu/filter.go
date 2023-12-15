@@ -4,6 +4,8 @@ import (
 	"math"
 )
 
+// filter is a simple IIR filter. No idea how it works, though. This part was copied
+// from fogleman’s nes emulator, since I miserably failed to implement it myself.
 type filter struct {
 	b0    float32
 	b1    float32

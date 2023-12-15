@@ -66,7 +66,7 @@ func (n *noise) tickLength() {
 	}
 }
 
-func (n *noise) tickTimer(t float32) {
+func (n *noise) tickTimer() {
 	if n.timerValue == 0 {
 		shift := 1
 		if n.mode6 {

@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	pi = float32(math.Pi)
+	pi       = float32(math.Pi)
+	tickTime = 1.0 / 1789773.0 // one tick is 1/1789773 seconds
 )
 
 var lengthTable = []byte{
@@ -21,10 +22,11 @@ type APU struct {
 	mode     uint8
 	time     float64
 	cycle    uint64
-	frame    uint64
+	frame    uint64 // not the same as ppu frame
 	pulse1   square
 	pulse2   square
 	noise    noise
+	dmc      dmc
 	triangle triangle
 	filters  []*filter
 
@@ -49,6 +51,7 @@ func (a *APU) Reset() {
 	a.cycle = 0
 	a.frame = 0
 
+	a.dmc.reset()
 	a.noise.reset()
 	a.pulse1.reset()
 	a.pulse2.reset()
@@ -73,6 +76,14 @@ func (a *APU) Read(addr uint16) (status byte) {
 			status |= 0b0000_1000
 		}
 
+		if a.dmc.length > 0 {
+			status |= 0b0001_0000
+		}
+
+		if a.dmc.irqPending {
+			status |= 0b1000_0000
+		}
+
 		if a.frameIRQ {
 			status |= 0b0100_0000
 			a.frameIRQ = false
@@ -92,11 +103,14 @@ func (a *APU) Write(addr uint16, value byte) {
 		a.triangle.write(addr, value)
 	case addr >= 0x400C && addr <= 0x400F:
 		a.noise.write(addr, value)
+	case addr >= 0x4010 && addr <= 0x4013:
+		a.dmc.write(addr, value)
 	case addr == 0x4015:
 		a.pulse1.enabled = value&0x01 != 0
 		a.pulse2.enabled = value&0x02 != 0
 		a.triangle.enabled = value&0x03 != 0
 		a.noise.enabled = value&0x04 != 0
+		a.dmc.write(addr, value)
 	case addr == 0x4017:
 		a.frame = 0
 		a.mode = (value & 0x80) >> 7
@@ -106,12 +120,17 @@ func (a *APU) Write(addr uint16, value byte) {
 
 func (a *APU) mix(p1, p2, t, n, d float32) float32 {
 	const (
-		pWeight = 0.2
-		tWeight = 0.2
-		nWeight = 0.2
+		pulseWeight    = 0.20
+		triangleWeight = 0.20
+		noiseWeight    = 0.20
+		dmcWeight      = 0.15
 	)
 
-	return p1*pWeight + p2*pWeight + t*tWeight + n*nWeight
+	return p1*pulseWeight +
+		p2*pulseWeight +
+		t*triangleWeight +
+		n*noiseWeight +
+		d*dmcWeight
 }
 
 func (a *APU) Output() float32 {
@@ -123,7 +142,7 @@ func (a *APU) Output() float32 {
 	p2 := a.pulse2.output()
 	t := a.triangle.output()
 	n := a.noise.output()
-	d := float32(0.0)
+	d := a.dmc.output()
 
 	out := a.mix(p1, p2, t, n, d)
 	for _, f := range a.filters {
@@ -138,8 +157,7 @@ func (a *APU) Tick() {
 		return
 	}
 
-	// One tick is 1/1789773 seconds.
-	a.time += 1.0 / 1789773.0
+	a.time += tickTime
 	t := float32(a.time)
 
 	// Triangle is clocked at CPU speed.
@@ -183,7 +201,8 @@ func (a *APU) Tick() {
 
 		a.pulse1.tickTimer(t)
 		a.pulse2.tickTimer(t)
-		a.noise.tickTimer(t)
+		a.noise.tickTimer()
+		a.dmc.tickTimer()
 
 		a.frame++
 		if a.frame == maxFrame {
@@ -199,12 +218,17 @@ func (a *APU) PendingIRQ() (v bool) {
 	return v
 }
 
+func (a *APU) SetDMACallback(cb func(addr uint16) byte) {
+	a.dmc.dmaRead = cb
+}
+
 func (a *APU) Save(enc *gob.Encoder) error {
 	return errors.Join(
 		a.pulse1.save(enc),
 		a.pulse2.save(enc),
 		a.triangle.save(enc),
 		a.noise.save(enc),
+		a.dmc.save(enc),
 		enc.Encode(a.pendingIRQ),
 		enc.Encode(a.mode),
 		enc.Encode(a.time),
@@ -221,6 +245,7 @@ func (a *APU) Load(dec *gob.Decoder) error {
 		a.pulse2.load(dec),
 		a.triangle.load(dec),
 		a.noise.load(dec),
+		a.dmc.load(dec),
 		dec.Decode(&a.pendingIRQ),
 		dec.Decode(&a.mode),
 		dec.Decode(&a.time),

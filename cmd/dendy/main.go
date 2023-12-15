@@ -33,14 +33,16 @@ type opts struct {
 	verbose       bool
 	disasm        string
 	cpuprof       string
+	dmcReverse    bool
 	mute          bool
 }
 
 func (o *opts) parse() *opts {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
-	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address (default: none)")
-	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address (default: none)")
+	flag.BoolVar(&o.dmcReverse, "dmcreverse", false, "reverse dmc samples")
+	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address")
+	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address)")
 	flag.IntVar(&o.bufsize, "bufsize", 0, "netplay input buffer size (default: 0)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
@@ -69,6 +71,16 @@ func (o *opts) logLevel() loglevel.Level {
 	return loglevel.LevelInfo
 }
 
+func printLogo() {
+	// $ figlet "Dendy"
+	fmt.Println(" ____                 _")
+	fmt.Println("|  _ \\  ___ _ __   __| |_   _")
+	fmt.Println("| | | |/ _ \\ '_ \\ / _` | | | |")
+	fmt.Println("| |_| |  __/ | | | (_| | |_| |")
+	fmt.Println("|____/ \\___|_| |_|\\__,_|\\__, |")
+	fmt.Println("                        |___/")
+}
+
 func main() {
 	o := new(opts).parse()
 	o.sanitize()
@@ -80,6 +92,8 @@ func main() {
 		fmt.Println("usage: dendy [-scale=2] [-nosave] [-nospritelimit] [-listen=addr:port] [-connect=addr:port] romfile")
 		os.Exit(1)
 	}
+
+	printLogo()
 
 	if o.cpuprof != "" {
 		log.Printf("[INFO] writing cpu profile to %s", o.cpuprof)

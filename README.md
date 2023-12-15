@@ -148,7 +148,7 @@ for most games.
 * [x] Length counter
 * [x] Envelope
 * [x] Sweep
-* [ ] DMC
+* [x] DMC
 
 ### Mappers
 
