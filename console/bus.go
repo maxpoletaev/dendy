@@ -36,23 +36,26 @@ type Bus struct {
 // InitDMA initializes direct memory access callbacks. Should be called after all
 // devices are connected to the bus.
 func (b *Bus) InitDMA() {
+	// PPU DMA transfers 256 bytes of data from CPU memory to PPU OAM memory.
+	// It is triggered by writing to $4014 and takes 513 CPU cycles to complete.
+	b.PPU.SetDMACallback(func(addr uint16, data []byte, size int) {
+		for i := uint16(0); i < 256; i++ {
+			data[i] = b.Read(addr + i)
+		}
+
+		b.CPU.Halt += 513
+		if b.CPU.Halt%2 == 1 {
+			b.CPU.Halt++
+		}
+	})
+
+	// APU DMA transfers an audio sample (1 byte) from CPU memory to APU memory.
+	// It happens automatically when DMC requests a sample and takes 4 CPU cycles.
 	b.APU.SetDMACallback(func(addr uint16) byte {
 		data := b.Read(addr)
 		b.CPU.Halt += 4
 		return data
 	})
-}
-
-func (b *Bus) transferOAM(addr uint8) {
-	memAddr := uint16(addr) << 8
-	for i := uint16(0); i < 256; i++ {
-		b.PPU.WriteOAM(b.Read(memAddr + i))
-	}
-
-	b.CPU.Halt += 513
-	if b.CPU.Halt%2 == 1 {
-		b.CPU.Halt++
-	}
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
@@ -98,7 +101,7 @@ func (b *Bus) Write(addr uint16, data uint8) {
 	case addr >= 0x4000 && addr <= 0x4013: // APU registers.
 		b.APU.Write(addr, data)
 	case addr == 0x4014: // PPU OAM DMA.
-		b.transferOAM(data)
+		b.PPU.TransferOAM(data)
 	case addr == 0x4015: // APU status.
 		b.APU.Write(addr, data)
 	case addr == 0x4016: // Controller strobe.

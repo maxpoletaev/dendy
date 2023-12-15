@@ -35,6 +35,7 @@ type opts struct {
 	cpuprof       string
 	dmcReverse    bool
 	mute          bool
+	noLogo        bool
 }
 
 func (o *opts) parse() *opts {
@@ -47,6 +48,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")
+	flag.BoolVar(&o.noLogo, "nologo", false, "do not print logo")
 
 	// Debugging flags.
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
@@ -93,7 +95,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	printLogo()
+	if !o.noLogo {
+		printLogo()
+	}
 
 	if o.cpuprof != "" {
 		log.Printf("[INFO] writing cpu profile to %s", o.cpuprof)

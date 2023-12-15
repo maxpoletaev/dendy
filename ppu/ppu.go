@@ -40,12 +40,17 @@ const (
 	StatusVBlank         StatusFlags = 1 << 7
 )
 
+type (
+	dmaFunc func(addr uint16, data []byte, size int)
+)
+
 type PPU struct {
 	Frame       [256][240]color.RGBA
 	transparent [256][240]bool
 
 	NoSpriteLimit bool
 	FastForward   bool
+	dmaCopy       dmaFunc
 
 	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
 	ctrl         CtrlFlags      // $2000
@@ -208,9 +213,13 @@ func (p *PPU) Write(addr uint16, data uint8) {
 	}
 }
 
-func (p *PPU) WriteOAM(data byte) {
-	p.oamData[p.oamAddr] = data
-	p.oamAddr++
+func (p *PPU) SetDMACallback(callback dmaFunc) {
+	p.dmaCopy = callback
+}
+
+func (p *PPU) TransferOAM(pageAddr uint8) {
+	addr := uint16(pageAddr) << 8
+	p.dmaCopy(addr, p.oamData[:], len(p.oamData))
 }
 
 // nameTableIdx returns the index of the nametable (0 or 1) for the given vram
