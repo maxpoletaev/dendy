@@ -110,11 +110,17 @@ func loadROM(filename string) (*ROM, error) {
 }
 
 func (r *ROM) SaveState(w *binario.Writer) error {
-	return errors.Join(
-		w.WriteUint32(r.crc32),
-		w.WriteBytes(r.PRG),
-		w.WriteBytes(r.CHR),
-	)
+	if err := w.WriteUint32(r.crc32); err != nil {
+		return err
+	}
+
+	if r.chrRAM {
+		if err := w.WriteBytes(r.CHR); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *ROM) LoadState(reader *binario.Reader) error {
@@ -127,8 +133,11 @@ func (r *ROM) LoadState(reader *binario.Reader) error {
 		return ErrSavedStateMismatch
 	}
 
-	return errors.Join(
-		reader.ReadBytesTo(r.PRG),
-		reader.ReadBytesTo(r.CHR),
-	)
+	if r.chrRAM {
+		if err = reader.ReadBytesTo(r.CHR); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -201,6 +201,11 @@ func (m *Mapper4) ReadCHR(addr uint16) byte {
 }
 
 func (m *Mapper4) WriteCHR(addr uint16, data byte) {
+	if !m.rom.chrRAM {
+		log.Printf("[WARN] mapper4: write to read-only chr at %04X", addr)
+		return
+	}
+
 	switch {
 	case addr >= 0x0000 && addr <= 0x1FFF:
 		bank := int(addr / 0x0400)

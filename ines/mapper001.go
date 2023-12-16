@@ -185,6 +185,11 @@ func (m *Mapper1) ReadCHR(addr uint16) byte {
 }
 
 func (m *Mapper1) WriteCHR(addr uint16, data byte) {
+	if !m.rom.chrRAM {
+		log.Printf("[WARN] mapper1: write to read-only chr at %04X", addr)
+		return
+	}
+
 	bank0, bank1 := m.chrBankIndex()
 	relAddr := int(addr % 0x1000)
 

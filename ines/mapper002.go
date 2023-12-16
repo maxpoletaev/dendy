@@ -70,6 +70,11 @@ func (m *Mapper2) ReadCHR(addr uint16) byte {
 }
 
 func (m *Mapper2) WriteCHR(addr uint16, data byte) {
+	if !m.rom.chrRAM {
+		log.Printf("[WARN] mapper2: write to read-only chr at %04X", addr)
+		return
+	}
+
 	m.rom.CHR[addr] = data
 }
 

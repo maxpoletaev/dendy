@@ -47,6 +47,7 @@ func (m *Mapper0) ReadPRG(addr uint16) byte {
 }
 
 func (m *Mapper0) WritePRG(addr uint16, data byte) {
+	log.Printf("[WARN] mapper0: write to read-only prg at %04X", addr)
 }
 
 func (m *Mapper0) ReadCHR(addr uint16) byte {
@@ -60,6 +61,7 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 }
 
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {
+	log.Printf("[WARN] mapper0: write to read-only chr at %04X", addr)
 }
 
 func (m *Mapper0) SaveState(w *binario.Writer) error {
