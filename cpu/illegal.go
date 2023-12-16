@@ -1,42 +1,17 @@
 package cpu
 
-func (cpu *CPU) executeIllegal(mem Memory, instr *Instruction, arg operand) bool {
-	switch instr.ID {
-	case XDCP:
-		cpu.dcp(mem, arg)
-	case XISB:
-		cpu.isb(mem, arg)
-	case XSLO:
-		cpu.slo(mem, arg)
-	case XRLA:
-		cpu.rla(mem, arg)
-	case XSRE:
-		cpu.sre(mem, arg)
-	case XRRA:
-		cpu.rra(mem, arg)
-	case XLAX:
-		cpu.lax(mem, arg)
-	case XSAX:
-		cpu.sax(mem, arg)
-	case XSBC: // USBC
-		cpu.sbc(mem, arg)
-	case XNOP:
-		cpu.nop(mem, arg)
-	default:
-		return false
-	}
-
-	return true
-}
-
-func (cpu *CPU) nop(mem Memory, arg operand) {
+func xnop(cpu *CPU, mem Memory, arg operand) {
 	if arg.pageCross {
 		cpu.Halt += 1
 	}
 }
 
+func xsbc(cpu *CPU, mem Memory, arg operand) {
+	sbc(cpu, mem, arg) // the same as official
+}
+
 // dcp is dec + cmp
-func (cpu *CPU) dcp(mem Memory, arg operand) {
+func xdcp(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr) - 1
 	mem.Write(arg.addr, data)
 
@@ -46,7 +21,7 @@ func (cpu *CPU) dcp(mem Memory, arg operand) {
 }
 
 // isb is inc + sbc
-func (cpu *CPU) isb(mem Memory, arg operand) {
+func xisb(cpu *CPU, mem Memory, arg operand) {
 	var (
 		data = mem.Read(arg.addr) + 1
 		a    = uint16(cpu.A)
@@ -64,7 +39,7 @@ func (cpu *CPU) isb(mem Memory, arg operand) {
 }
 
 // lax is lda + ldx
-func (cpu *CPU) lax(mem Memory, arg operand) {
+func xlax(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	cpu.A, cpu.X = data, data
 	cpu.setZN(cpu.X)
@@ -75,7 +50,7 @@ func (cpu *CPU) lax(mem Memory, arg operand) {
 }
 
 // rla is rol + and
-func (cpu *CPU) rla(mem Memory, arg operand) {
+func xrla(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	carr := cpu.carried()
 
@@ -87,13 +62,13 @@ func (cpu *CPU) rla(mem Memory, arg operand) {
 }
 
 // sax is sta + stx
-func (cpu *CPU) sax(mem Memory, arg operand) {
+func xsax(cpu *CPU, mem Memory, arg operand) {
 	data := cpu.A & cpu.X
 	mem.Write(arg.addr, data)
 }
 
 // slo is asl + ora
-func (cpu *CPU) slo(mem Memory, arg operand) {
+func xslo(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	cpu.setFlag(flagCarry, data&0x80 != 0)
 
@@ -105,7 +80,7 @@ func (cpu *CPU) slo(mem Memory, arg operand) {
 }
 
 // sre is lsr + eor
-func (cpu *CPU) sre(mem Memory, arg operand) {
+func xsre(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	cpu.setFlag(flagCarry, data&0x01 != 0)
 
@@ -117,7 +92,7 @@ func (cpu *CPU) sre(mem Memory, arg operand) {
 }
 
 // rra is ror + adc
-func (cpu *CPU) rra(mem Memory, arg operand) {
+func xrra(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	carr := cpu.carried()
 

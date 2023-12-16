@@ -46,9 +46,8 @@ type CPU struct {
 	SP uint8  // Stack pointer
 	PC uint16 // Program counter
 
-	AllowIllegal bool   // Handle illegal opcodes
-	Cycles       uint64 // Number of cycles executed
-	Halt         int    // Number of cycles to wait
+	Cycles uint64 // Number of cycles executed
+	Halt   int    // Number of cycles to wait
 
 	interrupt Interrupt
 }
@@ -189,24 +188,16 @@ func (cpu *CPU) Tick(mem Memory) bool {
 
 	var (
 		opcode = cpu.fetchOpcode(mem)
-		instr  Instruction
-		ok     bool
+		instr  = Opcodes[opcode]
 	)
 
-	if instr, ok = Instructions[opcode]; !ok {
+	if instr.Size == 0 {
 		panic(fmt.Sprintf("unknown opcode: %02X", opcode))
 	}
 
-	opr := cpu.fetchOperand(mem, instr.AddrMode)
-	ok = cpu.execute(mem, &instr, opr)
+	arg := cpu.fetchOperand(mem, instr.AddrMode)
 
-	if !ok && cpu.AllowIllegal {
-		ok = cpu.executeIllegal(mem, &instr, opr)
-	}
-
-	if !ok {
-		panic(fmt.Sprintf("invalid instruction: %s", instr.Name))
-	}
+	instr.handler(cpu, mem, arg)
 
 	cpu.Halt += instr.Cycles - 1
 

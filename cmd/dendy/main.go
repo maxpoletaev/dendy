@@ -135,7 +135,6 @@ func main() {
 	}
 
 	cpu := cpupkg.New()
-	cpu.AllowIllegal = true
 
 	ppu := ppupkg.New(cart)
 	ppu.NoSpriteLimit = o.noSpriteLimit

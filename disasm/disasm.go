@@ -8,11 +8,12 @@ import (
 )
 
 func instrSize(opcode byte) int {
-	if instr, ok := cpupkg.Instructions[opcode]; ok {
-		return instr.Size
+	instr := cpupkg.Opcodes[opcode]
+	if instr.Size == 0 {
+		return 1
 	}
 
-	return 1
+	return instr.Size
 }
 
 func readWord(mem cpupkg.Memory, addr uint16) uint16 {
@@ -64,9 +65,8 @@ func DebugStep(mem cpupkg.Memory, cpu *cpupkg.CPU) string {
 func disassemble(mem cpupkg.Memory, pc uint16) string {
 	opcode := mem.Read(pc)
 
-	instr, ok := cpupkg.Instructions[opcode]
-
-	if !ok {
+	instr := cpupkg.Opcodes[opcode]
+	if instr.Size == 0 {
 		return "???"
 	}
 

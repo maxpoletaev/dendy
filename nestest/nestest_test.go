@@ -60,7 +60,6 @@ func TestNestestROM(t *testing.T) {
 
 	c.Reset(mem)
 	c.PC = 0xC000
-	c.AllowIllegal = true
 
 	for {
 		if c.Tick(mem) {
