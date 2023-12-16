@@ -94,9 +94,13 @@ func (s *square) reset() {
 func (s *square) write(addr uint16, value byte) {
 	switch addr & 0x0003 {
 	case 0x0000:
-		s.volume = value & 0x0F
-		s.duty = value >> 6 & 0x03
-		s.lengthHalt = value&0x20 != 0
+		s.volume = value & 0b1111
+		s.duty = value >> 6 & 0b11
+		s.lengthHalt = (value>>5)&1 == 1
+		s.envelope.loop = (value>>5)&1 == 1
+		s.envelope.enabled = (value>>4)&1 == 0
+		s.envelope.counterLoad = value & 0b1111
+		s.envelope.start = true
 	case 0x0001:
 		s.sweepEnabled = value&0x80 != 0
 		s.sweepNegate = value&0x08 != 0
@@ -110,11 +114,6 @@ func (s *square) write(addr uint16, value byte) {
 		s.timerLoad = s.timerLoad&0x00FF | uint16(value&0x07)<<8
 		s.lengthValue = lengthTable[value>>3]
 		s.timerValue = s.timerLoad
-		s.envelope.start = true
-	case 0x0004:
-		s.envelope.enabled = value&0x10 != 0
-		s.envelope.loop = value&0x20 != 0
-		s.envelope.loadValue = value & 0x0F
 	}
 }
 
@@ -126,20 +125,22 @@ func (s *square) tickSweep() {
 	if s.sweepReload {
 		s.sweepValue = s.sweepLoad
 		s.sweepReload = false
-	} else if s.sweepValue > 0 {
-		s.sweepValue--
 	} else {
-		s.sweepValue = s.sweepLoad
+		if s.sweepValue > 0 {
+			s.sweepValue--
+		} else {
+			s.sweepValue = s.sweepLoad
 
-		if s.sweepEnabled && s.sweepShift > 0 {
-			if s.sweepNegate {
-				s.timerValue -= s.timerValue >> s.sweepShift
+			if s.sweepEnabled && s.sweepShift > 0 {
+				if s.sweepNegate {
+					s.timerValue -= s.timerValue >> s.sweepShift
 
-				if !s.mode2 {
-					s.timerValue++
+					if !s.mode2 {
+						s.timerValue++
+					}
+				} else {
+					s.timerValue += s.timerValue >> s.sweepShift
 				}
-			} else {
-				s.timerValue += s.timerValue >> s.sweepShift
 			}
 		}
 	}

@@ -6,37 +6,39 @@ import (
 )
 
 type envelope struct {
-	enabled   bool
-	start     bool
-	loop      bool
-	value     uint8
-	loadValue uint8
-	volume    uint8
+	enabled     bool
+	start       bool
+	loop        bool
+	counterLoad uint8
+	counter     uint8
+	volume      uint8
 }
 
 func (e *envelope) reset() {
 	e.enabled = false
 	e.start = false
 	e.loop = false
-	e.value = 0
-	e.loadValue = 0
+	e.counterLoad = 0
 	e.volume = 0
+	e.counter = 0
 }
 
 func (e *envelope) tick() {
 	if e.start {
-		e.value = e.loadValue
+		e.counter = e.counterLoad
+		e.volume = 0x0F
 		e.start = false
-		e.value = 15
-	} else if e.value > 0 {
-		e.value--
 	} else {
-		if e.volume > 0 {
-			e.value = e.loadValue
-			e.volume--
-		} else if e.loop {
-			e.value = e.loadValue
-			e.volume = 15
+		if e.counter > 0 {
+			e.counter--
+		} else {
+			e.counter = e.counterLoad
+
+			if e.volume > 0 {
+				e.volume--
+			} else if e.loop {
+				e.volume = 0x0F
+			}
 		}
 	}
 }
@@ -46,8 +48,8 @@ func (e *envelope) save(enc *gob.Encoder) error {
 		enc.Encode(e.enabled),
 		enc.Encode(e.start),
 		enc.Encode(e.loop),
-		enc.Encode(e.value),
-		enc.Encode(e.loadValue),
+		enc.Encode(e.counter),
+		enc.Encode(e.counterLoad),
 		enc.Encode(e.volume),
 	)
 }
@@ -57,8 +59,8 @@ func (e *envelope) load(dec *gob.Decoder) error {
 		dec.Decode(&e.enabled),
 		dec.Decode(&e.start),
 		dec.Decode(&e.loop),
-		dec.Decode(&e.value),
-		dec.Decode(&e.loadValue),
+		dec.Decode(&e.counter),
+		dec.Decode(&e.counterLoad),
 		dec.Decode(&e.volume),
 	)
 }

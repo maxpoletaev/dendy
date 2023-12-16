@@ -6,7 +6,7 @@ import (
 	"math/bits"
 )
 
-var dmcTable = []uint16{
+var dmcTimerTable = []uint16{
 	214, 190, 170, 160, 143, 127, 113, 107, 95, 80, 71, 64, 53, 42, 36, 27,
 }
 
@@ -58,9 +58,9 @@ func (d *dmc) reset() {
 func (d *dmc) write(addr uint16, value byte) {
 	switch addr {
 	case 0x4010:
-		d.timerLoad = dmcTable[value&0b00001111]
-		d.irqEnabled = value&0b10000000 != 0
-		d.loop = value&0b01000000 != 0
+		d.timerLoad = dmcTimerTable[value&0b1111]
+		d.irqEnabled = (value>>7)&1 != 0
+		d.loop = (value>>6)&1 != 0
 
 		if !d.irqEnabled {
 			d.irqPending = false
@@ -72,7 +72,7 @@ func (d *dmc) write(addr uint16, value byte) {
 	case 0x4013:
 		d.lengthLoad = uint16(value)<<4 + 1
 	case 0x4015:
-		d.enabled = value&0b00010000 != 0
+		d.enabled = (value>>4)&1 != 0
 		d.irqPending = false
 
 		if d.enabled {
