@@ -185,7 +185,7 @@ func (cpu *CPU) Tick(mem Memory) bool {
 
 	var (
 		opcode = cpu.fetchOpcode(mem)
-		instr  = Opcodes[opcode]
+		instr  = &Opcodes[opcode]
 	)
 
 	if instr.Size == 0 {
