@@ -11,18 +11,18 @@ type triangle struct {
 	sequence uint8
 
 	// Timer
-	timerLoad  uint16
-	timerValue uint16
+	timerLoad uint16
+	timer     uint16
 
 	// Length counter
-	lengthValue uint8
-	lengthHalt  bool
+	lengthHalt bool
+	length     uint8
 
 	// Linear counter
 	linearEnabled bool
+	linearReset   bool
 	linearLoad    uint8
-	linearValue   uint8
-	linearReload  bool
+	linear        uint8
 }
 
 func (tr *triangle) reset() {
@@ -31,15 +31,15 @@ func (tr *triangle) reset() {
 	tr.sequence = 0
 
 	tr.timerLoad = 0
-	tr.timerValue = 0
+	tr.timer = 0
 
-	tr.lengthValue = 0
 	tr.lengthHalt = false
+	tr.length = 0
 
 	tr.linearEnabled = false
+	tr.linearReset = false
 	tr.linearLoad = 0
-	tr.linearValue = 0
-	tr.linearReload = false
+	tr.linear = 0
 }
 
 func (tr *triangle) write(addr uint16, value byte) {
@@ -52,39 +52,39 @@ func (tr *triangle) write(addr uint16, value byte) {
 		tr.timerLoad = tr.timerLoad&0xFF00 | uint16(value)
 	case 0x400B:
 		tr.timerLoad = tr.timerLoad&0x00FF | uint16(value&0x07)<<8
-		tr.lengthValue = lengthTable[value>>3]
-		tr.linearReload = true
+		tr.length = lengthTable[value>>3]
+		tr.linearReset = true
 	}
 }
 
 func (tr *triangle) tickLength() {
-	if !tr.lengthHalt && tr.lengthValue > 0 {
-		tr.lengthValue--
+	if !tr.lengthHalt && tr.length > 0 {
+		tr.length--
 	}
 }
 
 func (tr *triangle) tickLinear() {
-	if tr.linearReload {
-		tr.linearValue = tr.linearLoad
-	} else if tr.linearValue > 0 {
-		tr.linearValue--
+	if tr.linearReset {
+		tr.linear = tr.linearLoad
+	} else if tr.linear > 0 {
+		tr.linear--
 	}
 
 	if tr.linearEnabled {
-		tr.linearReload = false
+		tr.linearReset = false
 	}
 }
 
-func (tr *triangle) tickTimer(t float32) {
-	if tr.lengthValue == 0 || tr.linearValue == 0 || tr.timerLoad < 3 {
+func (tr *triangle) tickTimer() {
+	if tr.length == 0 || tr.linear == 0 || tr.timerLoad < 3 {
 		return
 	}
 
-	if tr.timerValue > 0 {
-		tr.timerValue--
+	if tr.timer > 0 {
+		tr.timer--
 	} else {
 		tr.sequence = (tr.sequence + 1) & 0x1F
-		tr.timerValue = tr.timerLoad
+		tr.timer = tr.timerLoad
 
 		if tr.sequence&0x10 == 0 {
 			tr.sample = float32(tr.sequence ^ 0x1F)
@@ -108,13 +108,13 @@ func (tr *triangle) save(enc *gob.Encoder) error {
 		enc.Encode(tr.sample),
 		enc.Encode(tr.sequence),
 		enc.Encode(tr.timerLoad),
-		enc.Encode(tr.timerValue),
-		enc.Encode(tr.lengthValue),
+		enc.Encode(tr.timer),
+		enc.Encode(tr.length),
 		enc.Encode(tr.lengthHalt),
 		enc.Encode(tr.linearEnabled),
 		enc.Encode(tr.linearLoad),
-		enc.Encode(tr.linearValue),
-		enc.Encode(tr.linearReload),
+		enc.Encode(tr.linear),
+		enc.Encode(tr.linearReset),
 	)
 }
 
@@ -124,12 +124,12 @@ func (tr *triangle) load(dec *gob.Decoder) error {
 		dec.Decode(&tr.sample),
 		dec.Decode(&tr.sequence),
 		dec.Decode(&tr.timerLoad),
-		dec.Decode(&tr.timerValue),
-		dec.Decode(&tr.lengthValue),
+		dec.Decode(&tr.timer),
+		dec.Decode(&tr.length),
 		dec.Decode(&tr.lengthHalt),
 		dec.Decode(&tr.linearEnabled),
 		dec.Decode(&tr.linearLoad),
-		dec.Decode(&tr.linearValue),
-		dec.Decode(&tr.linearReload),
+		dec.Decode(&tr.linear),
+		dec.Decode(&tr.linearReset),
 	)
 }

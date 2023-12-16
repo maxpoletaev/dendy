@@ -23,12 +23,12 @@ type dmc struct {
 	lengthLoad uint16
 	length     uint16
 
-	bitsRemaining   uint8
-	outputShifter   uint8
-	buffer          uint8
-	sample          uint8
-	isBufferEmpty   bool
-	isOutputSilence bool
+	bitsLeft uint8
+	shifter  uint8
+	buffer   uint8
+	sample   uint8
+	isEmpty  bool
+	isSilent bool
 
 	dmaRead func(addr uint16) byte
 	reverse bool
@@ -47,12 +47,12 @@ func (d *dmc) reset() {
 	d.lengthLoad = 0
 	d.length = 0
 
-	d.bitsRemaining = 0
-	d.outputShifter = 0
+	d.bitsLeft = 0
+	d.shifter = 0
 	d.buffer = 0
 	d.sample = 0
-	d.isBufferEmpty = true
-	d.isOutputSilence = true
+	d.isEmpty = true
+	d.isSilent = true
 }
 
 func (d *dmc) write(addr uint16, value byte) {
@@ -90,8 +90,8 @@ func (d *dmc) tickTimer() {
 	if d.timer > 0 {
 		d.timer--
 	} else {
-		if !d.isOutputSilence {
-			if d.outputShifter&1 != 0 {
+		if !d.isSilent {
+			if d.shifter&1 != 0 {
 				if d.sample <= 0x7D {
 					d.sample += 2
 				}
@@ -103,18 +103,18 @@ func (d *dmc) tickTimer() {
 		}
 
 		d.timer = d.timerLoad
-		d.outputShifter >>= 1
-		d.bitsRemaining--
+		d.shifter >>= 1
+		d.bitsLeft--
 
-		if d.bitsRemaining == 0 {
-			d.bitsRemaining = 8
-			d.outputShifter = d.buffer
-			d.isOutputSilence = d.isBufferEmpty
-			d.isBufferEmpty = true
+		if d.bitsLeft == 0 {
+			d.bitsLeft = 8
+			d.shifter = d.buffer
+			d.isSilent = d.isEmpty
+			d.isEmpty = true
 		}
 	}
 
-	if d.length > 0 && d.isBufferEmpty {
+	if d.length > 0 && d.isEmpty {
 		d.buffer = d.dmaRead(d.addr)
 
 		if d.reverse {
@@ -123,7 +123,7 @@ func (d *dmc) tickTimer() {
 		}
 
 		d.addr = (d.addr + 1) | 0x8000
-		d.isBufferEmpty = false
+		d.isEmpty = false
 		d.length--
 
 		if d.length == 0 {
@@ -153,12 +153,12 @@ func (d *dmc) save(enc *gob.Encoder) error {
 		enc.Encode(d.addr),
 		enc.Encode(d.lengthLoad),
 		enc.Encode(d.length),
-		enc.Encode(d.bitsRemaining),
-		enc.Encode(d.outputShifter),
+		enc.Encode(d.bitsLeft),
+		enc.Encode(d.shifter),
 		enc.Encode(d.buffer),
 		enc.Encode(d.sample),
-		enc.Encode(d.isBufferEmpty),
-		enc.Encode(d.isOutputSilence),
+		enc.Encode(d.isEmpty),
+		enc.Encode(d.isSilent),
 	)
 }
 
@@ -174,11 +174,11 @@ func (d *dmc) load(dec *gob.Decoder) error {
 		dec.Decode(&d.addr),
 		dec.Decode(&d.lengthLoad),
 		dec.Decode(&d.length),
-		dec.Decode(&d.bitsRemaining),
-		dec.Decode(&d.outputShifter),
+		dec.Decode(&d.bitsLeft),
+		dec.Decode(&d.shifter),
 		dec.Decode(&d.buffer),
 		dec.Decode(&d.sample),
-		dec.Decode(&d.isBufferEmpty),
-		dec.Decode(&d.isOutputSilence),
+		dec.Decode(&d.isEmpty),
+		dec.Decode(&d.isSilent),
 	)
 }

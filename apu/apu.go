@@ -3,12 +3,6 @@ package apu
 import (
 	"encoding/gob"
 	"errors"
-	"math"
-)
-
-const (
-	pi       = float32(math.Pi)
-	tickTime = 1.0 / 1789773.0 // one tick is 1/1789773 seconds
 )
 
 var lengthTable = []byte{
@@ -54,39 +48,40 @@ func (a *APU) Reset() {
 	a.dmc.reset()
 	a.noise.reset()
 	a.pulse1.reset()
+	a.pulse1.isPulse1 = true
 	a.pulse2.reset()
 	a.triangle.reset()
 }
 
 func (a *APU) Read(addr uint16) (status byte) {
 	if addr == 0x4015 {
-		if a.pulse1.lengthValue > 0 {
-			status |= 0b0000_0001
+		if a.pulse1.length > 0 {
+			status |= 1 << 0
 		}
 
-		if a.pulse2.lengthValue > 0 {
-			status |= 0b0000_0010
+		if a.pulse2.length > 0 {
+			status |= 1 << 1
 		}
 
-		if a.triangle.lengthValue > 0 {
-			status |= 0b0000_0100
+		if a.triangle.length > 0 {
+			status |= 1 << 2
 		}
 
-		if a.noise.lengthValue > 0 {
-			status |= 0b0000_1000
+		if a.noise.length > 0 {
+			status |= 1 << 3
 		}
 
 		if a.dmc.length > 0 {
-			status |= 0b0001_0000
-		}
-
-		if a.dmc.irqPending {
-			status |= 0b1000_0000
+			status |= 1 << 4
 		}
 
 		if a.frameIRQ {
-			status |= 0b0100_0000
+			status |= 1 << 6
 			a.frameIRQ = false
+		}
+
+		if a.dmc.irqPending {
+			status |= 1 << 7
 		}
 	}
 
@@ -122,7 +117,7 @@ func (a *APU) mix(p1, p2, t, n, d float32) float32 {
 	const (
 		pulseWeight    = 0.20
 		triangleWeight = 0.20
-		noiseWeight    = 0.20
+		noiseWeight    = 0.15
 		dmcWeight      = 0.15
 	)
 
@@ -157,11 +152,8 @@ func (a *APU) Tick() {
 		return
 	}
 
-	a.time += tickTime
-	t := float32(a.time)
-
 	// Triangle is clocked at CPU speed.
-	a.triangle.tickTimer(t)
+	a.triangle.tickTimer()
 
 	// Everything else is clocked at half CPU speed.
 	if a.cycle%2 == 0 {
@@ -199,8 +191,8 @@ func (a *APU) Tick() {
 			}
 		}
 
-		a.pulse1.tickTimer(t)
-		a.pulse2.tickTimer(t)
+		a.pulse1.tickTimer()
+		a.pulse2.tickTimer()
 		a.noise.tickTimer()
 		a.dmc.tickTimer()
 

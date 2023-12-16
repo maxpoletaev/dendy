@@ -19,12 +19,12 @@ type noise struct {
 	envelope envelope
 
 	// Timer
-	timerLoad  uint16
-	timerValue uint16
+	timerLoad uint16
+	timer     uint16
 
 	// Length counter
-	lengthValue uint8
-	lengthHalt  bool
+	lengthHalt bool
+	length     uint8
 }
 
 func (n *noise) reset() {
@@ -36,9 +36,9 @@ func (n *noise) reset() {
 	n.envelope.reset()
 
 	n.timerLoad = 0
-	n.timerValue = 0
+	n.timer = 0
 
-	n.lengthValue = 0
+	n.length = 0
 	n.lengthHalt = false
 }
 
@@ -50,9 +50,8 @@ func (n *noise) write(addr uint16, value byte) {
 	case 0x400C:
 		n.lengthHalt = value&0x20 != 0
 		n.volume = value & 0x0F
-
 	case 0x400F:
-		n.lengthValue = lengthTable[value>>3]
+		n.length = lengthTable[value>>3]
 	}
 }
 
@@ -61,13 +60,13 @@ func (n *noise) tickEnvelope() {
 }
 
 func (n *noise) tickLength() {
-	if !n.lengthHalt && n.lengthValue > 0 {
-		n.lengthValue--
+	if !n.lengthHalt && n.length > 0 {
+		n.length--
 	}
 }
 
 func (n *noise) tickTimer() {
-	if n.timerValue == 0 {
+	if n.timer == 0 {
 		shift := 1
 		if n.mode6 {
 			shift = 6
@@ -77,14 +76,14 @@ func (n *noise) tickTimer() {
 		b := (n.seq >> shift) & 1
 		n.seq = n.seq>>1 | (a^b)<<14
 		n.sample = float32(n.seq & 1)
-		n.timerValue = n.timerLoad
+		n.timer = n.timerLoad
 	} else {
-		n.timerValue--
+		n.timer--
 	}
 }
 
 func (n *noise) output() float32 {
-	if !n.enabled || n.lengthValue == 0 {
+	if !n.enabled || n.length == 0 {
 		return 0
 	}
 
@@ -100,8 +99,8 @@ func (n *noise) save(enc *gob.Encoder) error {
 		enc.Encode(n.mode6),
 		enc.Encode(n.volume),
 		enc.Encode(n.timerLoad),
-		enc.Encode(n.timerValue),
-		enc.Encode(n.lengthValue),
+		enc.Encode(n.timer),
+		enc.Encode(n.length),
 		enc.Encode(n.lengthHalt),
 	)
 }
@@ -115,8 +114,8 @@ func (n *noise) load(dec *gob.Decoder) error {
 		dec.Decode(&n.mode6),
 		dec.Decode(&n.volume),
 		dec.Decode(&n.timerLoad),
-		dec.Decode(&n.timerValue),
-		dec.Decode(&n.lengthValue),
+		dec.Decode(&n.timer),
+		dec.Decode(&n.length),
 		dec.Decode(&n.lengthHalt),
 	)
 }
