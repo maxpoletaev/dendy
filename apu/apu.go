@@ -114,18 +114,9 @@ func (a *APU) Write(addr uint16, value byte) {
 }
 
 func (a *APU) mix(p1, p2, t, n, d float32) float32 {
-	const (
-		pulseWeight    = 0.20
-		triangleWeight = 0.20
-		noiseWeight    = 0.15
-		dmcWeight      = 0.15
-	)
-
-	return p1*pulseWeight +
-		p2*pulseWeight +
-		t*triangleWeight +
-		n*noiseWeight +
-		d*dmcWeight
+	tndOut := 0.00851*t + 0.00494*n + 0.00335*d
+	pulseOut := 0.00752 * (p1 + p2)
+	return pulseOut + tndOut
 }
 
 func (a *APU) Output() float32 {

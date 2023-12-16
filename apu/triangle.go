@@ -99,7 +99,7 @@ func (tr *triangle) output() float32 {
 		return 0
 	}
 
-	return tr.sample / 15.0
+	return tr.sample
 }
 
 func (tr *triangle) save(enc *gob.Encoder) error {

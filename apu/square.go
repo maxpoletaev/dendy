@@ -140,7 +140,7 @@ func (s *square) output() float32 {
 		vol = s.envelope.volume
 	}
 
-	return s.sample * float32(vol) / 15.0
+	return s.sample * float32(vol)
 }
 
 func (s *square) save(enc *gob.Encoder) error {

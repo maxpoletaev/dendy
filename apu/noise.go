@@ -87,7 +87,7 @@ func (n *noise) output() float32 {
 		return 0
 	}
 
-	return n.sample * float32(n.volume) / 15.0
+	return n.sample * float32(n.volume)
 }
 
 func (n *noise) save(enc *gob.Encoder) error {

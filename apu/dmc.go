@@ -138,7 +138,7 @@ func (d *dmc) tickTimer() {
 }
 
 func (d *dmc) output() float32 {
-	return float32(d.sample) / 15.0
+	return float32(d.sample)
 }
 
 func (d *dmc) save(enc *gob.Encoder) error {
