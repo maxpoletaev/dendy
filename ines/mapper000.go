@@ -1,8 +1,9 @@
 package ines
 
 import (
-	"encoding/gob"
 	"log"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 // Mapper0 is the simplest mapper. It has no registers, and it only supports
@@ -61,10 +62,10 @@ func (m *Mapper0) ReadCHR(addr uint16) byte {
 func (m *Mapper0) WriteCHR(addr uint16, data byte) {
 }
 
-func (m *Mapper0) Save(enc *gob.Encoder) error {
-	return m.rom.Save(enc)
+func (m *Mapper0) SaveState(w *binario.Writer) error {
+	return m.rom.SaveState(w)
 }
 
-func (m *Mapper0) Load(dec *gob.Decoder) error {
-	return m.rom.Load(dec)
+func (m *Mapper0) LoadState(r *binario.Reader) error {
+	return m.rom.LoadState(r)
 }

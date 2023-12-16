@@ -1,8 +1,9 @@
 package apu
 
 import (
-	"encoding/gob"
 	"errors"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 var noiseTable = [16]uint16{
@@ -90,32 +91,32 @@ func (n *noise) output() uint8 {
 	return n.sample * n.volume
 }
 
-func (n *noise) save(enc *gob.Encoder) error {
+func (n *noise) saveState(w *binario.Writer) error {
 	return errors.Join(
-		n.envelope.save(enc),
-		enc.Encode(n.enabled),
-		enc.Encode(n.sample),
-		enc.Encode(n.seq),
-		enc.Encode(n.mode6),
-		enc.Encode(n.volume),
-		enc.Encode(n.timerLoad),
-		enc.Encode(n.timer),
-		enc.Encode(n.length),
-		enc.Encode(n.lengthHalt),
+		n.envelope.saveState(w),
+		w.WriteBool(n.enabled),
+		w.WriteUint8(n.sample),
+		w.WriteUint16(n.seq),
+		w.WriteBool(n.mode6),
+		w.WriteUint8(n.volume),
+		w.WriteUint16(n.timerLoad),
+		w.WriteUint16(n.timer),
+		w.WriteUint8(n.length),
+		w.WriteBool(n.lengthHalt),
 	)
 }
 
-func (n *noise) load(dec *gob.Decoder) error {
+func (n *noise) loadState(r *binario.Reader) error {
 	return errors.Join(
-		n.envelope.load(dec),
-		dec.Decode(&n.enabled),
-		dec.Decode(&n.sample),
-		dec.Decode(&n.seq),
-		dec.Decode(&n.mode6),
-		dec.Decode(&n.volume),
-		dec.Decode(&n.timerLoad),
-		dec.Decode(&n.timer),
-		dec.Decode(&n.length),
-		dec.Decode(&n.lengthHalt),
+		n.envelope.loadState(r),
+		r.ReadBoolTo(&n.enabled),
+		r.ReadUint8To(&n.sample),
+		r.ReadUint16To(&n.seq),
+		r.ReadBoolTo(&n.mode6),
+		r.ReadUint8To(&n.volume),
+		r.ReadUint16To(&n.timerLoad),
+		r.ReadUint16To(&n.timer),
+		r.ReadUint8To(&n.length),
+		r.ReadBoolTo(&n.lengthHalt),
 	)
 }

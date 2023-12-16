@@ -1,10 +1,11 @@
 package ines
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"log"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 // Mapper1 implements the MMC1 mapper.
@@ -197,28 +198,28 @@ func (m *Mapper1) WriteCHR(addr uint16, data byte) {
 	}
 }
 
-func (m *Mapper1) Save(enc *gob.Encoder) error {
+func (m *Mapper1) SaveState(w *binario.Writer) error {
 	return errors.Join(
-		m.rom.Save(enc),
-		enc.Encode(m.sram),
-		enc.Encode(m.control),
-		enc.Encode(m.chrBank0),
-		enc.Encode(m.chrBank1),
-		enc.Encode(m.prgBank),
-		enc.Encode(m.shiftRegister),
-		enc.Encode(m.writeCount),
+		m.rom.SaveState(w),
+		w.WriteBytes(m.sram[:]),
+		w.WriteUint8(m.control),
+		w.WriteUint8(m.chrBank0),
+		w.WriteUint8(m.chrBank1),
+		w.WriteUint8(m.prgBank),
+		w.WriteUint8(m.shiftRegister),
+		w.WriteUint8(m.writeCount),
 	)
 }
 
-func (m *Mapper1) Load(dec *gob.Decoder) error {
+func (m *Mapper1) LoadState(r *binario.Reader) error {
 	return errors.Join(
-		m.rom.Load(dec),
-		dec.Decode(&m.sram),
-		dec.Decode(&m.control),
-		dec.Decode(&m.chrBank0),
-		dec.Decode(&m.chrBank1),
-		dec.Decode(&m.prgBank),
-		dec.Decode(&m.shiftRegister),
-		dec.Decode(&m.writeCount),
+		m.rom.LoadState(r),
+		r.ReadBytesTo(m.sram[:]),
+		r.ReadUint8To(&m.control),
+		r.ReadUint8To(&m.chrBank0),
+		r.ReadUint8To(&m.chrBank1),
+		r.ReadUint8To(&m.prgBank),
+		r.ReadUint8To(&m.shiftRegister),
+		r.ReadUint8To(&m.writeCount),
 	)
 }

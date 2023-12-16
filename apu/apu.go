@@ -1,8 +1,9 @@
 package apu
 
 import (
-	"encoding/gob"
 	"errors"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 var lengthTable = []byte{
@@ -14,7 +15,6 @@ type APU struct {
 	Enabled bool
 
 	mode     uint8
-	time     float64
 	cycle    uint64
 	frame    uint64 // not the same as ppu frame
 	pulse1   square
@@ -41,7 +41,6 @@ func New() *APU {
 
 func (a *APU) Reset() {
 	a.mode = 0
-	a.time = 0
 	a.cycle = 0
 	a.frame = 0
 
@@ -205,36 +204,34 @@ func (a *APU) SetDMACallback(cb func(addr uint16) byte) {
 	a.dmc.dmaRead = cb
 }
 
-func (a *APU) Save(enc *gob.Encoder) error {
+func (a *APU) SaveState(w *binario.Writer) error {
 	return errors.Join(
-		a.pulse1.save(enc),
-		a.pulse2.save(enc),
-		a.triangle.save(enc),
-		a.noise.save(enc),
-		a.dmc.save(enc),
-		enc.Encode(a.pendingIRQ),
-		enc.Encode(a.mode),
-		enc.Encode(a.time),
-		enc.Encode(a.cycle),
-		enc.Encode(a.frame),
-		enc.Encode(a.irqDisable),
-		enc.Encode(a.frameIRQ),
+		a.pulse1.saveState(w),
+		a.pulse2.saveState(w),
+		a.triangle.saveState(w),
+		a.noise.saveState(w),
+		a.dmc.saveState(w),
+		w.WriteBool(a.pendingIRQ),
+		w.WriteUint8(a.mode),
+		w.WriteUint64(a.cycle),
+		w.WriteUint64(a.frame),
+		w.WriteBool(a.irqDisable),
+		w.WriteBool(a.frameIRQ),
 	)
 }
 
-func (a *APU) Load(dec *gob.Decoder) error {
+func (a *APU) LoadState(r *binario.Reader) error {
 	return errors.Join(
-		a.pulse1.load(dec),
-		a.pulse2.load(dec),
-		a.triangle.load(dec),
-		a.noise.load(dec),
-		a.dmc.load(dec),
-		dec.Decode(&a.pendingIRQ),
-		dec.Decode(&a.mode),
-		dec.Decode(&a.time),
-		dec.Decode(&a.cycle),
-		dec.Decode(&a.frame),
-		dec.Decode(&a.irqDisable),
-		dec.Decode(&a.frameIRQ),
+		a.pulse1.loadState(r),
+		a.pulse2.loadState(r),
+		a.triangle.loadState(r),
+		a.noise.loadState(r),
+		a.dmc.loadState(r),
+		r.ReadBoolTo(&a.pendingIRQ),
+		r.ReadUint8To(&a.mode),
+		r.ReadUint64To(&a.cycle),
+		r.ReadUint64To(&a.frame),
+		r.ReadBoolTo(&a.irqDisable),
+		r.ReadBoolTo(&a.frameIRQ),
 	)
 }

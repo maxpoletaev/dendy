@@ -1,8 +1,9 @@
 package apu
 
 import (
-	"encoding/gob"
 	"errors"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 var squareDutyTable = [4]byte{
@@ -143,44 +144,46 @@ func (s *square) output() uint8 {
 	return s.sample * vol
 }
 
-func (s *square) save(enc *gob.Encoder) error {
+func (s *square) saveState(w *binario.Writer) error {
 	return errors.Join(
-		s.envelope.save(enc),
-		enc.Encode(s.enabled),
-		enc.Encode(s.sample),
-		enc.Encode(s.volume),
-		enc.Encode(s.duty),
-		enc.Encode(s.dutyBit),
-		enc.Encode(s.timer),
-		enc.Encode(s.timerLoad),
-		enc.Encode(s.length),
-		enc.Encode(s.lengthHalt),
-		enc.Encode(s.sweepEnabled),
-		enc.Encode(s.sweep),
-		enc.Encode(s.sweepLoad),
-		enc.Encode(s.sweepNegate),
-		enc.Encode(s.sweepShift),
-		enc.Encode(s.sweepReload),
+		s.envelope.saveState(w),
+		w.WriteBool(s.enabled),
+		w.WriteBool(s.isPulse1),
+		w.WriteUint8(s.sample),
+		w.WriteUint8(s.volume),
+		w.WriteUint8(s.duty),
+		w.WriteUint8(s.dutyBit),
+		w.WriteUint16(s.timerLoad),
+		w.WriteUint16(s.timer),
+		w.WriteUint8(s.length),
+		w.WriteBool(s.lengthHalt),
+		w.WriteBool(s.sweepEnabled),
+		w.WriteBool(s.sweepNegate),
+		w.WriteUint8(s.sweepShift),
+		w.WriteUint8(s.sweepLoad),
+		w.WriteBool(s.sweepReload),
+		w.WriteUint8(s.sweep),
 	)
 }
 
-func (s *square) load(dec *gob.Decoder) error {
+func (s *square) loadState(r *binario.Reader) error {
 	return errors.Join(
-		s.envelope.load(dec),
-		dec.Decode(&s.enabled),
-		dec.Decode(&s.sample),
-		dec.Decode(&s.volume),
-		dec.Decode(&s.duty),
-		dec.Decode(&s.dutyBit),
-		dec.Decode(&s.timer),
-		dec.Decode(&s.timerLoad),
-		dec.Decode(&s.length),
-		dec.Decode(&s.lengthHalt),
-		dec.Decode(&s.sweepEnabled),
-		dec.Decode(&s.sweep),
-		dec.Decode(&s.sweepLoad),
-		dec.Decode(&s.sweepNegate),
-		dec.Decode(&s.sweepShift),
-		dec.Decode(&s.sweepReload),
+		s.envelope.loadState(r),
+		r.ReadBoolTo(&s.enabled),
+		r.ReadBoolTo(&s.isPulse1),
+		r.ReadUint8To(&s.sample),
+		r.ReadUint8To(&s.volume),
+		r.ReadUint8To(&s.duty),
+		r.ReadUint8To(&s.dutyBit),
+		r.ReadUint16To(&s.timerLoad),
+		r.ReadUint16To(&s.timer),
+		r.ReadUint8To(&s.length),
+		r.ReadBoolTo(&s.lengthHalt),
+		r.ReadBoolTo(&s.sweepEnabled),
+		r.ReadBoolTo(&s.sweepNegate),
+		r.ReadUint8To(&s.sweepShift),
+		r.ReadUint8To(&s.sweepLoad),
+		r.ReadBoolTo(&s.sweepReload),
+		r.ReadUint8To(&s.sweep),
 	)
 }

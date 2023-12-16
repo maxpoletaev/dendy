@@ -2,6 +2,8 @@ package cpu
 
 import "fmt"
 
+type AddrMode uint8
+
 const (
 	AddrModeImp AddrMode = iota + 1
 	AddrModeAcc

@@ -1,9 +1,10 @@
 package ines
 
 import (
-	"encoding/gob"
 	"errors"
 	"log"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 type Mapper3 struct {
@@ -69,20 +70,32 @@ func (m *Mapper3) WriteCHR(addr uint16, data byte) {
 	m.rom.CHR[addr] = data
 }
 
-func (m *Mapper3) Save(enc *gob.Encoder) error {
+func (m *Mapper3) SaveState(w *binario.Writer) error {
 	return errors.Join(
-		m.rom.Save(enc),
-		enc.Encode(m.chrBank0),
-		enc.Encode(m.prgBank0),
-		enc.Encode(m.prgBank1),
+		m.rom.SaveState(w),
+		w.WriteUint64(uint64(m.chrBank0)),
+		w.WriteUint64(uint64(m.prgBank0)),
+		w.WriteUint64(uint64(m.prgBank1)),
 	)
 }
 
-func (m *Mapper3) Load(dec *gob.Decoder) error {
-	return errors.Join(
-		m.rom.Load(dec),
-		dec.Decode(&m.chrBank0),
-		dec.Decode(&m.prgBank0),
-		dec.Decode(&m.prgBank1),
+func (m *Mapper3) LoadState(r *binario.Reader) error {
+	var (
+		chrBank0 uint64
+		prgBank0 uint64
+		prgBank1 uint64
 	)
+
+	err := errors.Join(
+		m.rom.LoadState(r),
+		r.ReadUint64To(&chrBank0),
+		r.ReadUint64To(&prgBank0),
+		r.ReadUint64To(&prgBank1),
+	)
+
+	m.chrBank0 = int(chrBank0)
+	m.prgBank0 = int(prgBank0)
+	m.prgBank1 = int(prgBank1)
+
+	return err
 }

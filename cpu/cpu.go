@@ -4,12 +4,7 @@ import (
 	"fmt"
 )
 
-type (
-	Flags     uint8
-	AddrMode  uint8
-	Interrupt uint8
-	InstrID   uint8
-)
+type Flags = uint8
 
 const (
 	flagCarry     Flags = 1 << 0
@@ -21,15 +16,17 @@ const (
 	flagNegative        = 1 << 7
 )
 
-const (
-	vecNMI   uint16 = 0xFFFA // Non-maskable interrupt vector
-	vecReset uint16 = 0xFFFC // Reset vector
-	vecIRQ   uint16 = 0xFFFE // Interrupt request vector
-)
+type Interrupt = uint8
 
 const (
 	interruptNMI Interrupt = iota + 1
 	interruptIRQ
+)
+
+const (
+	vecNMI   uint16 = 0xFFFA // Non-maskable interrupt vector
+	vecReset uint16 = 0xFFFC // Reset vector
+	vecIRQ   uint16 = 0xFFFE // Interrupt request vector
 )
 
 type operand struct {

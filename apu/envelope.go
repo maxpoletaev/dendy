@@ -1,8 +1,9 @@
 package apu
 
 import (
-	"encoding/gob"
 	"errors"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 type envelope struct {
@@ -43,24 +44,22 @@ func (e *envelope) tick() {
 	}
 }
 
-func (e *envelope) save(enc *gob.Encoder) error {
+func (e *envelope) saveState(w *binario.Writer) error {
 	return errors.Join(
-		enc.Encode(e.enabled),
-		enc.Encode(e.start),
-		enc.Encode(e.loop),
-		enc.Encode(e.counter),
-		enc.Encode(e.counterLoad),
-		enc.Encode(e.volume),
+		w.WriteBool(e.enabled),
+		w.WriteBool(e.start),
+		w.WriteBool(e.loop),
+		w.WriteUint8(e.counterLoad),
+		w.WriteUint8(e.counter),
 	)
 }
 
-func (e *envelope) load(dec *gob.Decoder) error {
+func (e *envelope) loadState(r *binario.Reader) error {
 	return errors.Join(
-		dec.Decode(&e.enabled),
-		dec.Decode(&e.start),
-		dec.Decode(&e.loop),
-		dec.Decode(&e.counter),
-		dec.Decode(&e.counterLoad),
-		dec.Decode(&e.volume),
+		r.ReadBoolTo(&e.enabled),
+		r.ReadBoolTo(&e.start),
+		r.ReadBoolTo(&e.loop),
+		r.ReadUint8To(&e.counterLoad),
+		r.ReadUint8To(&e.counter),
 	)
 }

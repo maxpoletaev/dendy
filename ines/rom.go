@@ -1,21 +1,20 @@
 package ines
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
-)
 
-type (
-	MirrorMode byte
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 var (
 	ErrSavedStateMismatch = errors.New("saved state mismatch (probably different roms)")
 )
+
+type MirrorMode = uint8
 
 const (
 	MirrorHorizontal MirrorMode = 0
@@ -110,25 +109,26 @@ func loadROM(filename string) (*ROM, error) {
 	}, nil
 }
 
-func (r *ROM) Save(enc *gob.Encoder) error {
+func (r *ROM) SaveState(w *binario.Writer) error {
 	return errors.Join(
-		enc.Encode(r.crc32),
-		enc.Encode(r.PRG),
-		enc.Encode(r.CHR),
+		w.WriteUint32(r.crc32),
+		w.WriteBytes(r.PRG),
+		w.WriteBytes(r.CHR),
 	)
 }
 
-func (r *ROM) Load(dec *gob.Decoder) error {
-	var hash uint32
-
-	if err := dec.Decode(&hash); err != nil {
+func (r *ROM) LoadState(reader *binario.Reader) error {
+	hash, err := reader.ReadUint32()
+	if err != nil {
 		return err
-	} else if hash != r.crc32 {
+	}
+
+	if hash != r.crc32 {
 		return ErrSavedStateMismatch
 	}
 
 	return errors.Join(
-		dec.Decode(&r.PRG),
-		dec.Decode(&r.CHR),
+		reader.ReadBytesTo(r.PRG),
+		reader.ReadBytesTo(r.CHR),
 	)
 }

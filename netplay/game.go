@@ -2,13 +2,14 @@ package netplay
 
 import (
 	"bytes"
-	"encoding/gob"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
+	"github.com/maxpoletaev/dendy/internal/binario"
 	"github.com/maxpoletaev/dendy/internal/ringqueue"
 )
 
@@ -149,9 +150,9 @@ func (g *Game) Sleep(d int) {
 
 func (g *Game) createCheckpoint() {
 	buf := bytes.NewBuffer(g.checkpoint.State[:0])
-	encoder := gob.NewEncoder(buf)
+	writer := binario.NewWriter(buf, binary.LittleEndian)
 
-	if err := g.bus.Save(encoder); err != nil {
+	if err := g.bus.SaveState(writer); err != nil {
 		panic(fmt.Errorf("failed create checkpoint: %w", err))
 	}
 
@@ -161,9 +162,9 @@ func (g *Game) createCheckpoint() {
 
 func (g *Game) restoreCheckpoint() {
 	buf := bytes.NewBuffer(g.checkpoint.State)
-	decoder := gob.NewDecoder(buf)
+	reader := binario.NewReader(buf, binary.LittleEndian)
 
-	if err := g.bus.Load(decoder); err != nil {
+	if err := g.bus.LoadState(reader); err != nil {
 		panic(fmt.Errorf("failed to restore checkpoint: %w", err))
 	}
 

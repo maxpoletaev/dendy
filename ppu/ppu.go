@@ -9,9 +9,9 @@ import (
 )
 
 type (
-	CtrlFlags   uint8
-	MaskFlags   uint8
-	StatusFlags uint8
+	CtrlFlags   = uint8
+	MaskFlags   = uint8
+	StatusFlags = uint8
 )
 
 const (

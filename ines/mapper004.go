@@ -1,10 +1,11 @@
 package ines
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"log"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 // Mapper4 implements the MMC3 mapper.
@@ -210,36 +211,83 @@ func (m *Mapper4) WriteCHR(addr uint16, data byte) {
 	}
 }
 
-func (m *Mapper4) Save(enc *gob.Encoder) error {
-	return errors.Join(
-		m.rom.Save(enc),
-		enc.Encode(m.sram),
-		enc.Encode(m.mirror),
-		enc.Encode(m.prgMode),
-		enc.Encode(m.chrMode),
-		enc.Encode(m.targetReg),
-		enc.Encode(m.registers),
-		enc.Encode(m.chrBank),
-		enc.Encode(m.prgBank),
-		enc.Encode(m.irqEnable),
-		enc.Encode(m.irqCounter),
-		enc.Encode(m.irqReload),
+func (m *Mapper4) SaveState(w *binario.Writer) error {
+	err := errors.Join(
+		m.rom.SaveState(w),
+		w.WriteBytes(m.sram[:]),
+		w.WriteUint8(m.mirror),
+		w.WriteUint8(m.prgMode),
+		w.WriteUint8(m.chrMode),
+		w.WriteUint8(m.targetReg),
+		w.WriteBool(m.irqEnable),
+		w.WriteUint8(m.irqCounter),
+		w.WriteUint8(m.irqReload),
 	)
+
+	if err != nil {
+		return err
+	}
+
+	for i := range m.registers {
+		if err := w.WriteUint32(uint32(m.registers[i])); err != nil {
+			return err
+		}
+	}
+
+	for i := range m.chrBank {
+		if err := w.WriteUint32(uint32(m.chrBank[i])); err != nil {
+			return err
+		}
+	}
+
+	for i := range m.prgBank {
+		if err := w.WriteUint32(uint32(m.prgBank[i])); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (m *Mapper4) Load(dec *gob.Decoder) error {
-	return errors.Join(
-		m.rom.Load(dec),
-		dec.Decode(&m.sram),
-		dec.Decode(&m.mirror),
-		dec.Decode(&m.prgMode),
-		dec.Decode(&m.chrMode),
-		dec.Decode(&m.targetReg),
-		dec.Decode(&m.registers),
-		dec.Decode(&m.chrBank),
-		dec.Decode(&m.prgBank),
-		dec.Decode(&m.irqEnable),
-		dec.Decode(&m.irqCounter),
-		dec.Decode(&m.irqReload),
+func (m *Mapper4) LoadState(r *binario.Reader) error {
+	err := errors.Join(
+		m.rom.LoadState(r),
+		r.ReadBytesTo(m.sram[:]),
+		r.ReadUint8To(&m.mirror),
+		r.ReadUint8To(&m.prgMode),
+		r.ReadUint8To(&m.chrMode),
+		r.ReadUint8To(&m.targetReg),
+		r.ReadBoolTo(&m.irqEnable),
+		r.ReadUint8To(&m.irqCounter),
+		r.ReadUint8To(&m.irqReload),
 	)
+
+	for i := range m.registers {
+		val, err := r.ReadUint32()
+		if err != nil {
+			return err
+		}
+
+		m.registers[i] = int(val)
+	}
+
+	for i := range m.chrBank {
+		val, err := r.ReadUint32()
+		if err != nil {
+			return err
+		}
+
+		m.chrBank[i] = int(val)
+	}
+
+	for i := range m.prgBank {
+		val, err := r.ReadUint32()
+		if err != nil {
+			return err
+		}
+
+		m.prgBank[i] = int(val)
+	}
+
+	return err
 }

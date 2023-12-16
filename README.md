@@ -61,10 +61,10 @@ RetroArch and Fightcade. The emulation always runs at the full speed on both sid
 and the player inputs attached to frame numbers are exchanged over the network. It
 compensates for slight drifts in the clock speed and network latency by predicting
 input events for the other player when the real input has not yet been received. When
-the input from the remote player arrives, it corrects itself by rewinding to the last
-known synchronized state and replaying the inputs from that point. Theoretically, this
-should keep the game playable for both sides without any local input delay, even if
-the network connection is not very stable (e.g., over the Internet). When tested,
+the input from the remote player arrives, it corrects itself by "rolling back" to the
+last known synchronized state and replaying the inputs from that point. Theoretically,
+this should keep the game playable for both sides without any local input delay, even
+if the network connection is not very stable (e.g., over the Internet). When tested,
 latencies of up to 150ms felt pretty comfortable.
 
 ## Tested Games

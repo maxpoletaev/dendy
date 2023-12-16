@@ -1,9 +1,10 @@
 package apu
 
 import (
-	"encoding/gob"
 	"errors"
 	"math/bits"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 var dmcTimerTable = []uint16{
@@ -141,44 +142,44 @@ func (d *dmc) output() uint8 {
 	return d.sample
 }
 
-func (d *dmc) save(enc *gob.Encoder) error {
+func (d *dmc) saveState(w *binario.Writer) error {
 	return errors.Join(
-		enc.Encode(d.enabled),
-		enc.Encode(d.loop),
-		enc.Encode(d.irqEnabled),
-		enc.Encode(d.irqPending),
-		enc.Encode(d.timerLoad),
-		enc.Encode(d.timer),
-		enc.Encode(d.addrLoad),
-		enc.Encode(d.addr),
-		enc.Encode(d.lengthLoad),
-		enc.Encode(d.length),
-		enc.Encode(d.bitsLeft),
-		enc.Encode(d.shifter),
-		enc.Encode(d.buffer),
-		enc.Encode(d.sample),
-		enc.Encode(d.isEmpty),
-		enc.Encode(d.isSilent),
+		w.WriteBool(d.enabled),
+		w.WriteBool(d.loop),
+		w.WriteBool(d.irqEnabled),
+		w.WriteBool(d.irqPending),
+		w.WriteUint16(d.timerLoad),
+		w.WriteUint16(d.timer),
+		w.WriteUint16(d.addrLoad),
+		w.WriteUint16(d.addr),
+		w.WriteUint16(d.lengthLoad),
+		w.WriteUint16(d.length),
+		w.WriteUint8(d.bitsLeft),
+		w.WriteUint8(d.shifter),
+		w.WriteUint8(d.buffer),
+		w.WriteUint8(d.sample),
+		w.WriteBool(d.isEmpty),
+		w.WriteBool(d.isSilent),
 	)
 }
 
-func (d *dmc) load(dec *gob.Decoder) error {
+func (d *dmc) loadState(r *binario.Reader) error {
 	return errors.Join(
-		dec.Decode(&d.enabled),
-		dec.Decode(&d.loop),
-		dec.Decode(&d.irqEnabled),
-		dec.Decode(&d.irqPending),
-		dec.Decode(&d.timerLoad),
-		dec.Decode(&d.timer),
-		dec.Decode(&d.addrLoad),
-		dec.Decode(&d.addr),
-		dec.Decode(&d.lengthLoad),
-		dec.Decode(&d.length),
-		dec.Decode(&d.bitsLeft),
-		dec.Decode(&d.shifter),
-		dec.Decode(&d.buffer),
-		dec.Decode(&d.sample),
-		dec.Decode(&d.isEmpty),
-		dec.Decode(&d.isSilent),
+		r.ReadBoolTo(&d.enabled),
+		r.ReadBoolTo(&d.loop),
+		r.ReadBoolTo(&d.irqEnabled),
+		r.ReadBoolTo(&d.irqPending),
+		r.ReadUint16To(&d.timerLoad),
+		r.ReadUint16To(&d.timer),
+		r.ReadUint16To(&d.addrLoad),
+		r.ReadUint16To(&d.addr),
+		r.ReadUint16To(&d.lengthLoad),
+		r.ReadUint16To(&d.length),
+		r.ReadUint8To(&d.bitsLeft),
+		r.ReadUint8To(&d.shifter),
+		r.ReadUint8To(&d.buffer),
+		r.ReadUint8To(&d.sample),
+		r.ReadBoolTo(&d.isEmpty),
+		r.ReadBoolTo(&d.isSilent),
 	)
 }

@@ -1,35 +1,36 @@
 package console
 
 import (
-	"encoding/gob"
 	"errors"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
-func (b *Bus) Save(enc *gob.Encoder) error {
+func (b *Bus) SaveState(w *binario.Writer) error {
 	err := errors.Join(
-		enc.Encode(b.RAM),
-		enc.Encode(b.cycles),
-		b.CPU.Save(enc),
-		b.PPU.Save(enc),
-		b.APU.Save(enc),
-		b.Cart.Save(enc),
-		b.Joy1.Save(enc),
-		b.Joy2.Save(enc),
+		w.WriteBytes(b.RAM[:]),
+		w.WriteUint64(b.cycles),
+		b.CPU.SaveState(w),
+		b.PPU.SaveState(w),
+		b.APU.SaveState(w),
+		b.Cart.SaveState(w),
+		b.Joy1.SaveState(w),
+		b.Joy2.SaveState(w),
 	)
 
 	return err
 }
 
-func (b *Bus) Load(dec *gob.Decoder) error {
+func (b *Bus) LoadState(r *binario.Reader) error {
 	err := errors.Join(
-		dec.Decode(&b.RAM),
-		dec.Decode(&b.cycles),
-		b.CPU.Load(dec),
-		b.PPU.Load(dec),
-		b.APU.Load(dec),
-		b.Cart.Load(dec),
-		b.Joy1.Load(dec),
-		b.Joy2.Load(dec),
+		r.ReadBytesTo(b.RAM[:]),
+		r.ReadUint64To(&b.cycles),
+		b.CPU.LoadState(r),
+		b.PPU.LoadState(r),
+		b.APU.LoadState(r),
+		b.Cart.LoadState(r),
+		b.Joy1.LoadState(r),
+		b.Joy2.LoadState(r),
 	)
 
 	return err

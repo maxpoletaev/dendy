@@ -1,65 +1,69 @@
 package ppu
 
 import (
-	"encoding/gob"
 	"errors"
-	"fmt"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
-func (p *PPU) Save(enc *gob.Encoder) error {
-	err := errors.Join(
-		enc.Encode(p.pendingNMI),
-		enc.Encode(p.frameComplete),
-		enc.Encode(p.scanlineComplete),
-		enc.Encode(p.ctrl),
-		enc.Encode(p.mask),
-		enc.Encode(p.status),
-		enc.Encode(p.oamAddr),
-		enc.Encode(p.oamData),
-		enc.Encode(p.vramAddr),
-		enc.Encode(p.tmpAddr),
-		enc.Encode(p.vramBuffer),
-		enc.Encode(p.addrLatch),
-		enc.Encode(p.fineX),
-		enc.Encode(p.nameTable),
-		enc.Encode(p.paletteTable),
-		enc.Encode(p.cycle),
-		enc.Encode(p.scanline),
-		enc.Encode(p.oddFrame),
+func (p *PPU) SaveState(w *binario.Writer) error {
+	return errors.Join(
+		w.WriteBool(p.pendingNMI),
+		w.WriteBool(p.frameComplete),
+		w.WriteBool(p.scanlineComplete),
+		w.WriteUint8(p.ctrl),
+		w.WriteUint8(p.mask),
+		w.WriteUint8(p.status),
+		w.WriteUint8(p.oamAddr),
+		w.WriteBytes(p.oamData[:]),
+		w.WriteUint16(uint16(p.vramAddr)),
+		w.WriteUint16(uint16(p.tmpAddr)),
+		w.WriteUint8(p.vramBuffer),
+		w.WriteBool(p.addrLatch),
+		w.WriteUint8(p.fineX),
+		w.WriteBytes(p.nameTable[0][:]),
+		w.WriteBytes(p.nameTable[1][:]),
+		w.WriteBytes(p.paletteTable[:]),
+		w.WriteUint64(uint64(p.cycle)),
+		w.WriteUint64(uint64(p.scanline)),
+		w.WriteBool(p.oddFrame),
 	)
-
-	if err != nil {
-		return fmt.Errorf("failed to encode PPU state: %w", err)
-	}
-
-	return nil
 }
 
-func (p *PPU) Load(dec *gob.Decoder) error {
-	err := errors.Join(
-		dec.Decode(&p.pendingNMI),
-		dec.Decode(&p.frameComplete),
-		dec.Decode(&p.scanlineComplete),
-		dec.Decode(&p.ctrl),
-		dec.Decode(&p.mask),
-		dec.Decode(&p.status),
-		dec.Decode(&p.oamAddr),
-		dec.Decode(&p.oamData),
-		dec.Decode(&p.vramAddr),
-		dec.Decode(&p.tmpAddr),
-		dec.Decode(&p.vramBuffer),
-		dec.Decode(&p.addrLatch),
-		dec.Decode(&p.fineX),
-		dec.Decode(&p.nameTable),
-		dec.Decode(&p.paletteTable),
-		dec.Decode(&p.cycle),
-		dec.Decode(&p.scanline),
-		dec.Decode(&p.oddFrame),
+func (p *PPU) LoadState(r *binario.Reader) error {
+	var (
+		currAddr uint16
+		tmpAddr  uint16
+		cycle    uint64
+		scanline uint64
 	)
 
-	if err != nil {
-		return fmt.Errorf("failed to decode PPU state: %w", err)
-	}
+	err := errors.Join(
+		r.ReadBoolTo(&p.pendingNMI),
+		r.ReadBoolTo(&p.frameComplete),
+		r.ReadBoolTo(&p.scanlineComplete),
+		r.ReadUint8To(&p.ctrl),
+		r.ReadUint8To(&p.mask),
+		r.ReadUint8To(&p.status),
+		r.ReadUint8To(&p.oamAddr),
+		r.ReadBytesTo(p.oamData[:]),
+		r.ReadUint16To(&currAddr),
+		r.ReadUint16To(&tmpAddr),
+		r.ReadUint8To(&p.vramBuffer),
+		r.ReadBoolTo(&p.addrLatch),
+		r.ReadUint8To(&p.fineX),
+		r.ReadBytesTo(p.nameTable[0][:]),
+		r.ReadBytesTo(p.nameTable[1][:]),
+		r.ReadBytesTo(p.paletteTable[:]),
+		r.ReadUint64To(&cycle),
+		r.ReadUint64To(&scanline),
+		r.ReadBoolTo(&p.oddFrame),
+	)
 
-	return nil
+	p.vramAddr = vramAddr(currAddr)
+	p.tmpAddr = vramAddr(tmpAddr)
+	p.scanline = int(scanline)
+	p.cycle = int(cycle)
+
+	return err
 }

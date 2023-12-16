@@ -1,8 +1,9 @@
 package input
 
 import (
-	"encoding/gob"
 	"errors"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 type Button int
@@ -57,18 +58,18 @@ func (c *Joystick) Write(value byte) {
 	}
 }
 
-func (c *Joystick) Save(enc *gob.Encoder) error {
+func (c *Joystick) SaveState(w *binario.Writer) error {
 	return errors.Join(
-		enc.Encode(c.buttons),
-		enc.Encode(c.index),
-		enc.Encode(c.reset),
+		w.WriteUint8(c.buttons),
+		w.WriteUint8(c.index),
+		w.WriteUint8(c.reset),
 	)
 }
 
-func (c *Joystick) Load(dec *gob.Decoder) error {
+func (c *Joystick) LoadState(r *binario.Reader) error {
 	return errors.Join(
-		dec.Decode(&c.buttons),
-		dec.Decode(&c.index),
-		dec.Decode(&c.reset),
+		r.ReadUint8To(&c.buttons),
+		r.ReadUint8To(&c.index),
+		r.ReadUint8To(&c.reset),
 	)
 }

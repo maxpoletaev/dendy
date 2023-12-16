@@ -1,47 +1,43 @@
 package cpu
 
 import (
-	"encoding/gob"
 	"errors"
-	"fmt"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
-func (cpu *CPU) Save(enc *gob.Encoder) error {
-	err := errors.Join(
-		enc.Encode(cpu.A),
-		enc.Encode(cpu.X),
-		enc.Encode(cpu.Y),
-		enc.Encode(cpu.P),
-		enc.Encode(cpu.SP),
-		enc.Encode(cpu.PC),
-		enc.Encode(cpu.Cycles),
-		enc.Encode(cpu.interrupt),
-		enc.Encode(cpu.Halt),
+func (cpu *CPU) SaveState(w *binario.Writer) error {
+	return errors.Join(
+		w.WriteUint8(cpu.A),
+		w.WriteUint8(cpu.X),
+		w.WriteUint8(cpu.Y),
+		w.WriteUint8(cpu.P),
+		w.WriteUint8(cpu.SP),
+		w.WriteUint16(cpu.PC),
+		w.WriteUint64(cpu.Cycles),
+		w.WriteUint8(cpu.interrupt),
+		w.WriteUint32(uint32(cpu.Halt)),
 	)
-
-	if err != nil {
-		return fmt.Errorf("failed to encode CPU state: %w", err)
-	}
-
-	return nil
 }
 
-func (cpu *CPU) Load(dec *gob.Decoder) error {
-	err := errors.Join(
-		dec.Decode(&cpu.A),
-		dec.Decode(&cpu.X),
-		dec.Decode(&cpu.Y),
-		dec.Decode(&cpu.P),
-		dec.Decode(&cpu.SP),
-		dec.Decode(&cpu.PC),
-		dec.Decode(&cpu.Cycles),
-		dec.Decode(&cpu.interrupt),
-		dec.Decode(&cpu.Halt),
+func (cpu *CPU) LoadState(r *binario.Reader) error {
+	var (
+		halt uint32
 	)
 
-	if err != nil {
-		return fmt.Errorf("failed to decode CPU state: %w", err)
-	}
+	err := errors.Join(
+		r.ReadUint8To(&cpu.A),
+		r.ReadUint8To(&cpu.X),
+		r.ReadUint8To(&cpu.Y),
+		r.ReadUint8To(&cpu.P),
+		r.ReadUint8To(&cpu.SP),
+		r.ReadUint16To(&cpu.PC),
+		r.ReadUint64To(&cpu.Cycles),
+		r.ReadUint8To(&cpu.interrupt),
+		r.ReadUint32To(&halt),
+	)
 
-	return nil
+	cpu.Halt = int(halt)
+
+	return err
 }

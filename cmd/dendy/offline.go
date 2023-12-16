@@ -2,13 +2,14 @@ package main
 
 import (
 	"bufio"
-	"encoding/gob"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
+	"github.com/maxpoletaev/dendy/internal/binario"
 	"github.com/maxpoletaev/dendy/ui"
 )
 
@@ -39,8 +40,8 @@ func loadState(bus *console.Bus, saveFile string) (bool, error) {
 		}
 	}()
 
-	decoder := gob.NewDecoder(f)
-	if err := bus.Load(decoder); err != nil {
+	reader := binario.NewReader(f, binary.LittleEndian)
+	if err := bus.LoadState(reader); err != nil {
 		return false, err
 	}
 
@@ -61,8 +62,8 @@ func saveState(bus *console.Bus, saveFile string) error {
 		}
 	}()
 
-	encoder := gob.NewEncoder(f)
-	if err := bus.Save(encoder); err != nil {
+	writer := binario.NewWriter(f, binary.LittleEndian)
+	if err := bus.SaveState(writer); err != nil {
 		return err
 	}
 

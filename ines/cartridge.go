@@ -1,9 +1,10 @@
 package ines
 
 import (
-	"encoding/gob"
 	"fmt"
 	"log"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 type Cartridge interface {
@@ -23,10 +24,10 @@ type Cartridge interface {
 	ReadCHR(addr uint16) byte
 	// WriteCHR handles PPU writes to CHR ROM (0x0000-0x1FFF).
 	WriteCHR(addr uint16, data byte)
-	// Save saves the cartridge state to the given encoder.
-	Save(enc *gob.Encoder) error
-	// Load restores the cartridge state from the given decoder.
-	Load(dec *gob.Decoder) error
+	// SaveState saves the cartridge state to the given writer.
+	SaveState(w *binario.Writer) error
+	// LoadState restores the cartridge state from the given reader.
+	LoadState(r *binario.Reader) error
 }
 
 func Load(path string) (Cartridge, error) {
