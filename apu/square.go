@@ -15,7 +15,7 @@ var squareDutyTable = [4]byte{
 type square struct {
 	enabled  bool
 	isPulse1 bool
-	sample   float32
+	sample   uint8
 	volume   uint8
 	duty     uint8
 	dutyBit  uint8
@@ -126,11 +126,11 @@ func (s *square) tickTimer() {
 	} else {
 		s.timer = s.timerLoad
 		s.dutyBit = (s.dutyBit + 1) & 0b111
-		s.sample = float32((s.duty >> s.dutyBit) & 1)
+		s.sample = (s.duty >> s.dutyBit) & 1
 	}
 }
 
-func (s *square) output() float32 {
+func (s *square) output() uint8 {
 	if !s.enabled || s.length == 0 || s.timer < 8 {
 		return 0
 	}
@@ -140,7 +140,7 @@ func (s *square) output() float32 {
 		vol = s.envelope.volume
 	}
 
-	return s.sample * float32(vol)
+	return s.sample * vol
 }
 
 func (s *square) save(enc *gob.Encoder) error {

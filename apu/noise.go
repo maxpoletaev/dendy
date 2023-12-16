@@ -12,7 +12,7 @@ var noiseTable = [16]uint16{
 
 type noise struct {
 	enabled  bool
-	sample   float32
+	sample   uint8
 	seq      uint16
 	mode6    bool
 	volume   uint8
@@ -75,19 +75,19 @@ func (n *noise) tickTimer() {
 		a := n.seq & 1
 		b := (n.seq >> shift) & 1
 		n.seq = n.seq>>1 | (a^b)<<14
-		n.sample = float32(n.seq & 1)
+		n.sample = uint8(n.seq & 1)
 		n.timer = n.timerLoad
 	} else {
 		n.timer--
 	}
 }
 
-func (n *noise) output() float32 {
+func (n *noise) output() uint8 {
 	if !n.enabled || n.length == 0 {
 		return 0
 	}
 
-	return n.sample * float32(n.volume)
+	return n.sample * n.volume
 }
 
 func (n *noise) save(enc *gob.Encoder) error {

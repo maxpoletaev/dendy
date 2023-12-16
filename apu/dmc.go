@@ -137,8 +137,8 @@ func (d *dmc) tickTimer() {
 	}
 }
 
-func (d *dmc) output() float32 {
-	return float32(d.sample)
+func (d *dmc) output() uint8 {
+	return d.sample
 }
 
 func (d *dmc) save(enc *gob.Encoder) error {

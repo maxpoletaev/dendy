@@ -113,9 +113,9 @@ func (a *APU) Write(addr uint16, value byte) {
 	}
 }
 
-func (a *APU) mix(p1, p2, t, n, d float32) float32 {
-	tndOut := 0.00851*t + 0.00494*n + 0.00335*d
-	pulseOut := 0.00752 * (p1 + p2)
+func (a *APU) mix(p1, p2, t, n, d uint8) float32 {
+	tndOut := 0.00851*float32(t) + 0.00494*float32(n) + 0.00335*float32(d)
+	pulseOut := 0.00752 * (float32(p1) + float32(p2))
 	return pulseOut + tndOut
 }
 
@@ -135,7 +135,7 @@ func (a *APU) Output() float32 {
 		out = f.do(out)
 	}
 
-	return out
+	return out * 5.0
 }
 
 func (a *APU) Tick() {

@@ -7,7 +7,7 @@ import (
 
 type triangle struct {
 	enabled  bool
-	sample   float32
+	sample   uint8
 	sequence uint8
 
 	// Timer
@@ -87,14 +87,14 @@ func (tr *triangle) tickTimer() {
 		tr.timer = tr.timerLoad
 
 		if tr.sequence&0x10 == 0 {
-			tr.sample = float32(tr.sequence ^ 0x1F)
+			tr.sample = tr.sequence ^ 0x1F
 		} else {
-			tr.sample = float32(tr.sequence)
+			tr.sample = tr.sequence
 		}
 	}
 }
 
-func (tr *triangle) output() float32 {
+func (tr *triangle) output() uint8 {
 	if !tr.enabled {
 		return 0
 	}
