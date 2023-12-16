@@ -6,8 +6,9 @@ import (
 
 type (
 	Flags     uint8
-	AddrMode  int
-	Interrupt int
+	AddrMode  uint8
+	Interrupt uint8
+	InstrID   uint8
 )
 
 const (
@@ -197,10 +198,10 @@ func (cpu *CPU) Tick(mem Memory) bool {
 	}
 
 	opr := cpu.fetchOperand(mem, instr.AddrMode)
-	ok = cpu.execute(mem, instr, opr)
+	ok = cpu.execute(mem, &instr, opr)
 
 	if !ok && cpu.AllowIllegal {
-		ok = cpu.executeIllegal(mem, instr, opr)
+		ok = cpu.executeIllegal(mem, &instr, opr)
 	}
 
 	if !ok {

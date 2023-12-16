@@ -1,118 +1,118 @@
 package cpu
 
-func (cpu *CPU) execute(mem Memory, instr Instruction, arg operand) bool {
-	switch instr.Name {
-	case "NOP":
+func (cpu *CPU) execute(mem Memory, instr *Instruction, arg operand) bool {
+	switch instr.ID {
+	case NOP:
 		// do nothing
-	case "LDA":
+	case LDA:
 		cpu.lda(mem, arg)
-	case "STA":
+	case STA:
 		cpu.sta(mem, arg)
-	case "LDX":
+	case LDX:
 		cpu.ldx(mem, arg)
-	case "STX":
+	case STX:
 		cpu.stx(mem, arg)
-	case "LDY":
+	case LDY:
 		cpu.ldy(mem, arg)
-	case "STY":
+	case STY:
 		cpu.sty(mem, arg)
-	case "TAX":
+	case TAX:
 		cpu.tax(mem, arg)
-	case "TXA":
+	case TXA:
 		cpu.txa(mem, arg)
-	case "TAY":
+	case TAY:
 		cpu.tay(mem, arg)
-	case "TYA":
+	case TYA:
 		cpu.tya(mem, arg)
-	case "TSX":
+	case TSX:
 		cpu.tsx(mem, arg)
-	case "TXS":
+	case TXS:
 		cpu.txs(mem, arg)
-	case "PHA":
+	case PHA:
 		cpu.pha(mem, arg)
-	case "PLA":
+	case PLA:
 		cpu.pla(mem, arg)
-	case "PHP":
+	case PHP:
 		cpu.php(mem, arg)
-	case "PLP":
+	case PLP:
 		cpu.plp(mem, arg)
-	case "ADC":
+	case ADC:
 		cpu.adc(mem, arg)
-	case "SBC":
+	case SBC:
 		cpu.sbc(mem, arg)
-	case "AND":
+	case AND:
 		cpu.and(mem, arg)
-	case "ORA":
+	case ORA:
 		cpu.ora(mem, arg)
-	case "EOR":
+	case EOR:
 		cpu.eor(mem, arg)
-	case "CMP":
+	case CMP:
 		cpu.cmp(mem, arg)
-	case "CPX":
+	case CPX:
 		cpu.cpx(mem, arg)
-	case "CPY":
+	case CPY:
 		cpu.cpy(mem, arg)
-	case "INC":
+	case INC:
 		cpu.inc(mem, arg)
-	case "DEC":
+	case DEC:
 		cpu.dec(mem, arg)
-	case "INX":
+	case INX:
 		cpu.inx(mem, arg)
-	case "DEX":
+	case DEX:
 		cpu.dex(mem, arg)
-	case "INY":
+	case INY:
 		cpu.iny(mem, arg)
-	case "DEY":
+	case DEY:
 		cpu.dey(mem, arg)
-	case "ASL":
+	case ASL:
 		cpu.asl(mem, arg)
-	case "LSR":
+	case LSR:
 		cpu.lsr(mem, arg)
-	case "ROL":
+	case ROL:
 		cpu.rol(mem, arg)
-	case "ROR":
+	case ROR:
 		cpu.ror(mem, arg)
-	case "BIT":
+	case BIT:
 		cpu.bit(mem, arg)
-	case "BCC":
+	case BCC:
 		cpu.bcc(mem, arg)
-	case "BCS":
+	case BCS:
 		cpu.bcs(mem, arg)
-	case "BEQ":
+	case BEQ:
 		cpu.beq(mem, arg)
-	case "BMI":
+	case BMI:
 		cpu.bmi(mem, arg)
-	case "BNE":
+	case BNE:
 		cpu.bne(mem, arg)
-	case "BPL":
+	case BPL:
 		cpu.bpl(mem, arg)
-	case "BVC":
+	case BVC:
 		cpu.bvc(mem, arg)
-	case "BVS":
+	case BVS:
 		cpu.bvs(mem, arg)
-	case "CLC":
+	case CLC:
 		cpu.clc(mem, arg)
-	case "CLD":
+	case CLD:
 		cpu.cld(mem, arg)
-	case "CLI":
+	case CLI:
 		cpu.cli(mem, arg)
-	case "CLV":
+	case CLV:
 		cpu.clv(mem, arg)
-	case "SEC":
+	case SEC:
 		cpu.sec(mem, arg)
-	case "SED":
+	case SED:
 		cpu.sed(mem, arg)
-	case "SEI":
+	case SEI:
 		cpu.sei(mem, arg)
-	case "BRK":
+	case BRK:
 		cpu.brk(mem, arg)
-	case "RTI":
+	case RTI:
 		cpu.rti(mem, arg)
-	case "JMP":
+	case JMP:
 		cpu.jmp(mem, arg)
-	case "JSR":
+	case JSR:
 		cpu.jsr(mem, arg)
-	case "RTS":
+	case RTS:
 		cpu.rts(mem, arg)
 	default:
 		return false

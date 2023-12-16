@@ -1,28 +1,26 @@
 package cpu
 
-func (cpu *CPU) executeIllegal(mem Memory, instr Instruction, arg operand) bool {
-	switch instr.Name {
-	case "*DCP":
+func (cpu *CPU) executeIllegal(mem Memory, instr *Instruction, arg operand) bool {
+	switch instr.ID {
+	case XDCP:
 		cpu.dcp(mem, arg)
-	case "*ISB":
+	case XISB:
 		cpu.isb(mem, arg)
-	case "*SLO":
+	case XSLO:
 		cpu.slo(mem, arg)
-	case "*RLA":
+	case XRLA:
 		cpu.rla(mem, arg)
-	case "*SRE":
+	case XSRE:
 		cpu.sre(mem, arg)
-	case "*RRA":
+	case XRRA:
 		cpu.rra(mem, arg)
-	case "*LAX":
+	case XLAX:
 		cpu.lax(mem, arg)
-	case "*SAX":
+	case XSAX:
 		cpu.sax(mem, arg)
-	case "*SBC": // USBC
+	case XSBC: // USBC
 		cpu.sbc(mem, arg)
-	case "*NOP":
-		cpu.nop(mem, arg)
-	case "???":
+	case XNOP:
 		cpu.nop(mem, arg)
 	default:
 		return false
