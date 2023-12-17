@@ -116,6 +116,10 @@ func (r *Reader) ReadBytes() ([]byte, error) {
 		return nil, err
 	}
 
+	if length == 0 {
+		return nil, nil
+	}
+
 	bs := make([]byte, length)
 	if _, err = r.reader.Read(bs); err != nil {
 		return nil, err
@@ -128,6 +132,10 @@ func (r *Reader) ReadBytesTo(dst []byte) error {
 	length, err := r.ReadUint32()
 	if err != nil {
 		return err
+	}
+
+	if length == 0 {
+		return nil
 	}
 
 	if len(dst) < int(length) {

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
 type MsgType = uint8
@@ -26,18 +28,17 @@ type Message struct {
 }
 
 func (m *Message) Encode() ([]byte, error) {
-	var buf bytes.Buffer
+	buf := bytes.Buffer{}
+	w := binario.NewWriter(&buf, binary.LittleEndian)
 
-	buf.Write([]byte{m.Type})
-	err1 := binary.Write(&buf, binary.LittleEndian, m.Frame)
-	err2 := binary.Write(&buf, binary.LittleEndian, m.Generation)
-	err3 := binary.Write(&buf, binary.LittleEndian, uint32(len(m.Payload)))
+	err := errors.Join(
+		w.WriteUint8(m.Type),
+		w.WriteUint32(m.Frame),
+		w.WriteUint32(m.Generation),
+		w.WriteBytes(m.Payload),
+	)
 
-	if err := errors.Join(err1, err2, err3); err != nil {
-		return nil, err
-	}
-
-	if _, err := buf.Write(m.Payload); err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -45,30 +46,22 @@ func (m *Message) Encode() ([]byte, error) {
 }
 
 func (m *Message) Decode(data []byte) error {
-	var (
-		dataSize uint32
-		err      error
+	buf := bytes.NewReader(data)
+	reader := binario.NewReader(buf, binary.LittleEndian)
+
+	err := errors.Join(
+		reader.ReadUint8To(&m.Type),
+		reader.ReadUint32To(&m.Frame),
+		reader.ReadUint32To(&m.Generation),
 	)
 
-	buf := bytes.NewReader(data)
-	m.Type, err = buf.ReadByte()
 	if err != nil {
 		return err
 	}
 
-	err1 := binary.Read(buf, binary.LittleEndian, &m.Frame)
-	err2 := binary.Read(buf, binary.LittleEndian, &m.Generation)
-	err3 := binary.Read(buf, binary.LittleEndian, &dataSize)
-
-	if err = errors.Join(err1, err2, err3); err != nil {
+	m.Payload, err = reader.ReadBytes()
+	if err != nil {
 		return err
-	}
-
-	if dataSize > 0 {
-		m.Payload = make([]byte, dataSize)
-		if _, err = io.ReadFull(buf, m.Payload); err != nil {
-			return err
-		}
 	}
 
 	return nil

@@ -71,9 +71,15 @@ func (w *Writer) WriteBytes(value []byte) error {
 		return err
 	}
 
-	_, err := w.writer.Write(value)
+	if length == 0 {
+		return nil
+	}
 
-	return err
+	if _, err := w.writer.Write(value); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // WriteString writes a string prefixed with its length.
