@@ -6,11 +6,12 @@ func xnop(cpu *CPU, mem Memory, arg operand) {
 	}
 }
 
+// xsbc is the same as official sbc
 func xsbc(cpu *CPU, mem Memory, arg operand) {
-	sbc(cpu, mem, arg) // the same as official
+	sbc(cpu, mem, arg)
 }
 
-// dcp is dec + cmp
+// xdcp is dec + cmp
 func xdcp(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr) - 1
 	mem.Write(arg.addr, data)
@@ -20,7 +21,7 @@ func xdcp(cpu *CPU, mem Memory, arg operand) {
 	cpu.setZN(uint8(data2))
 }
 
-// isb is inc + sbc
+// xisb is inc + sbc
 func xisb(cpu *CPU, mem Memory, arg operand) {
 	var (
 		data = mem.Read(arg.addr) + 1
@@ -38,7 +39,7 @@ func xisb(cpu *CPU, mem Memory, arg operand) {
 	cpu.setZN(cpu.A)
 }
 
-// lax is lda + ldx
+// xlax is lda + ldx
 func xlax(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	cpu.A, cpu.X = data, data
@@ -49,7 +50,7 @@ func xlax(cpu *CPU, mem Memory, arg operand) {
 	}
 }
 
-// rla is rol + and
+// xrla is rol + and
 func xrla(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	carr := cpu.carried()
@@ -61,13 +62,13 @@ func xrla(cpu *CPU, mem Memory, arg operand) {
 	cpu.setZN(cpu.A)
 }
 
-// sax is sta + stx
+// xsax is sta + stx
 func xsax(cpu *CPU, mem Memory, arg operand) {
 	data := cpu.A & cpu.X
 	mem.Write(arg.addr, data)
 }
 
-// slo is asl + ora
+// xslo is asl + ora
 func xslo(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	cpu.setFlag(flagCarry, data&0x80 != 0)
@@ -79,7 +80,7 @@ func xslo(cpu *CPU, mem Memory, arg operand) {
 	cpu.setZN(cpu.A)
 }
 
-// sre is lsr + eor
+// xsre is lsr + eor
 func xsre(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	cpu.setFlag(flagCarry, data&0x01 != 0)
@@ -91,7 +92,7 @@ func xsre(cpu *CPU, mem Memory, arg operand) {
 	cpu.setZN(cpu.A)
 }
 
-// rra is ror + adc
+// xrra is ror + adc
 func xrra(cpu *CPU, mem Memory, arg operand) {
 	data := mem.Read(arg.addr)
 	carr := cpu.carried()

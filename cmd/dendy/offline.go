@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -88,13 +89,18 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 			os.Exit(1)
 		}
 
+		writer := bufio.NewWriterSize(file, 1024*1024)
+
 		defer func() {
-			if err := file.Close(); err != nil {
+			flushErr := writer.Flush()
+			closeErr := file.Close()
+
+			if err := errors.Join(flushErr, closeErr); err != nil {
 				log.Printf("[ERROR] failed to close disassembly file: %s", err)
 			}
 		}()
 
-		bus.DisasmWriter = bufio.NewWriterSize(file, 1024*1024)
+		bus.DisasmWriter = writer
 		bus.DisasmEnabled = true
 	}
 

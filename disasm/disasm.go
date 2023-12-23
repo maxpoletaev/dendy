@@ -46,7 +46,7 @@ func DebugStep(mem cpupkg.Memory, cpu *cpupkg.CPU) string {
 	b.WriteString(strings.Repeat(" ", 16-b.Len()))
 
 	// Instruction disassembly.
-	b.WriteString(disassemble(mem, cpu.PC))
+	disassemble(&b, mem, cpu.PC)
 	b.WriteString(strings.Repeat(" ", 47-b.Len()))
 
 	// CPU state.
@@ -62,12 +62,13 @@ func DebugStep(mem cpupkg.Memory, cpu *cpupkg.CPU) string {
 
 // disassemble returns a string containing the disassembled instruction at the
 // current PC. In the case of an unknown opcode, it returns "???".
-func disassemble(mem cpupkg.Memory, pc uint16) string {
+func disassemble(b *strings.Builder, mem cpupkg.Memory, pc uint16) {
 	opcode := mem.Read(pc)
 
 	instr := cpupkg.Opcodes[opcode]
 	if instr.Size == 0 {
-		return "???"
+		b.WriteString("???")
+		return
 	}
 
 	var arg uint16
@@ -77,7 +78,6 @@ func disassemble(mem cpupkg.Memory, pc uint16) string {
 		arg = readWord(mem, pc+1)
 	}
 
-	b := strings.Builder{}
 	b.WriteString(fmt.Sprintf("%s ", instr.Name))
 
 	// Note for future me: You should not try to read a memory values here, because
@@ -108,7 +108,7 @@ func disassemble(mem cpupkg.Memory, pc uint16) string {
 		b.WriteString(fmt.Sprintf("($%02X),Y", arg))
 	case cpupkg.AddrModeRel:
 		b.WriteString(fmt.Sprintf("$%02X", arg))
+	case cpupkg.AddrModeImp:
+		// Do nothing.
 	}
-
-	return b.String()
 }
