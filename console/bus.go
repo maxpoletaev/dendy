@@ -38,8 +38,8 @@ type Bus struct {
 func (b *Bus) InitDMA() {
 	// PPU DMA transfers 256 bytes of data from CPU memory to PPU OAM memory.
 	// It is triggered by writing to $4014 and takes 513 CPU cycles to complete.
-	b.PPU.SetDMACallback(func(addr uint16, data []byte, size int) {
-		for i := uint16(0); i < 256; i++ {
+	b.PPU.SetDMACallback(func(addr uint16, data []byte) {
+		for i := uint16(0); i < uint16(len(data)); i++ {
 			data[i] = b.Read(addr + i)
 		}
 
@@ -161,6 +161,7 @@ func (b *Bus) Tick() {
 		}
 
 		b.APU.Tick()
+
 		if b.APU.PendingIRQ() {
 			b.CPU.TriggerIRQ()
 		}
@@ -175,6 +176,7 @@ func (b *Bus) Tick() {
 		b.scanlineComplete = true
 
 		b.Cart.ScanlineTick()
+
 		if b.Cart.PendingIRQ() {
 			b.CPU.TriggerIRQ()
 		}

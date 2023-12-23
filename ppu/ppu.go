@@ -41,7 +41,7 @@ const (
 )
 
 type (
-	dmaFunc func(addr uint16, data []byte, size int)
+	dmaFunc func(addr uint16, data []byte)
 )
 
 type PPU struct {
@@ -219,7 +219,7 @@ func (p *PPU) SetDMACallback(callback dmaFunc) {
 
 func (p *PPU) TransferOAM(pageAddr uint8) {
 	addr := uint16(pageAddr) << 8
-	p.dmaCopy(addr, p.oamData[:], len(p.oamData))
+	p.dmaCopy(addr, p.oamData[:])
 }
 
 // nameTableIdx returns the index of the nametable (0 or 1) for the given vram

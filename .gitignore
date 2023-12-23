@@ -1,6 +1,7 @@
-/bin
-/roms
 /nestest.log
+
+# Roms
+*.nes
 
 # Save states
 *.save
