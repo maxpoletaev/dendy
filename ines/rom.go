@@ -62,11 +62,11 @@ func loadROM(filename string) (*ROM, error) {
 
 	var (
 		mapperID   = (header[6] >> 4) | (header[7] & (1 << 4))
-		prgSize    = int(header[4]) * 16384
-		chrSize    = int(header[5]) * 8192
+		prgBanks   = int(header[4])
+		chrBanks   = int(header[5])
 		hasTrainer = header[6]&(1<<2) != 0
 		hasBattery = header[6]&(1<<1) != 0
-		mirrorMode = MirrorMode(header[6] & (1 << 0))
+		mirrorMode = header[6] & (1 << 0)
 	)
 
 	// Skip trainer if present.
@@ -77,33 +77,32 @@ func loadROM(filename string) (*ROM, error) {
 	}
 
 	// Read PRG-ROM.
-	prg := make([]uint8, prgSize)
-	if _, err = reader.Read(prg); err != nil {
+	prgData := make([]uint8, prgBanks*16384)
+	if _, err = reader.Read(prgData); err != nil {
 		return nil, fmt.Errorf("failed to read PRG ROM: %w", err)
 	}
 
 	// Read CHR-ROM.
-	chr := make([]uint8, chrSize)
-	if _, err = reader.Read(chr); err != nil {
+	chrData := make([]uint8, chrBanks*8192)
+	if _, err = reader.Read(chrData); err != nil {
 		return nil, fmt.Errorf("failed to read chr ROM: %w", err)
 	}
 
-	// If CHR-ROM is empty, allocate 8KB of CHR-RAM.
 	var chrRAM bool
-	if chrSize == 0 {
-		chr = make([]uint8, 8192)
-		chrSize = 8192
+	if len(chrData) == 0 {
+		// No CHR-ROM, so allocate 8KB of CHR-RAM.
+		chrData = make([]uint8, 8192)
 		chrRAM = true
 	}
 
 	return &ROM{
-		PRG:        prg,
-		CHR:        chr,
+		PRG:        prgData,
+		CHR:        chrData,
 		MapperID:   mapperID,
 		Battery:    hasBattery,
 		MirrorMode: mirrorMode,
-		PRGBanks:   prgSize / 16384,
-		CHRBanks:   chrSize / 8192,
+		PRGBanks:   prgBanks,
+		CHRBanks:   chrBanks,
 		crc32:      h.Sum32(),
 		chrRAM:     chrRAM,
 	}, nil

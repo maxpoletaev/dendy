@@ -4,27 +4,24 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"log"
 	"time"
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/binario"
-	"github.com/maxpoletaev/dendy/internal/ringqueue"
+	"github.com/maxpoletaev/dendy/internal/ringbuf"
 )
-
-const (
-	frameDuration = time.Second / 60
-)
-
-type inputBatch struct {
-	startFrame uint32
-	inputs     []uint8
-}
 
 type Checkpoint struct {
 	Frame uint32
 	State []byte
+	Crc32 uint32
+}
+
+type CheckFrame struct {
+	Frame uint32
 	Crc32 uint32
 }
 
@@ -36,14 +33,15 @@ type PlayerInput struct {
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
-	frame      uint32
-	bus        *console.Bus
-	checkpoint *Checkpoint
-	generation uint32
+	frame uint32
+	bus   *console.Bus
+	cp    *Checkpoint
+	gen   uint32
 
-	localInput     []uint8
-	remoteInput    *ringqueue.Queue[PlayerInput]
-	predictedInput uint8
+	localInput      *ringbuf.Buffer[uint8]
+	remoteInput     *ringbuf.Buffer[uint8]
+	speculatedInput *ringbuf.Buffer[uint8]
+	lastRemoteInput uint8
 
 	LocalJoy      *input.Joystick
 	RemoteJoy     *input.Joystick
@@ -53,8 +51,8 @@ type Game struct {
 
 func NewGame(bus *console.Bus) *Game {
 	return &Game{
-		bus:        bus,
-		checkpoint: &Checkpoint{},
+		bus: bus,
+		cp:  &Checkpoint{},
 	}
 }
 
@@ -62,15 +60,16 @@ func NewGame(bus *console.Bus) *Game {
 // emulator is reset to the initial state.
 func (g *Game) Reset(cp *Checkpoint) {
 	g.frame = 0
-	g.generation++
+	g.gen++
 
-	g.predictedInput = 0
-	g.localInput = make([]uint8, 0, cap(g.localInput))
-	g.remoteInput = ringqueue.New[PlayerInput](300)
+	g.localInput = ringbuf.New[uint8](300)
+	g.remoteInput = ringbuf.New[uint8](300)
+	g.speculatedInput = ringbuf.New[uint8](300)
 
 	if cp != nil {
-		g.checkpoint = cp
+		g.cp = cp
 		g.restoreCheckpoint()
+
 		return
 	}
 
@@ -81,7 +80,7 @@ func (g *Game) Reset(cp *Checkpoint) {
 // Checkpoint returns the current checkpoint where both players are in sync. The
 // returned value should not be modified and is only valid within the current frame.
 func (g *Game) Checkpoint() *Checkpoint {
-	return g.checkpoint
+	return g.cp
 }
 
 // Frame returns the current frame number.
@@ -89,35 +88,23 @@ func (g *Game) Frame() uint32 {
 	return g.frame
 }
 
+// Checksum returns the checksum of the current emulator state. It can be used
+// to compare two game states.
+func (g *Game) Checksum() uint32 {
+	h := crc32.NewIEEE()
+	writer := binario.NewWriter(h, binary.LittleEndian)
+
+	if err := g.bus.SaveState(writer); err != nil {
+		panic(fmt.Errorf("failed create checksum: %w", err))
+	}
+
+	return h.Sum32()
+}
+
 // Gen returns the current generation number. It is incremented every
 // time the game is reset.
 func (g *Game) Gen() uint32 {
-	return g.generation
-}
-
-func (g *Game) handleDelayedInput() {
-	if g.remoteInput.Len() > g.BufferSize {
-		first := g.remoteInput.Front()
-
-		if first.Frame < g.frame {
-			inputs := make([]byte, 0, g.remoteInput.Len())
-
-			for !g.remoteInput.Empty() {
-				in := g.remoteInput.Front()
-				if in.Frame >= g.frame {
-					break
-				}
-
-				inputs = append(inputs, in.Buttons)
-				g.remoteInput.Dequeue()
-			}
-
-			g.applyRemoteInput(inputBatch{
-				startFrame: first.Frame,
-				inputs:     inputs,
-			})
-		}
-	}
+	return g.gen
 }
 
 func (g *Game) playFrame() {
@@ -139,7 +126,7 @@ func (g *Game) playFrame() {
 
 // RunFrame runs a single frame of the game.
 func (g *Game) RunFrame() {
-	g.handleDelayedInput()
+	g.applyRemoteInput()
 	g.playFrame()
 }
 
@@ -149,26 +136,26 @@ func (g *Game) Sleep(d int) {
 }
 
 func (g *Game) createCheckpoint() {
-	buf := bytes.NewBuffer(g.checkpoint.State[:0])
+	buf := bytes.NewBuffer(g.cp.State[:0])
 	writer := binario.NewWriter(buf, binary.LittleEndian)
 
 	if err := g.bus.SaveState(writer); err != nil {
 		panic(fmt.Errorf("failed create checkpoint: %w", err))
 	}
 
-	g.checkpoint.Frame = g.frame
-	g.checkpoint.State = buf.Bytes()
+	g.cp.Frame = g.frame
+	g.cp.State = buf.Bytes() // re-assign in case it was re-allocated
 }
 
 func (g *Game) restoreCheckpoint() {
-	buf := bytes.NewBuffer(g.checkpoint.State)
+	buf := bytes.NewBuffer(g.cp.State)
 	reader := binario.NewReader(buf, binary.LittleEndian)
 
 	if err := g.bus.LoadState(reader); err != nil {
 		panic(fmt.Errorf("failed to restore checkpoint: %w", err))
 	}
 
-	g.frame = g.checkpoint.Frame
+	g.frame = g.cp.Frame
 }
 
 // HandleLocalInput adds records and applies the input from the local player.
@@ -176,14 +163,17 @@ func (g *Game) restoreCheckpoint() {
 // the same buttons until it catches up. This is not always true, but it's
 // good approximation for most games.
 func (g *Game) HandleLocalInput(buttons uint8) {
-	g.localInput = append(g.localInput, buttons)
-	g.RemoteJoy.SetButtons(g.predictedInput)
 	g.LocalJoy.SetButtons(buttons)
+	g.RemoteJoy.SetButtons(g.lastRemoteInput)
+
+	g.localInput.PushBack(buttons)
+	g.speculatedInput.PushBack(g.lastRemoteInput)
 }
 
 // HandleRemoteInput adds the input from the remote player.
-func (g *Game) HandleRemoteInput(input PlayerInput) {
-	g.remoteInput.Enqueue(input)
+func (g *Game) HandleRemoteInput(buttons uint8) {
+	g.remoteInput.PushBack(buttons)
+	g.lastRemoteInput = buttons
 }
 
 // applyRemoteInput applies the input from the remote player to the local
@@ -191,27 +181,15 @@ func (g *Game) HandleRemoteInput(input PlayerInput) {
 // player is usually a few frames behind the local emulator state. The emulator
 // is reset to the last checkpoint and then both local and remote inputs are
 // replayed until they catch up to the current frame.
-func (g *Game) applyRemoteInput(batch inputBatch) {
-	g.predictedInput = 0
-	if len(batch.inputs) > 0 {
-		g.predictedInput = batch.inputs[len(batch.inputs)-1]
+func (g *Game) applyRemoteInput() {
+	if g.remoteInput.Len() == 0 {
+		return
 	}
 
-	// Need to ensure that the input is not behind the checkpoint, otherwise the
-	// states will be out of sync. This should never happen, but in case it fires,
-	// something is very broken.
-	if batch.startFrame != g.checkpoint.Frame+1 {
-		panic(fmt.Sprintf("input is not aligned with the checkpoint: %d != %d", batch.startFrame, g.checkpoint.Frame+1))
-	}
-
+	inputSize := min(g.localInput.Len(), g.remoteInput.Len())
 	start := time.Now()
 	endFrame := g.frame
 	g.restoreCheckpoint()
-
-	minLen := len(g.localInput)
-	if len(batch.inputs) < minLen {
-		minLen = len(batch.inputs)
-	}
 
 	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
 	// render the intermediate frames.
@@ -224,9 +202,9 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 	}
 
 	// Replay the inputs until the local and remote emulators are in sync.
-	for i := 0; i < minLen; i++ {
-		g.LocalJoy.SetButtons(g.localInput[i])
-		g.RemoteJoy.SetButtons(batch.inputs[i])
+	for i := 0; i < inputSize; i++ {
+		g.LocalJoy.SetButtons(g.localInput.At(i))
+		g.RemoteJoy.SetButtons(g.remoteInput.At(i))
 		g.playFrame()
 	}
 
@@ -242,9 +220,9 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 
 	// In case the local state is ahead (which is almost always the case), we
 	// need to replay the local inputs and simulate the remote inputs.
-	for i := minLen; i < len(g.localInput); i++ {
-		g.LocalJoy.SetButtons(g.localInput[i])
-		g.RemoteJoy.SetButtons(g.predictedInput)
+	for i := inputSize; i < g.localInput.Len(); i++ {
+		g.RemoteJoy.SetButtons(g.speculatedInput.At(i))
+		g.LocalJoy.SetButtons(g.localInput.At(i))
 
 		if g.frame < endFrame {
 			g.playFrame()
@@ -262,8 +240,9 @@ func (g *Game) applyRemoteInput(batch inputBatch) {
 	}
 
 	// There might still be some local inputs left, so we need to keep them.
-	newInput := make([]uint8, 0, cap(g.localInput))
-	g.localInput = append(newInput, g.localInput[minLen:]...)
+	g.localInput.TruncFront(inputSize)
+	g.remoteInput.TruncFront(inputSize)
+	g.speculatedInput.TruncFront(inputSize)
 
 	// Disable fast-forwarding, since we are back to real-time.
 	g.bus.PPU.FastForward = false

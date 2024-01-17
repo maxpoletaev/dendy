@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	frameDuration      = time.Second / 60
+	pingIntervalFrames = 60 * 5 // ping every 5 seconds
+)
+
 type Netplay struct {
 	game     *Game
 	latency  time.Duration
@@ -106,11 +111,6 @@ func (np *Netplay) handleMessage(msg Message) {
 			Frame: msg.Frame,
 			State: msg.Payload,
 		})
-	case MsgTypeInput:
-		np.game.HandleRemoteInput(PlayerInput{
-			Buttons: msg.Payload[0],
-			Frame:   msg.Frame,
-		})
 	case MsgTypePing:
 		np.sendMsg(Message{
 			Type:       MsgTypePong,
@@ -118,6 +118,8 @@ func (np *Netplay) handleMessage(msg Message) {
 		})
 	case MsgTypePong:
 		np.latency = time.Since(np.pingSent)
+	case MsgTypeInput:
+		np.game.HandleRemoteInput(msg.Payload[0])
 	}
 }
 
@@ -172,8 +174,8 @@ loop:
 		}
 	}
 
-	// Inject a ping message every 100 frames.
-	if np.game.Frame()%100 == 0 {
+	// Inject a ping message every N frames to measure latency.
+	if np.game.Frame()%pingIntervalFrames == 0 {
 		np.sendMsg(Message{
 			Generation: np.game.Gen(),
 			Type:       MsgTypePing,

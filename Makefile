@@ -33,3 +33,12 @@ nestest: ## run nestest rom
 	@echo "--------- running: $@ ---------"
 	go test -tags testrom -v ./nestest > nestest.log
 	sed -i '1d' nestest.log # remove the first line to match the good.log
+
+.PHONY: build_image
+build_image: ## build docker image for cross-compilation
+	docker buildx build -f build/Dockerfile -t dendy-builder .
+
+.PHONY: build_cross
+build_cross: ## build dendy for linux
+	@echo "--------- running: $@ ---------"
+	docker run --rm -v $(PWD):/src dendy-builder
