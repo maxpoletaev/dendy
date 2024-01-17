@@ -19,7 +19,6 @@ func runAsClient(bus *console.Bus, o *opts) {
 	bus.InitDMA()
 
 	game := netplay.NewGame(bus)
-	game.BufferSize = o.bufsize
 	game.RemoteJoy = bus.Joy1
 	game.LocalJoy = bus.Joy2
 	game.Reset(nil)

@@ -27,7 +27,6 @@ type opts struct {
 	noSpriteLimit bool
 	connectAddr   string
 	listenAddr    string
-	bufsize       int
 	noSave        bool
 	showFPS       bool
 	verbose       bool
@@ -44,7 +43,6 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.dmcReverse, "dmcreverse", false, "reverse dmc samples")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address)")
-	flag.IntVar(&o.bufsize, "bufsize", 0, "netplay input buffer size (default: 0)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")

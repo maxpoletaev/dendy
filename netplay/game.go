@@ -46,7 +46,6 @@ type Game struct {
 	LocalJoy      *input.Joystick
 	RemoteJoy     *input.Joystick
 	DisasmEnabled bool
-	BufferSize    int
 }
 
 func NewGame(bus *console.Bus) *Game {
@@ -69,7 +68,6 @@ func (g *Game) Reset(cp *Checkpoint) {
 	if cp != nil {
 		g.cp = cp
 		g.restoreCheckpoint()
-
 		return
 	}
 

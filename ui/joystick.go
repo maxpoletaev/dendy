@@ -26,7 +26,7 @@ func (w *Window) UpdateJoystick() {
 
 	for key, button := range keyMap {
 		if rl.IsKeyDown(key) {
-			buttons |= 1 << uint8(button)
+			buttons |= button
 		}
 	}
 

@@ -6,17 +6,17 @@ import (
 	"github.com/maxpoletaev/dendy/internal/binario"
 )
 
-type Button int
+type Button = uint8
 
 const (
-	ButtonA      Button = 0
-	ButtonB      Button = 1
-	ButtonSelect Button = 2
-	ButtonStart  Button = 3
-	ButtonUp     Button = 4
-	ButtonDown   Button = 5
-	ButtonLeft   Button = 6
-	ButtonRight  Button = 7
+	ButtonA      Button = 1 << 0
+	ButtonB      Button = 1 << 1
+	ButtonSelect Button = 1 << 2
+	ButtonStart  Button = 1 << 3
+	ButtonUp     Button = 1 << 4
+	ButtonDown   Button = 1 << 5
+	ButtonLeft   Button = 1 << 6
+	ButtonRight  Button = 1 << 7
 )
 
 type Joystick struct {
