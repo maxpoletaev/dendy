@@ -13,15 +13,25 @@ import (
 	"github.com/maxpoletaev/dendy/ui"
 )
 
-func runAsServer(bus *console.Bus, o *opts) {
+func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 	bus.InitDMA()
+	bus.Reset()
+
+	if !o.noSave {
+		if ok, err := loadState(bus, saveFile); err != nil {
+			log.Printf("[ERROR] failed to load save state: %s", err)
+			os.Exit(1)
+		} else if ok {
+			log.Printf("[INFO] state loaded: %s", saveFile)
+		}
+	}
 
 	game := netplay.NewGame(bus)
 	game.RemoteJoy = bus.Joy2
 	game.LocalJoy = bus.Joy1
-	game.Reset(nil)
+	game.ResetState()
 
 	if o.disasm != "" {
 		file, err := os.Create(o.disasm)
@@ -57,7 +67,11 @@ func runAsServer(bus *console.Bus, o *opts) {
 	log.Printf("[INFO] client connected: %s", addr)
 	log.Printf("[INFO] starting game...")
 
+	sess.SendInitialState()
+
 	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	defer w.Close()
+
 	w.SetTitle(fmt.Sprintf("%s (P1)", windowTitle))
 	w.SetFrameRate(framesPerSecond)
 	w.InputDelegate = sess.SendButtons
@@ -65,20 +79,31 @@ func runAsServer(bus *console.Bus, o *opts) {
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 
-	sess.SendReset()
-	sess.Start()
-
 	for {
 		if w.ShouldClose() {
+			log.Printf("[INFO] saying goodbye...")
+			sess.SendBye()
+			break
+		}
+
+		if sess.ShouldExit() {
+			log.Printf("[INFO] client disconnected")
 			break
 		}
 
 		w.SetLatencyInfo(sess.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-
 		sess.RunFrame()
-
 		w.Refresh()
+	}
+
+	if !o.noSave {
+		if err := saveState(bus, saveFile); err != nil {
+			log.Printf("[ERROR] failed to save state: %s", err)
+			os.Exit(1)
+		}
+
+		log.Printf("[INFO] state saved: %s", saveFile)
 	}
 }

@@ -18,6 +18,7 @@ const (
 	MsgTypeInput
 	MsgTypePing
 	MsgTypePong
+	MsgTypeBye
 )
 
 type Message struct {

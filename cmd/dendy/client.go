@@ -17,11 +17,12 @@ func runAsClient(bus *console.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
 	bus.Joy2 = input.NewJoystick()
 	bus.InitDMA()
+	bus.Reset()
 
 	game := netplay.NewGame(bus)
 	game.RemoteJoy = bus.Joy1
 	game.LocalJoy = bus.Joy2
-	game.Reset(nil)
+	game.ResetState()
 
 	if o.disasm != "" {
 		file, err := os.Create(o.disasm)
@@ -58,25 +59,30 @@ func runAsClient(bus *console.Bus, o *opts) {
 	log.Printf("[INFO] starting game...")
 
 	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	defer w.Close()
+
 	w.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
 	w.SetFrameRate(framesPerSecond)
 	w.InputDelegate = sess.SendButtons
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 
-	sess.Start()
-
 	for {
 		if w.ShouldClose() {
+			log.Printf("[INFO] saying goodbye...")
+			sess.SendBye()
+			break
+		}
+
+		if sess.ShouldExit() {
+			log.Printf("[INFO] server disconnected")
 			break
 		}
 
 		w.SetLatencyInfo(sess.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-
 		sess.RunFrame()
-
 		w.Refresh()
 	}
 }

@@ -20,16 +20,6 @@ type Checkpoint struct {
 	Crc32 uint32
 }
 
-type CheckFrame struct {
-	Frame uint32
-	Crc32 uint32
-}
-
-type PlayerInput struct {
-	Frame   uint32
-	Buttons uint8
-}
-
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
@@ -55,9 +45,7 @@ func NewGame(bus *console.Bus) *Game {
 	}
 }
 
-// Reset resets the emulator state to the given checkpoint. If cp is nil, the
-// emulator is reset to the initial state.
-func (g *Game) Reset(cp *Checkpoint) {
+func (g *Game) ResetState() {
 	g.frame = 0
 	g.gen++
 
@@ -65,14 +53,12 @@ func (g *Game) Reset(cp *Checkpoint) {
 	g.remoteInput = ringbuf.New[uint8](300)
 	g.speculatedInput = ringbuf.New[uint8](300)
 
-	if cp != nil {
-		g.cp = cp
-		g.restoreCheckpoint()
-		return
-	}
-
-	g.bus.Reset()
 	g.createCheckpoint()
+}
+
+func (g *Game) SetCheckpoint(cp *Checkpoint) {
+	g.cp = cp
+	g.restoreCheckpoint()
 }
 
 // Checkpoint returns the current checkpoint where both players are in sync. The

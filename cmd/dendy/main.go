@@ -27,6 +27,7 @@ type opts struct {
 	noSpriteLimit bool
 	connectAddr   string
 	listenAddr    string
+	saveFile      string
 	noSave        bool
 	showFPS       bool
 	verbose       bool
@@ -39,6 +40,7 @@ type opts struct {
 
 func (o *opts) parse() *opts {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
+	flag.StringVar(&o.saveFile, "savefile", "", "save file (default: romname.save)")
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
 	flag.BoolVar(&o.dmcReverse, "dmcreverse", false, "reverse dmc samples")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address")
@@ -118,11 +120,19 @@ func main() {
 	romFile := flag.Arg(0)
 	log.Printf("[INFO] loading rom file: %s", romFile)
 
-	cart, err := ines.Load(romFile)
+	rom, err := ines.OpenROM(romFile)
 	if err != nil {
 		log.Printf("[ERROR] failed to open rom file: %s", err)
 		os.Exit(1)
 	}
+
+	cart, err := ines.NewCartridge(rom)
+	if err != nil {
+		log.Printf("[ERROR] failed to open rom file: %s", err)
+		os.Exit(1)
+	}
+
+	log.Printf("[INFO] loaded rom: mapper:%d", rom.MapperID)
 
 	apu := apupkg.New()
 	apu.Enabled = !o.mute
@@ -144,15 +154,27 @@ func main() {
 		APU:  apu,
 	}
 
+	saveFile := o.saveFile
+	romPrefix := strings.TrimSuffix(romFile, filepath.Ext(romFile))
+
 	switch {
-	case o.listenAddr != "":
-		log.Printf("[INFO] starting server mode")
-		runAsServer(bus, o)
 	case o.connectAddr != "":
 		log.Printf("[INFO] starting client mode")
 		runAsClient(bus, o)
+
+	case o.listenAddr != "":
+		if saveFile == "" {
+			saveFile = romPrefix + ".mp.save"
+		}
+
+		log.Printf("[INFO] starting server mode")
+		runAsServer(bus, o, saveFile)
+
 	default:
-		saveFile := strings.TrimSuffix(romFile, filepath.Ext(romFile)) + ".save"
+		if saveFile == "" {
+			saveFile = romPrefix + ".save"
+		}
+
 		log.Printf("[INFO] starting offline mode")
 		runOffline(bus, o, saveFile)
 	}

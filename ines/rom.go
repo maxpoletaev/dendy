@@ -35,7 +35,7 @@ type ROM struct {
 	chrRAM     bool
 }
 
-func loadROM(filename string) (*ROM, error) {
+func OpenROM(filename string) (*ROM, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -106,6 +106,10 @@ func loadROM(filename string) (*ROM, error) {
 		crc32:      h.Sum32(),
 		chrRAM:     chrRAM,
 	}, nil
+}
+
+func (r *ROM) Checksum() uint32 {
+	return r.crc32
 }
 
 func (r *ROM) SaveState(w *binario.Writer) error {

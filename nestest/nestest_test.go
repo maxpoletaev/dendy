@@ -49,7 +49,7 @@ func disableLogger(t *testing.T) {
 func TestNestestROM(t *testing.T) {
 	disableLogger(t)
 
-	cart, err := ines.Load("nestest.nes")
+	cart, err := ines.NewCartridge("nestest.nes")
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to load nestest rom: %w", err))
 	}

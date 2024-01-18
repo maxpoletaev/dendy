@@ -1,7 +1,9 @@
 package netplay
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"time"
@@ -13,13 +15,26 @@ const (
 )
 
 type Netplay struct {
-	game     *Game
-	latency  time.Duration
-	toRecv   chan Message
-	toSend   chan Message
-	stop     chan struct{}
-	pingSent time.Time
-	conn     net.Conn
+	game       *Game
+	latency    time.Duration
+	toRecv     chan Message
+	toSend     chan Message
+	pingSent   time.Time
+	conn       net.Conn
+	readerDone chan struct{}
+	writerDone chan struct{}
+	shouldExit bool
+}
+
+func newNetplay(game *Game, conn net.Conn) *Netplay {
+	return &Netplay{
+		toSend:     make(chan Message, 100),
+		toRecv:     make(chan Message, 100),
+		readerDone: make(chan struct{}),
+		writerDone: make(chan struct{}),
+		game:       game,
+		conn:       conn,
+	}
 }
 
 func Listen(game *Game, addr string) (*Netplay, net.Addr, error) {
@@ -33,13 +48,8 @@ func Listen(game *Game, addr string) (*Netplay, net.Addr, error) {
 		return nil, nil, fmt.Errorf("netplay: failed to accept connection: %v", err)
 	}
 
-	np := &Netplay{
-		toSend: make(chan Message, 100),
-		toRecv: make(chan Message, 100),
-		stop:   make(chan struct{}),
-		game:   game,
-		conn:   conn,
-	}
+	np := newNetplay(game, conn)
+	np.Start()
 
 	return np, conn.RemoteAddr(), nil
 }
@@ -50,44 +60,49 @@ func Connect(game *Game, addr string) (*Netplay, net.Addr, error) {
 		return nil, nil, fmt.Errorf("netplay: failed to connect to %s: %v", addr, err)
 	}
 
-	np := &Netplay{
-		toSend: make(chan Message, 100),
-		toRecv: make(chan Message, 100),
-		stop:   make(chan struct{}),
-		game:   game,
-		conn:   conn,
-	}
+	np := newNetplay(game, conn)
+
+	np.Start()
 
 	return np, conn.RemoteAddr(), nil
 }
 
 func (np *Netplay) startWriter() {
+	defer close(np.writerDone)
+
 	for {
-		select {
-		case <-np.stop:
-			return
-		case msg := <-np.toSend:
-			if err := writeMsg(np.conn, msg); err != nil {
-				panic(fmt.Errorf("failed to write message: %v", err))
-			}
+		msg, ok := <-np.toSend
+		if !ok {
+			break
+		}
+
+		if err := writeMsg(np.conn, msg); err != nil {
+			panic(fmt.Errorf("failed to write message: %v", err))
 		}
 	}
 }
 
 func (np *Netplay) startReader() {
+	defer close(np.readerDone)
+
 	for {
-		select {
-		case <-np.stop:
-			return
-		default:
-			msg, err := readMsg(np.conn)
-			if err != nil {
-				panic(fmt.Errorf("failed to read message: %v", err))
+		msg, err := readMsg(np.conn)
+
+		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+				break
 			}
 
-			np.toRecv <- msg
+			panic(fmt.Errorf("failed to read message: %v", err))
 		}
+
+		np.toRecv <- msg
 	}
+}
+
+func (np *Netplay) Start() {
+	go np.startReader()
+	go np.startWriter()
 }
 
 func (np *Netplay) sendMsg(msg Message) {
@@ -99,76 +114,22 @@ func (np *Netplay) sendMsg(msg Message) {
 	}
 }
 
-func (np *Netplay) handleMessage(msg Message) {
-	if msg.Generation < np.game.Gen() {
-		log.Printf("[INFO] dropping message from old generation: %d", msg.Generation)
-		return
-	}
-
-	switch msg.Type {
-	case MsgTypeReset:
-		np.game.Reset(&Checkpoint{
-			Frame: msg.Frame,
-			State: msg.Payload,
-		})
-	case MsgTypePing:
-		np.sendMsg(Message{
-			Type:       MsgTypePong,
-			Generation: np.game.Gen(),
-		})
-	case MsgTypePong:
-		np.latency = time.Since(np.pingSent)
-	case MsgTypeInput:
-		np.game.HandleRemoteInput(msg.Payload[0])
-	}
+// ShouldExit indicates whether the game loop should exit.
+func (np *Netplay) ShouldExit() bool {
+	return np.shouldExit
 }
 
-func (np *Netplay) Start() {
-	go np.startReader()
-	go np.startWriter()
-}
-
-// SendReset restarts the game on both sides, should be called by the server once the
-// game is ready to start to sync the initial state.
-func (np *Netplay) SendReset() {
-	np.game.Reset(nil)
-
-	checkpoint := np.game.Checkpoint()
-	state := make([]uint8, len(checkpoint.State))
-	copy(state, checkpoint.State)
-	frame := checkpoint.Frame
-
-	np.sendMsg(Message{
-		Generation: np.game.Gen(),
-		Type:       MsgTypeReset,
-		Frame:      frame,
-		Payload:    state,
-	})
-}
-
-// SendButtons sends the local input to the remote player. Should be called every frame.
-// The input is buffered and sent in batches to reduce the number of messages sent.
-func (np *Netplay) SendButtons(buttons uint8) {
-	if np.game.Frame() == 0 {
-		return
-	}
-
-	np.sendMsg(Message{
-		Type:       MsgTypeInput,
-		Payload:    []uint8{buttons},
-		Frame:      np.game.Frame(),
-		Generation: np.game.Gen(),
-	})
-
-	np.game.HandleLocalInput(buttons)
-}
-
+// RunFrame runs a single frame of the game and handles any incoming messages.
 func (np *Netplay) RunFrame() {
 loop:
 	for {
 		select {
-		case msg := <-np.toRecv:
-			np.handleMessage(msg)
+		case msg, ok := <-np.toRecv:
+			if ok {
+				np.handleMessage(msg)
+			} else {
+				break loop
+			}
 		default:
 			break loop
 		}
@@ -187,6 +148,7 @@ loop:
 	np.game.RunFrame()
 }
 
+// Latency returns the current latency in milliseconds between the players.
 func (np *Netplay) Latency() int64 {
 	return np.latency.Milliseconds()
 }

@@ -2,7 +2,6 @@ package ines
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/maxpoletaev/dendy/internal/binario"
 )
@@ -30,14 +29,7 @@ type Cartridge interface {
 	LoadState(r *binario.Reader) error
 }
 
-func Load(path string) (Cartridge, error) {
-	rom, err := loadROM(path)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("[INFO] loaded rom: mapper:%d", rom.MapperID)
-
+func NewCartridge(rom *ROM) (Cartridge, error) {
 	switch rom.MapperID {
 	case 0:
 		return NewMapper0(rom), nil

@@ -1,5 +1,7 @@
 package ringbuf
 
+import "fmt"
+
 type Buffer[T any] struct {
 	EmptyValue T
 
@@ -44,7 +46,7 @@ func (q *Buffer[T]) PopFront() T {
 
 func (q *Buffer[T]) TruncFront(n int) {
 	if n < 0 || n > q.length {
-		panic("index out of range")
+		panic(fmt.Errorf("index out of range: %d", n))
 	}
 
 	for i := 0; i < n; i++ {
@@ -58,7 +60,7 @@ func (q *Buffer[T]) TruncFront(n int) {
 
 func (q *Buffer[T]) TruncBack(n int) {
 	if n < 0 || n > q.length {
-		panic("index out of range")
+		panic(fmt.Errorf("index out of range: %d", n))
 	}
 
 	for i := 0; i < n; i++ {
@@ -90,7 +92,7 @@ func (q *Buffer[T]) Back() T {
 
 func (q *Buffer[T]) At(idx int) T {
 	if idx < 0 || idx >= q.length {
-		panic("index out of range")
+		panic(fmt.Errorf("index out of range: %d", idx))
 	}
 
 	return q.items[(q.head+idx)%len(q.items)]
@@ -98,7 +100,7 @@ func (q *Buffer[T]) At(idx int) T {
 
 func (q *Buffer[T]) Set(idx int, item T) {
 	if idx < 0 || idx >= q.length {
-		panic("index out of range")
+		panic(fmt.Errorf("index out of range: %d", idx))
 	}
 
 	q.items[(q.head+idx)%len(q.items)] = item
@@ -121,6 +123,10 @@ func (q *Buffer[T]) Full() bool {
 }
 
 func (q *Buffer[T]) Clear() {
+	for i := 0; i < q.length; i++ {
+		q.items[(q.head+i)%len(q.items)] = q.EmptyValue
+	}
+
 	q.head = 0
 	q.tail = 0
 	q.length = 0
