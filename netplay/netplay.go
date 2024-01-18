@@ -9,7 +9,7 @@ import (
 
 const (
 	frameDuration      = time.Second / 60
-	pingIntervalFrames = 60 * 5 // ping every 5 seconds
+	pingIntervalFrames = 60
 )
 
 type Netplay struct {

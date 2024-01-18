@@ -180,13 +180,15 @@ func (g *Game) HandleRemoteInput(buttons uint8) {
 // is reset to the last checkpoint and then both local and remote inputs are
 // replayed until they catch up to the current frame.
 func (g *Game) applyRemoteInput() {
-	if g.remoteInput.Len() == 0 {
+	inputSize := min(g.localInput.Len(), g.remoteInput.Len())
+	if inputSize == 0 {
 		return
 	}
 
-	inputSize := min(g.localInput.Len(), g.remoteInput.Len())
 	start := time.Now()
 	endFrame := g.frame
+
+	// Rollback to the last known synchronized state.
 	g.restoreCheckpoint()
 
 	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
@@ -216,8 +218,12 @@ func (g *Game) applyRemoteInput() {
 	// Create a new checkpoint, so we can rewind to this state later.
 	g.createCheckpoint()
 
-	// In case the local state is ahead (which is almost always the case), we
-	// need to replay the local inputs and simulate the remote inputs.
+	// Rebuild the speculated input from this point as the last remote input could have changed.
+	for i := inputSize; i < g.localInput.Len(); i++ {
+		g.speculatedInput.Set(i, g.remoteInput.At(inputSize-1))
+	}
+
+	// Replay the rest of the local inputs and use speculated values for the remote.
 	for i := inputSize; i < g.localInput.Len(); i++ {
 		g.RemoteJoy.SetButtons(g.speculatedInput.At(i))
 		g.LocalJoy.SetButtons(g.localInput.At(i))
