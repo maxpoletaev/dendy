@@ -33,7 +33,6 @@ type opts struct {
 	verbose       bool
 	disasm        string
 	cpuprof       string
-	dmcReverse    bool
 	mute          bool
 	noLogo        bool
 }
@@ -41,8 +40,7 @@ type opts struct {
 func (o *opts) parse() *opts {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.StringVar(&o.saveFile, "savefile", "", "save file (default: romname.save)")
-	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit")
-	flag.BoolVar(&o.dmcReverse, "dmcreverse", false, "reverse dmc samples")
+	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit (eliminates flickering)")
 	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")

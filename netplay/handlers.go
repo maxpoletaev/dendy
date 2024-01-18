@@ -50,9 +50,7 @@ func (np *Netplay) handleBye(msg Message) {
 }
 
 func (np *Netplay) handleReset(msg Message) {
-	np.game.ResetState()
-
-	np.game.SetCheckpoint(&Checkpoint{
+	np.game.Init(&Checkpoint{
 		Frame: msg.Frame,
 		State: msg.Payload,
 	})

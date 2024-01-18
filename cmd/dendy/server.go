@@ -31,7 +31,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	game := netplay.NewGame(bus)
 	game.RemoteJoy = bus.Joy2
 	game.LocalJoy = bus.Joy1
-	game.ResetState()
+	game.Init(nil)
 
 	if o.disasm != "" {
 		file, err := os.Create(o.disasm)

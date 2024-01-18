@@ -45,7 +45,7 @@ func NewGame(bus *console.Bus) *Game {
 	}
 }
 
-func (g *Game) ResetState() {
+func (g *Game) Init(cp *Checkpoint) {
 	g.frame = 0
 	g.gen++
 
@@ -53,12 +53,16 @@ func (g *Game) ResetState() {
 	g.remoteInput = ringbuf.New[uint8](300)
 	g.speculatedInput = ringbuf.New[uint8](300)
 
-	g.createCheckpoint()
+	if cp != nil {
+		g.cp = cp
+		g.rollback()
+	} else {
+		g.createCheckpoint()
+	}
 }
 
-func (g *Game) SetCheckpoint(cp *Checkpoint) {
-	g.cp = cp
-	g.restoreCheckpoint()
+func (g *Game) Reset() {
+	g.bus.Reset()
 }
 
 // Checkpoint returns the current checkpoint where both players are in sync. The
@@ -131,7 +135,7 @@ func (g *Game) createCheckpoint() {
 	g.cp.State = buf.Bytes() // re-assign in case it was re-allocated
 }
 
-func (g *Game) restoreCheckpoint() {
+func (g *Game) rollback() {
 	buf := bytes.NewBuffer(g.cp.State)
 	reader := binario.NewReader(buf, binary.LittleEndian)
 
@@ -175,7 +179,7 @@ func (g *Game) applyRemoteInput() {
 	endFrame := g.frame
 
 	// Rollback to the last known synchronized state.
-	g.restoreCheckpoint()
+	g.rollback()
 
 	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
 	// render the intermediate frames.

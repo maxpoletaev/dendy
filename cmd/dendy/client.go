@@ -22,7 +22,7 @@ func runAsClient(bus *console.Bus, o *opts) {
 	game := netplay.NewGame(bus)
 	game.RemoteJoy = bus.Joy1
 	game.LocalJoy = bus.Joy2
-	game.ResetState()
+	game.Init(nil)
 
 	if o.disasm != "" {
 		file, err := os.Create(o.disasm)

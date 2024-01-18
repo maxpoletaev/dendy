@@ -4,7 +4,7 @@ import "log"
 
 // SendInitialState is used by the server to send the initial state to the client.
 func (np *Netplay) SendInitialState() {
-	np.game.ResetState()
+	np.game.Init(nil)
 
 	checkpoint := np.game.Checkpoint()
 	state := make([]uint8, len(checkpoint.State))
@@ -21,9 +21,8 @@ func (np *Netplay) SendInitialState() {
 
 // SendReset restarts the game on both sides.
 func (np *Netplay) SendReset() {
-	np.game.bus.Reset()
-	np.game.ResetState()
-	np.game.createCheckpoint()
+	np.game.Reset()
+	np.game.Init(nil)
 
 	checkpoint := np.game.Checkpoint()
 	state := make([]uint8, len(checkpoint.State))
