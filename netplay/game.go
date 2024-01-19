@@ -177,6 +177,7 @@ func (g *Game) applyRemoteInput() {
 
 	start := time.Now()
 	endFrame := g.frame
+	startFrame := g.cp.Frame
 
 	// Rollback to the last known synchronized state.
 	g.rollback()
@@ -230,7 +231,7 @@ func (g *Game) applyRemoteInput() {
 	// Replaying a large number of frames will inevitably create some lag
 	// for the local player. There is not much we can do about it.
 	if delta := time.Since(start); delta > frameDuration {
-		log.Printf("[DEBUG] replay lag: %s (%d frames)", delta, delta/frameDuration)
+		log.Printf("[DEBUG] replay lag: %s (replayed %d frames)", delta, endFrame-startFrame)
 	}
 
 	// There might still be some local inputs left, so we need to keep them.

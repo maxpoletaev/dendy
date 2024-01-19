@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
@@ -114,9 +115,10 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	}
 
 	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	defer w.Close()
+
 	w.SetFrameRate(framesPerSecond)
 	w.SetTitle(windowTitle)
-	defer w.Close()
 
 	w.InputDelegate = bus.Joy1.SetButtons
 	w.ZapperDelegate = bus.Zapper.Update
@@ -129,8 +131,13 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			// Save state on crash to quickly reconstruct the faulty state.
-			_ = saveState(bus, fmt.Sprintf("%s.crash", saveFile))
+			// Save state on crash to quickly reconstruct the faulty state,
+			// unless we are already playing the crash state.
+			if !strings.HasSuffix(saveFile, ".crash") {
+				_ = saveState(bus, fmt.Sprintf("%s.crash", saveFile))
+				log.Printf("[INFO] pre-crash state saved: %s.crash", saveFile)
+			}
+
 			panic(err)
 		}
 	}()

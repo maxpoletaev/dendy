@@ -77,7 +77,10 @@ func (np *Netplay) startWriter() {
 		}
 
 		if err := writeMsg(np.conn, msg); err != nil {
-			panic(fmt.Errorf("failed to write message: %v", err))
+			log.Printf("[ERROR] failed to write message: %v", err)
+			np.shouldExit = true
+
+			break
 		}
 	}
 }
@@ -93,7 +96,10 @@ func (np *Netplay) startReader() {
 				break
 			}
 
-			panic(fmt.Errorf("failed to read message: %v", err))
+			log.Printf("[ERROR] failed to read message: %v", err)
+			np.shouldExit = true
+
+			break
 		}
 
 		np.toRecv <- msg

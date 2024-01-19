@@ -79,6 +79,18 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 
+	defer func() {
+		if o.noSave {
+			return
+		}
+
+		// Keep the game state in case of a crash (as the netplay is still unstable).
+		if err := recover(); err != nil {
+			_ = saveState(bus, saveFile)
+			panic(err)
+		}
+	}()
+
 	for {
 		if w.ShouldClose() {
 			log.Printf("[INFO] saying goodbye...")
