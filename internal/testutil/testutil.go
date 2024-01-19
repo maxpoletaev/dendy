@@ -4,7 +4,7 @@ import "testing"
 
 func Panic(t *testing.T, f func()) {
 	defer func() {
-		recover()
+		_ = recover()
 	}()
 
 	f() // jumps to defer above if panics

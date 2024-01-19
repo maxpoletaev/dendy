@@ -27,8 +27,7 @@ func extractLevel(msg []byte) Level {
 		i := bytes.IndexByte(msg, ']')
 
 		if i != -1 {
-			l := string(msg[1:i])
-			return levels[l]
+			return levels[string(msg[1:i])]
 		}
 	}
 

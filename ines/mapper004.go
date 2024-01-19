@@ -149,8 +149,6 @@ func (m *Mapper4) ScanlineTick() {
 			m.irqPending = m.irqEnable
 		}
 	}
-
-	return
 }
 
 func (m *Mapper4) PendingIRQ() (v bool) {

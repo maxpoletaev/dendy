@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"hash/crc32"
 	"log"
 	"time"
 
@@ -57,7 +56,7 @@ func (g *Game) Init(cp *Checkpoint) {
 		g.cp = cp
 		g.rollback()
 	} else {
-		g.createCheckpoint()
+		g.save()
 	}
 }
 
@@ -74,19 +73,6 @@ func (g *Game) Checkpoint() *Checkpoint {
 // Frame returns the current frame number.
 func (g *Game) Frame() uint32 {
 	return g.frame
-}
-
-// Checksum returns the checksum of the current emulator state. It can be used
-// to compare two game states.
-func (g *Game) Checksum() uint32 {
-	h := crc32.NewIEEE()
-	writer := binario.NewWriter(h, binary.LittleEndian)
-
-	if err := g.bus.SaveState(writer); err != nil {
-		panic(fmt.Errorf("failed create checksum: %w", err))
-	}
-
-	return h.Sum32()
 }
 
 // Gen returns the current generation number. It is incremented every
@@ -118,12 +104,7 @@ func (g *Game) RunFrame() {
 	g.playFrame()
 }
 
-// Sleep pauses the execution for the given number of frames.
-func (g *Game) Sleep(d int) {
-	time.Sleep(time.Duration(d) * frameDuration)
-}
-
-func (g *Game) createCheckpoint() {
+func (g *Game) save() {
 	buf := bytes.NewBuffer(g.cp.State[:0])
 	writer := binario.NewWriter(buf, binary.LittleEndian)
 
@@ -207,7 +188,7 @@ func (g *Game) applyRemoteInput() {
 
 	// This is the last state where both emulators are in sync.
 	// Create a new checkpoint, so we can rewind to this state later.
-	g.createCheckpoint()
+	g.save()
 
 	// Rebuild the speculated input from this point as the last remote input could have changed.
 	for i := inputSize; i < g.localInput.Len(); i++ {
