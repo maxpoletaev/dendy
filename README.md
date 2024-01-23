@@ -54,6 +54,7 @@ the mouse cursor at the right position on the screen and click to shoot.
  * `CTRL+Q` or `⌘+Q` - Quit the emulator
  * `CTRL+X` or `⌘+X` - Resync the emulators (netplay)
  * `F12` - Take a screenshot
+ * `M` - Mute/unmute
 
 ## Network Multiplayer
 
