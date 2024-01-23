@@ -20,6 +20,7 @@ func toGrayscale(c color.RGBA) color.RGBA {
 type Window struct {
 	ZapperDelegate func(brightness uint8, trigger bool)
 	InputDelegate  func(buttons uint8)
+	MuteDelegate   func()
 	ResyncDelegate func()
 	ResetDelegate  func()
 	ShowPing       bool
@@ -85,12 +86,11 @@ func (w *Window) ShouldClose() bool {
 func (w *Window) updateTexture() {
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
-			px := w.frame[x][y]
 			if w.grayscale {
-				px = toGrayscale(px)
+				w.pixels[x+y*width] = toGrayscale(w.frame[x][y])
+			} else {
+				w.pixels[x+y*width] = w.frame[x][y]
 			}
-
-			w.pixels[x+y*width] = px
 		}
 	}
 
@@ -154,6 +154,11 @@ func (w *Window) HandleHotKeys() {
 	switch {
 	case rl.IsKeyPressed(rl.KeyF12):
 		rl.TakeScreenshot("screenshot.png")
+
+	case rl.IsKeyPressed(rl.KeyM):
+		if w.MuteDelegate != nil {
+			w.MuteDelegate()
+		}
 
 	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyQ):
 		w.shouldClose = true

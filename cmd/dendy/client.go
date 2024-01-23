@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/maxpoletaev/dendy/console"
+	"github.com/maxpoletaev/dendy/consts"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/netplay"
 	"github.com/maxpoletaev/dendy/ui"
@@ -20,7 +21,11 @@ func runAsClient(bus *console.Bus, o *opts) {
 	bus.InitDMA()
 	bus.Reset()
 
-	game := netplay.NewGame(bus)
+	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
+	defer audio.Close()
+	audio.Mute(o.mute)
+
+	game := netplay.NewGame(bus, audio)
 	game.RemoteJoy = bus.Joy1
 	game.LocalJoy = bus.Joy2
 	game.Init(nil)
@@ -63,8 +68,9 @@ func runAsClient(bus *console.Bus, o *opts) {
 	defer w.Close()
 
 	w.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
-	w.SetFrameRate(framesPerSecond)
+	w.SetFrameRate(consts.FramesPerSecond)
 	w.InputDelegate = sess.SendButtons
+	w.MuteDelegate = audio.ToggleMute
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 

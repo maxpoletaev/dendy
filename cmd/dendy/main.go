@@ -133,12 +133,6 @@ func main() {
 	log.Printf("[INFO] loaded rom: mapper:%d", rom.MapperID)
 
 	apu := apupkg.New()
-	apu.Enabled = !o.mute
-
-	if apu.Enabled && (o.listenAddr != "" || o.connectAddr != "") {
-		log.Printf("[WARN] sound is not yet supported in netplay mode")
-		apu.Enabled = false
-	}
 
 	cpu := cpupkg.New()
 

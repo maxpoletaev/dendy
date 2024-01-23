@@ -10,20 +10,10 @@ import (
 	"strings"
 
 	"github.com/maxpoletaev/dendy/console"
+	"github.com/maxpoletaev/dendy/consts"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/binario"
 	"github.com/maxpoletaev/dendy/ui"
-)
-
-const (
-	sampleSize        = 32
-	framesPerSecond   = 60
-	samplesPerSecond  = 44100
-	cpuTicksPerSecond = 1789773
-	ticksPerSecond    = cpuTicksPerSecond * 3
-	samplesPerFrame   = samplesPerSecond / framesPerSecond
-	ticksPerSample    = ticksPerSecond / samplesPerSecond
-	audioBufferSize   = samplesPerFrame * 3
 )
 
 func loadState(bus *console.Bus, saveFile string) (bool, error) {
@@ -119,20 +109,21 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 		}
 	}
 
+	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
+	audioBuffer := make([]float32, consts.AudioBufferSize)
+	defer audio.Close()
+
 	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
 	defer w.Close()
 
-	w.SetFrameRate(framesPerSecond)
+	w.SetFrameRate(consts.FramesPerSecond)
 	w.SetTitle(windowTitle)
 
 	w.InputDelegate = bus.Joy1.SetButtons
 	w.ZapperDelegate = bus.Zapper.Update
+	w.MuteDelegate = audio.ToggleMute
 	w.ResetDelegate = bus.Reset
 	w.ShowFPS = o.showFPS
-
-	audio := ui.CreateAudio(samplesPerSecond, sampleSize, 1, audioBufferSize)
-	audioBuffer := make([]float32, audioBufferSize)
-	defer audio.Close()
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -149,8 +140,8 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 
 gameloop:
 	for {
-		for i := 0; i < audioBufferSize; i++ {
-			for j := 0; j < ticksPerSample; j++ {
+		for i := 0; i < consts.AudioBufferSize; i++ {
+			for j := 0; j < consts.TicksPerSecond; j++ {
 				bus.Tick()
 
 				if bus.ScanlineComplete() {

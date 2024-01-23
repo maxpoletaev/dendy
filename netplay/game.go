@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/maxpoletaev/dendy/console"
+	"github.com/maxpoletaev/dendy/consts"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/binario"
 	"github.com/maxpoletaev/dendy/internal/ringbuf"
+	"github.com/maxpoletaev/dendy/ui"
 )
 
 type Checkpoint struct {
@@ -26,6 +28,7 @@ type Game struct {
 	frame uint32 // emulated frame counter, can go back on checkpoint rollback
 	bus   *console.Bus
 	gen   uint32
+	tick  uint64
 
 	checkpoint  *Checkpoint
 	catching    *Checkpoint
@@ -45,17 +48,23 @@ type Game struct {
 	playDurationAvg time.Duration // how long it takes to emulate a frame
 	playDurBuffer   *ringbuf.Buffer[time.Duration]
 
+	audio          *ui.AudioOut
+	audioBuffer    []float32
+	audioBufferPos int
+
 	LocalJoy      *input.Joystick
 	RemoteJoy     *input.Joystick
 	DisasmEnabled bool
 }
 
-func NewGame(bus *console.Bus) *Game {
+func NewGame(bus *console.Bus, audio *ui.AudioOut) *Game {
 	return &Game{
-		bus:        bus,
-		current:    &Checkpoint{},
-		checkpoint: &Checkpoint{},
-		catching:   &Checkpoint{},
+		bus:         bus,
+		current:     &Checkpoint{},
+		checkpoint:  &Checkpoint{},
+		catching:    &Checkpoint{},
+		audio:       audio,
+		audioBuffer: make([]float32, consts.AudioBufferSize),
 	}
 }
 
@@ -133,7 +142,39 @@ func (g *Game) reportFrameDuration(delta time.Duration) {
 }
 
 func (g *Game) playFrame() {
+	for {
+		g.bus.Tick()
+		g.tick++
+
+		if g.tick%consts.TicksPerSample == 0 {
+			g.audioBuffer[g.audioBufferPos] = g.bus.APU.Output()
+			g.audioBufferPos++
+
+			if g.audioBufferPos == len(g.audioBuffer) {
+				g.audio.WaitStreamProcessed()
+				g.audio.UpdateStream(g.audioBuffer)
+				g.audioBufferPos = 0
+			}
+		}
+
+		if g.bus.FrameComplete() {
+			g.frame++
+			break
+		}
+	}
+
+	// Overflow will happen after ~2 years of continuous play :)
+	// Don't think it's a problem though.
+	if g.frame == 0 {
+		panic("frame counter overflow")
+	}
+}
+
+func (g *Game) playFrameFast() {
 	start := time.Now()
+
+	g.bus.PPU.EnableFastForward()
+	defer g.bus.PPU.DisableFastForward()
 
 	for {
 		g.bus.Tick()
@@ -241,7 +282,7 @@ func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos i
 		g.RemoteJoy.SetButtons(g.speculatedInput.At(inputPos))
 		g.LocalJoy.SetButtons(g.localInput.At(inputPos))
 
-		g.playFrame()
+		g.playFrameFast()
 
 		inputPos++
 	}
@@ -255,9 +296,6 @@ func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos i
 // is reset to the last checkpoint and then both local and remote inputs are
 // replayed until they catch up to the current frame.
 func (g *Game) processDelayedInput(startTime time.Time) {
-	g.bus.PPU.EnableFastForward()
-	defer g.bus.PPU.DisableFastForward()
-
 	// Continue catching up to our current frame, as we didn't have enough time
 	// during the last frame. As soon as the emulation is faster than the real
 	// time, we will catch up eventually.
@@ -314,7 +352,7 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 		g.LocalJoy.SetButtons(g.localInput.At(i))
 		g.RemoteJoy.SetButtons(g.remoteInput.At(i))
 
-		g.playFrame()
+		g.playFrameFast()
 	}
 
 	// Disable CPU disassembly, since from now on we have only the predicted input
