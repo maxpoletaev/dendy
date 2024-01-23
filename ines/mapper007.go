@@ -89,6 +89,7 @@ func (m *Mapper007) ReadCHR(addr uint16) byte {
 
 func (m *Mapper007) SaveState(w *binario.Writer) error {
 	return errors.Join(
+		m.rom.SaveState(w),
 		w.WriteUint8(m.prgBank),
 		w.WriteUint8(m.chrBank),
 	)
@@ -96,6 +97,7 @@ func (m *Mapper007) SaveState(w *binario.Writer) error {
 
 func (m *Mapper007) LoadState(r *binario.Reader) error {
 	return errors.Join(
+		m.rom.LoadState(r),
 		r.ReadUint8To(&m.prgBank),
 		r.ReadUint8To(&m.chrBank),
 	)
