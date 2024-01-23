@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
@@ -74,6 +75,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 
 	w.SetTitle(fmt.Sprintf("%s (P1)", windowTitle))
 	w.SetFrameRate(framesPerSecond)
+	w.ResyncDelegate = sess.SendResync
 	w.InputDelegate = sess.SendButtons
 	w.ResetDelegate = sess.SendReset
 	w.ShowFPS = o.showFPS
@@ -92,6 +94,8 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	}()
 
 	for {
+		startTime := time.Now()
+
 		if w.ShouldClose() {
 			log.Printf("[INFO] saying goodbye...")
 			sess.SendBye()
@@ -103,10 +107,14 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 			break
 		}
 
-		w.SetLatencyInfo(sess.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-		sess.RunFrame()
+		w.SetGrayscale(game.Sleeping())
+		w.SetPingInfo(sess.RemotePing())
+
+		sess.HandleMessages()
+		sess.RunFrame(startTime)
+
 		w.Refresh()
 	}
 

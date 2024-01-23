@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/maxpoletaev/dendy/console"
@@ -14,23 +13,37 @@ import (
 )
 
 type Checkpoint struct {
-	Frame uint32
-	State []byte
-	Crc32 uint32
+	Frame       uint32
+	State       []byte
+	Crc32       uint32
+	LocalInput  uint8
+	RemoteInput uint8
 }
 
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
-	frame uint32
+	frame uint32 // emulated frame counter, can go back on checkpoint rollback
 	bus   *console.Bus
-	cp    *Checkpoint
 	gen   uint32
+
+	checkpoint  *Checkpoint
+	catching    *Checkpoint
+	current     *Checkpoint
+	catchingPos int
 
 	localInput      *ringbuf.Buffer[uint8]
 	remoteInput     *ringbuf.Buffer[uint8]
 	speculatedInput *ringbuf.Buffer[uint8]
 	lastRemoteInput uint8
+
+	rtt         time.Duration // round trip time
+	remoteFrame uint32
+	frameDrift  int
+	sleepFrames int
+
+	playDurationAvg time.Duration // how long it takes to emulate a frame
+	playDurBuffer   *ringbuf.Buffer[time.Duration]
 
 	LocalJoy      *input.Joystick
 	RemoteJoy     *input.Joystick
@@ -39,35 +52,52 @@ type Game struct {
 
 func NewGame(bus *console.Bus) *Game {
 	return &Game{
-		bus: bus,
-		cp:  &Checkpoint{},
+		bus:        bus,
+		current:    &Checkpoint{},
+		checkpoint: &Checkpoint{},
+		catching:   &Checkpoint{},
 	}
 }
 
 func (g *Game) Init(cp *Checkpoint) {
+	g.lastRemoteInput = 0
+	g.sleepFrames = 0
+	g.remoteFrame = 0
+	g.catchingPos = 0
+	g.frameDrift = 0
 	g.frame = 0
-	g.gen++
 
 	g.localInput = ringbuf.New[uint8](300)
 	g.remoteInput = ringbuf.New[uint8](300)
 	g.speculatedInput = ringbuf.New[uint8](300)
+	g.playDurBuffer = ringbuf.New[time.Duration](10)
 
 	if cp != nil {
-		g.cp = cp
-		g.rollback()
+		g.checkpoint = cp
+		g.rollback(g.checkpoint)
 	} else {
-		g.save()
+		g.save(g.checkpoint)
 	}
+
+	g.gen++ // messages in-flight are no longer valid
 }
 
 func (g *Game) Reset() {
 	g.bus.Reset()
 }
 
+func (g *Game) Sleep(n int) {
+	g.sleepFrames = n
+}
+
+func (g *Game) SetRTT(t time.Duration) {
+	g.rtt = t
+}
+
 // Checkpoint returns the current checkpoint where both players are in sync. The
 // returned value should not be modified and is only valid within the current frame.
 func (g *Game) Checkpoint() *Checkpoint {
-	return g.cp
+	return g.checkpoint
 }
 
 // Frame returns the current frame number.
@@ -81,7 +111,30 @@ func (g *Game) Gen() uint32 {
 	return g.gen
 }
 
+// Sleeping returns true if the game is currently sleeping to let the remote player catch up.
+func (g *Game) Sleeping() bool {
+	return g.sleepFrames > 0
+}
+
+func (g *Game) reportFrameDuration(delta time.Duration) {
+	if g.frame%100 != 0 {
+		return // no need to report every frame
+	}
+
+	g.playDurBuffer.PushBackEvict(delta)
+
+	var sum time.Duration
+	for i := 0; i < g.playDurBuffer.Len(); i++ {
+		sum += g.playDurBuffer.At(i)
+	}
+
+	g.playDurationAvg = sum / time.Duration(g.playDurBuffer.Len())
+	//log.Printf("[INFO] frame duration: %s", g.playDurationAvg)
+}
+
 func (g *Game) playFrame() {
+	start := time.Now()
+
 	for {
 		g.bus.Tick()
 
@@ -96,41 +149,63 @@ func (g *Game) playFrame() {
 	if g.frame == 0 {
 		panic("frame counter overflow")
 	}
+
+	g.reportFrameDuration(time.Since(start))
+}
+
+func (g *Game) dropInputs(n int) {
+	g.localInput.TruncFront(n)
+	g.remoteInput.TruncFront(n)
+	g.speculatedInput.TruncFront(n)
 }
 
 // RunFrame runs a single frame of the game.
-func (g *Game) RunFrame() {
-	g.applyRemoteInput()
+func (g *Game) RunFrame(startTime time.Time) {
+	if g.sleepFrames > 0 {
+		g.sleepFrames--
+		return
+	}
+
+	if g.frameDrift > frameDriftLimit {
+		g.sleepFrames = g.frameDrift
+		return
+	}
+
+	g.processDelayedInput(startTime)
 	g.playFrame()
 }
 
-func (g *Game) save() {
-	buf := bytes.NewBuffer(g.cp.State[:0])
+func (g *Game) save(cp *Checkpoint) {
+	buf := bytes.NewBuffer(cp.State[:0])
 	writer := binario.NewWriter(buf, binary.LittleEndian)
 
 	if err := g.bus.SaveState(writer); err != nil {
 		panic(fmt.Errorf("failed create checkpoint: %w", err))
 	}
 
-	g.cp.Frame = g.frame
-	g.cp.State = buf.Bytes() // re-assign in case it was re-allocated
+	cp.Frame = g.frame
+	cp.State = buf.Bytes() // re-assign in case it was re-allocated
+
+	cp.LocalInput = g.LocalJoy.Buttons()
+	cp.RemoteInput = g.RemoteJoy.Buttons()
 }
 
-func (g *Game) rollback() {
-	buf := bytes.NewBuffer(g.cp.State)
+func (g *Game) rollback(cp *Checkpoint) {
+	buf := bytes.NewBuffer(cp.State)
 	reader := binario.NewReader(buf, binary.LittleEndian)
 
 	if err := g.bus.LoadState(reader); err != nil {
 		panic(fmt.Errorf("failed to restore checkpoint: %w", err))
 	}
 
-	g.frame = g.cp.Frame
+	g.frame = cp.Frame
+	g.LocalJoy.SetButtons(cp.LocalInput)
+	g.RemoteJoy.SetButtons(cp.RemoteInput)
 }
 
 // HandleLocalInput adds records and applies the input from the local player.
 // Since the remote player is behind, it assumes that it just keeps pressing
-// the same buttons until it catches up. This is not always true, but it's
-// good approximation for most games.
+// the same buttons until it catches up.
 func (g *Game) HandleLocalInput(buttons uint8) {
 	g.LocalJoy.SetButtons(buttons)
 	g.RemoteJoy.SetButtons(g.lastRemoteInput)
@@ -140,32 +215,83 @@ func (g *Game) HandleLocalInput(buttons uint8) {
 }
 
 // HandleRemoteInput adds the input from the remote player.
-func (g *Game) HandleRemoteInput(buttons uint8) {
+func (g *Game) HandleRemoteInput(buttons uint8, frame uint32) {
 	g.remoteInput.PushBack(buttons)
 	g.lastRemoteInput = buttons
+
+	if g.rtt > 0 {
+		// Try to guess the frame of the remote player is on adjusted for latency.
+		g.remoteFrame = frame + uint32(g.rtt/2/frameDuration) + 1
+		g.frameDrift = int(g.frame) - int(g.remoteFrame)
+	}
 }
 
-// applyRemoteInput applies the input from the remote player to the local
+func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos int) {
+	for f := g.frame; f < endFrame; f++ {
+		timeLeft := frameDuration - time.Since(startTime)
+
+		if timeLeft < g.playDurationAvg*3 { // TODO: why 3?
+			g.save(g.catching)
+			g.rollback(g.current)
+			g.catchingPos = inputPos
+
+			return
+		}
+
+		g.RemoteJoy.SetButtons(g.speculatedInput.At(inputPos))
+		g.LocalJoy.SetButtons(g.localInput.At(inputPos))
+
+		g.playFrame()
+
+		inputPos++
+	}
+
+	g.catchingPos = 0
+}
+
+// processDelayedInput applies the input from the remote player to the local
 // emulator when it is available. This is where all the magic happens. The remote
 // player is usually a few frames behind the local emulator state. The emulator
 // is reset to the last checkpoint and then both local and remote inputs are
 // replayed until they catch up to the current frame.
-func (g *Game) applyRemoteInput() {
-	inputSize := min(g.localInput.Len(), g.remoteInput.Len())
+func (g *Game) processDelayedInput(startTime time.Time) {
+	g.bus.PPU.EnableFastForward()
+	defer g.bus.PPU.DisableFastForward()
+
+	// Continue catching up to our current frame, as we didn't have enough time
+	// during the last frame. As soon as the emulation is faster than the real
+	// time, we will catch up eventually.
+	if g.catchingPos != 0 {
+		g.save(g.current)
+		g.rollback(g.catching)
+		g.replayLocalInput(startTime, g.current.Frame, g.catchingPos)
+
+		// If we are still behind, we will try again next frame.
+		// TODO: detect when we are not making any progress and give up.
+		if g.catchingPos != 0 {
+			return
+		}
+	}
+
+	inputSize := min(g.localInput.Len(), g.remoteInput.Len(), int(g.frame-g.checkpoint.Frame))
 	if inputSize == 0 {
 		return
 	}
 
-	start := time.Now()
-	endFrame := g.frame
-	startFrame := g.cp.Frame
+	// Preserve the state before the rollback. We will restore it
+	// in case we do not have enough time to catch up during this frame.
+	g.save(g.current)
 
 	// Rollback to the last known synchronized state.
-	g.rollback()
+	endFrame := g.frame
+	g.rollback(g.checkpoint)
 
-	// Enable PPU fast-forwarding to speed up the replay, since we don't need to
-	// render the intermediate frames.
-	g.bus.PPU.FastForward = true
+	// Ensure we are always back to where we started.
+	defer func() {
+		if g.frame != endFrame {
+			panic(fmt.Errorf("frame advanced from %d to %d", endFrame, g.frame))
+		}
+	}()
 
 	// Enable CPU disassembly if requested. We do it only for frames where we have
 	// both local and remote inputs, so that we can compare.
@@ -175,8 +301,19 @@ func (g *Game) applyRemoteInput() {
 
 	// Replay the inputs until the local and remote emulators are in sync.
 	for i := 0; i < inputSize; i++ {
+		timeLeft := frameDuration - time.Since(startTime)
+
+		if timeLeft < g.playDurationAvg*3 {
+			g.save(g.checkpoint)
+			g.rollback(g.current)
+			g.dropInputs(i)
+
+			return
+		}
+
 		g.LocalJoy.SetButtons(g.localInput.At(i))
 		g.RemoteJoy.SetButtons(g.remoteInput.At(i))
+
 		g.playFrame()
 	}
 
@@ -186,40 +323,17 @@ func (g *Game) applyRemoteInput() {
 		g.bus.DisasmEnabled = false
 	}
 
-	// This is the last state where both emulators are in sync.
-	// Create a new checkpoint, so we can rewind to this state later.
-	g.save()
-
 	// Rebuild the speculated input from this point as the last remote input could have changed.
 	for i := inputSize; i < g.localInput.Len(); i++ {
 		g.speculatedInput.Set(i, g.remoteInput.At(inputSize-1))
 	}
 
+	// This is the last state where both emulators are in sync. Create a new checkpoint,
+	// so we can rewind to this state later, and remove the inputs that we have
+	// already processed.
+	g.save(g.checkpoint)
+	g.dropInputs(inputSize)
+
 	// Replay the rest of the local inputs and use speculated values for the remote.
-	for i := inputSize; i < g.localInput.Len(); i++ {
-		g.RemoteJoy.SetButtons(g.speculatedInput.At(i))
-		g.LocalJoy.SetButtons(g.localInput.At(i))
-
-		if g.frame < endFrame {
-			g.playFrame()
-		}
-	}
-
-	if g.frame != endFrame {
-		panic(fmt.Errorf("frame advanced from %d to %d", endFrame, g.frame))
-	}
-
-	// Replaying a large number of frames will inevitably create some lag
-	// for the local player. There is not much we can do about it.
-	if delta := time.Since(start); delta > frameDuration {
-		log.Printf("[DEBUG] replay lag: %s (replayed %d frames)", delta, endFrame-startFrame)
-	}
-
-	// There might still be some local inputs left, so we need to keep them.
-	g.localInput.TruncFront(inputSize)
-	g.remoteInput.TruncFront(inputSize)
-	g.speculatedInput.TruncFront(inputSize)
-
-	// Disable fast-forwarding, since we are back to real-time.
-	g.bus.PPU.FastForward = false
+	g.replayLocalInput(startTime, endFrame, 0)
 }

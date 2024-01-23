@@ -8,14 +8,13 @@ import (
 type Reader struct {
 	byteOrder binary.ByteOrder
 	reader    io.Reader
-	buf       []byte
+	buf       [8]byte
 }
 
 func NewReader(reader io.Reader, byteOrder binary.ByteOrder) *Reader {
 	return &Reader{
 		reader:    reader,
 		byteOrder: byteOrder,
-		buf:       make([]byte, 8),
 	}
 }
 

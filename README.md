@@ -48,6 +48,13 @@ follows. Multiplayer on a single keyboard is not supported.
 Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
 the mouse cursor at the right position on the screen and click to shoot.
 
+### Hotkeys
+
+ * `CTRL+R` or `⌘+R` - Reset the game
+ * `CTRL+Q` or `⌘+Q` - Quit the emulator
+ * `CTRL+X` or `⌘+X` - Resync the emulators (netplay)
+ * `F12` - Take a screenshot
+
 ## Network Multiplayer
 
 Run the emulator with the `-listen=<host>:<port>` flag to start a netplay server
@@ -58,14 +65,15 @@ that both sides are using the same ROM file and the same version of the emulator
 
 The multiplayer feature is based on rollback networking, similar to how it is done in
 RetroArch and Fightcade. The emulation always runs at the full speed on both sides,
-and the player inputs attached to frame numbers are exchanged over the network. It
-compensates for slight drifts in the clock speed and network latency by predicting
+and the player inputs for each frame are exchanged over the network.
+
+It compensates for slight drifts in the clock speed and network latency by predicting
 input events for the other player when the real input has not yet been received. When
 the input from the remote player arrives, it corrects itself by "rolling back" to the
 last known synchronized state and replaying the inputs from that point. Theoretically,
 this should keep the game playable for both sides without any local input delay, even
 if the network connection is not very stable (e.g., over the Internet). When tested,
-latencies of up to 150ms felt pretty comfortable.
+latencies of up to 150ms felt pretty playable.
 
 ## Tested Games
 

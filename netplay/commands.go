@@ -1,44 +1,68 @@
 package netplay
 
-import "log"
+import (
+	"encoding/binary"
+	"log"
+	"time"
+)
 
 // SendInitialState is used by the server to send the initial state to the client.
 func (np *Netplay) SendInitialState() {
-	np.game.Init(nil)
+	if np.game.Sleeping() {
+		return
+	}
 
+	np.game.Init(nil)
 	checkpoint := np.game.Checkpoint()
-	state := make([]uint8, len(checkpoint.State))
-	copy(state, checkpoint.State)
-	frame := checkpoint.Frame
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      frame,
-		Payload:    state,
+		Frame:      checkpoint.Frame,
+		Payload:    checkpoint.State,
 	})
 }
 
 // SendReset restarts the game on both sides.
 func (np *Netplay) SendReset() {
+	if np.game.Sleeping() {
+		return
+	}
+
 	np.game.Reset()
 	np.game.Init(nil)
-
 	checkpoint := np.game.Checkpoint()
-	state := make([]uint8, len(checkpoint.State))
-	copy(state, checkpoint.State)
-	frame := checkpoint.Frame
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      frame,
-		Payload:    state,
+		Frame:      checkpoint.Frame,
+		Payload:    checkpoint.State,
+	})
+}
+
+func (np *Netplay) SendResync() {
+	if np.game.Sleeping() {
+		return
+	}
+
+	np.game.Init(nil)
+	checkpoint := np.game.Checkpoint()
+
+	np.sendMsg(Message{
+		Generation: np.game.Gen(),
+		Type:       MsgTypeReset,
+		Frame:      checkpoint.Frame,
+		Payload:    checkpoint.State,
 	})
 }
 
 // SendButtons sends the local input to the remote player. Should be called every frame.
 func (np *Netplay) SendButtons(buttons uint8) {
+	if np.game.Sleeping() {
+		return
+	}
+
 	if np.game.Frame() == 0 {
 		return
 	}
@@ -53,8 +77,28 @@ func (np *Netplay) SendButtons(buttons uint8) {
 	np.game.HandleLocalInput(buttons)
 }
 
+func (np *Netplay) SendPing() {
+	if np.game.Sleeping() {
+		return
+	}
+
+	payload := make([]byte, 8)
+	timestamp := time.Now().UnixMilli()
+	binary.LittleEndian.PutUint64(payload, uint64(timestamp))
+
+	np.sendMsg(Message{
+		Generation: np.game.Gen(),
+		Type:       MsgTypePing,
+		Payload:    payload,
+	})
+}
+
 // SendBye sends a bye message to the remote player when the game is over.
 func (np *Netplay) SendBye() {
+	if np.game.Sleeping() {
+		return
+	}
+
 	np.sendMsg(Message{
 		Type:       MsgTypeBye,
 		Generation: np.game.Gen(),

@@ -502,3 +502,11 @@ func (p *PPU) FrameComplete() (v bool) {
 	p.frameComplete = false
 	return v
 }
+
+func (p *PPU) EnableFastForward() {
+	p.FastForward = true
+}
+
+func (p *PPU) DisableFastForward() {
+	p.FastForward = false
+}

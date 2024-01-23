@@ -1,6 +1,7 @@
 package netplay
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log"
 	"time"
@@ -60,13 +61,16 @@ func (np *Netplay) handlePing(msg Message) {
 	np.sendMsg(Message{
 		Type:       MsgTypePong,
 		Generation: np.game.Gen(),
+		Payload:    msg.Payload,
 	})
 }
 
 func (np *Netplay) handlePong(msg Message) {
-	np.latency = time.Since(np.pingSent)
+	timeSent := time.UnixMilli(int64(binary.LittleEndian.Uint64(msg.Payload)))
+	np.rtt = time.Since(timeSent)
+	np.game.SetRTT(np.rtt)
 }
 
 func (np *Netplay) handleInput(msg Message) {
-	np.game.HandleRemoteInput(msg.Payload[0])
+	np.game.HandleRemoteInput(msg.Payload[0], msg.Frame)
 }

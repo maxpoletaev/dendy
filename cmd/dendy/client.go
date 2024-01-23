@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/input"
@@ -68,6 +69,8 @@ func runAsClient(bus *console.Bus, o *opts) {
 	w.ShowPing = true
 
 	for {
+		startTime := time.Now()
+
 		if w.ShouldClose() {
 			log.Printf("[INFO] saying goodbye...")
 			sess.SendBye()
@@ -79,10 +82,14 @@ func runAsClient(bus *console.Bus, o *opts) {
 			break
 		}
 
-		w.SetLatencyInfo(sess.Latency())
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-		sess.RunFrame()
+		w.SetGrayscale(game.Sleeping())
+		w.SetPingInfo(sess.RemotePing())
+
+		sess.HandleMessages()
+		sess.RunFrame(startTime)
+
 		w.Refresh()
 	}
 }

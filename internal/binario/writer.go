@@ -11,13 +11,12 @@ import (
 type Writer struct {
 	byteOrder binary.ByteOrder
 	writer    io.Writer
-	buf       []byte
+	buf       [8]byte
 }
 
 // NewWriter returns a new Writer that writes to w using the specified byte order.
 func NewWriter(w io.Writer, byteOrder binary.ByteOrder) *Writer {
 	return &Writer{
-		buf:       make([]byte, 8),
 		byteOrder: byteOrder,
 		writer:    w,
 	}

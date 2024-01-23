@@ -31,6 +31,18 @@ func (q *Buffer[T]) PushBack(items ...T) {
 	}
 }
 
+func (q *Buffer[T]) PushBackEvict(items ...T) {
+	if len(items) > q.capacity {
+		panic("queue is too small")
+	}
+
+	if len(items) > q.capacity-q.length {
+		q.TruncFront(len(items) - (q.capacity - q.length))
+	}
+
+	q.PushBack(items...)
+}
+
 func (q *Buffer[T]) PopFront() T {
 	if q.length == 0 {
 		panic("queue is empty")

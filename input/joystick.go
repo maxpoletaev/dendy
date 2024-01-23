@@ -35,6 +35,10 @@ func (c *Joystick) Reset() {
 	c.reset = 0
 }
 
+func (c *Joystick) Buttons() uint8 {
+	return c.buttons
+}
+
 func (c *Joystick) SetButtons(buttons uint8) {
 	c.buttons = buttons
 }

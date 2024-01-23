@@ -12,15 +12,15 @@ import (
 const (
 	frameDuration      = time.Second / 60
 	pingIntervalFrames = 60
+	frameDriftLimit    = 15
 )
 
 type Netplay struct {
 	game       *Game
-	latency    time.Duration
 	toRecv     chan Message
 	toSend     chan Message
-	pingSent   time.Time
 	conn       net.Conn
+	rtt        time.Duration
 	readerDone chan struct{}
 	writerDone chan struct{}
 	shouldExit bool
@@ -49,7 +49,7 @@ func Listen(game *Game, addr string) (*Netplay, net.Addr, error) {
 	}
 
 	np := newNetplay(game, conn)
-	np.Start()
+	np.start()
 
 	return np, conn.RemoteAddr(), nil
 }
@@ -61,8 +61,7 @@ func Connect(game *Game, addr string) (*Netplay, net.Addr, error) {
 	}
 
 	np := newNetplay(game, conn)
-
-	np.Start()
+	np.start()
 
 	return np, conn.RemoteAddr(), nil
 }
@@ -106,7 +105,7 @@ func (np *Netplay) startReader() {
 	}
 }
 
-func (np *Netplay) Start() {
+func (np *Netplay) start() {
 	go np.startReader()
 	go np.startWriter()
 }
@@ -125,8 +124,8 @@ func (np *Netplay) ShouldExit() bool {
 	return np.shouldExit
 }
 
-// RunFrame runs a single frame of the game and handles any incoming messages.
-func (np *Netplay) RunFrame() {
+// HandleMessages handles incoming messages from the remote player.
+func (np *Netplay) HandleMessages() {
 loop:
 	for {
 		select {
@@ -140,21 +139,19 @@ loop:
 			break loop
 		}
 	}
+}
+
+// RunFrame progresses the game by one frame.
+func (np *Netplay) RunFrame(startTime time.Time) {
+	np.game.RunFrame(startTime)
 
 	// Inject a ping message every N frames to measure latency.
 	if np.game.Frame()%pingIntervalFrames == 0 {
-		np.sendMsg(Message{
-			Generation: np.game.Gen(),
-			Type:       MsgTypePing,
-		})
-
-		np.pingSent = time.Now()
+		np.SendPing()
 	}
-
-	np.game.RunFrame()
 }
 
-// Latency returns the current latency in milliseconds between the players.
-func (np *Netplay) Latency() int64 {
-	return np.latency.Milliseconds()
+// RemotePing returns the ping time to the remote peer in milliseconds.
+func (np *Netplay) RemotePing() int64 {
+	return np.rtt.Milliseconds()
 }

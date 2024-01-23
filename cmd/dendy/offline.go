@@ -112,6 +112,11 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 		} else if ok {
 			log.Printf("[INFO] state loaded: %s", saveFile)
 		}
+
+		if strings.HasSuffix(saveFile, ".crash") {
+			log.Printf("[INFO] loaded from crash state, further saves disabled")
+			o.noSave = true
+		}
 	}
 
 	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
@@ -160,6 +165,7 @@ gameloop:
 					bus.Zapper.VBlank()
 					w.UpdateJoystick()
 					w.HandleHotKeys()
+					w.SetGrayscale(false)
 					w.Refresh()
 
 					// Pause when not in focus.
@@ -168,6 +174,7 @@ gameloop:
 							break gameloop
 						}
 
+						w.SetGrayscale(true)
 						w.Refresh()
 					}
 				}

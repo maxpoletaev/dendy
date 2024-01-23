@@ -12,19 +12,27 @@ const (
 	height = 240
 )
 
+func toGrayscale(c color.RGBA) color.RGBA {
+	gray := uint8(float64(c.R)*0.3 + float64(c.G)*0.59 + float64(c.B)*0.11)
+	return color.RGBA{R: gray, G: gray, B: gray, A: c.A}
+}
+
 type Window struct {
 	ZapperDelegate func(brightness uint8, trigger bool)
 	InputDelegate  func(buttons uint8)
+	ResyncDelegate func()
 	ResetDelegate  func()
 	ShowPing       bool
 	ShowFPS        bool
 	FPS            int
 
-	latency int64
-	frame   *[width][height]color.RGBA
-	texture rl.RenderTexture2D
-	pixels  []color.RGBA
-	scale   int
+	remotePing  int64
+	shouldClose bool
+	frame       *[width][height]color.RGBA
+	texture     rl.RenderTexture2D
+	pixels      []color.RGBA
+	grayscale   bool
+	scale       int
 
 	sourceRec rl.Rectangle
 	targetRec rl.Rectangle
@@ -36,6 +44,8 @@ func CreateWindow(frame *[width][height]color.RGBA, scale int, verbose bool) *Wi
 	}
 
 	rl.InitWindow(width*int32(scale), height*int32(scale), "")
+	rl.SetExitKey(0) // disable exit on ESC
+
 	texture := rl.LoadRenderTexture(width, height)
 	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
 
@@ -60,26 +70,35 @@ func (w *Window) SetFrameRate(fps int) {
 	rl.SetTargetFPS(int32(fps))
 }
 
+func (w *Window) SetGrayscale(grayscale bool) {
+	w.grayscale = grayscale
+}
+
 func (w *Window) Close() {
 	rl.CloseWindow()
 }
 
 func (w *Window) ShouldClose() bool {
-	return rl.WindowShouldClose()
+	return w.shouldClose || rl.WindowShouldClose()
 }
 
 func (w *Window) updateTexture() {
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
-			w.pixels[x+y*width] = w.frame[x][y]
+			px := w.frame[x][y]
+			if w.grayscale {
+				px = toGrayscale(px)
+			}
+
+			w.pixels[x+y*width] = px
 		}
 	}
 
 	rl.UpdateTexture(w.texture.Texture, w.pixels)
 }
 
-func (w *Window) SetLatencyInfo(latency int64) {
-	w.latency = latency
+func (w *Window) SetPingInfo(pingMs int64) {
+	w.remotePing = pingMs
 }
 
 func (w *Window) drawTextWithShadow(text string, x int32, y int32, size int32, colour rl.Color) {
@@ -104,18 +123,18 @@ func (w *Window) Refresh() {
 		offsetY += 10
 	}
 
-	if w.ShowPing && w.latency > 0 {
+	if w.ShowPing && w.remotePing > 0 {
 		textY := offsetY + 5
 		colour := rl.Green
 
-		if w.latency > 150 {
+		if w.remotePing > 150 {
 			colour = rl.Red
-		} else if w.latency > 100 {
+		} else if w.remotePing > 100 {
 			colour = rl.Yellow
 		}
 
-		latency := fmt.Sprintf("%d ms", w.latency)
-		w.drawTextWithShadow(latency, 6, textY, 10, colour)
+		ping := fmt.Sprintf("%d ms", w.remotePing)
+		w.drawTextWithShadow(ping, 6, textY, 10, colour)
 	}
 
 	rl.EndDrawing()
@@ -136,9 +155,17 @@ func (w *Window) HandleHotKeys() {
 	case rl.IsKeyPressed(rl.KeyF12):
 		rl.TakeScreenshot("screenshot.png")
 
+	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyQ):
+		w.shouldClose = true
+
 	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyR):
 		if w.ResetDelegate != nil {
 			w.ResetDelegate()
+		}
+
+	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyX):
+		if w.ResyncDelegate != nil {
+			w.ResyncDelegate()
 		}
 	}
 }
