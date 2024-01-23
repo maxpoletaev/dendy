@@ -41,6 +41,8 @@ func NewCartridge(rom *ROM) (Cartridge, error) {
 		return NewMapper3(rom), nil
 	case 4:
 		return NewMapper4(rom), nil
+	case 7:
+		return NewMapper7(rom), nil
 	default:
 		return nil, fmt.Errorf("unsupported mapper: %d", rom.MapperID)
 	}

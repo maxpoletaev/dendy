@@ -83,6 +83,8 @@ latencies of up to 150ms felt pretty playable.
 | Balloon Fight | Playable ||
 | Batman| Playable ||
 | Battle City | Playable ||
+| Battletoads | Playable ||
+| Battletoads & Double Dragon | Not Playable | Freezes |
 | Bomberman | Playable ||
 | Captain America | Playable ||
 | Castlevania | Playable ||
@@ -169,7 +171,7 @@ nescartdb.com.
 * [x] UxROM (Mapper 2) - 11%
 * [x] NROM (Mapper 0) - 10%
 * [x] CNROM (Mapper 3) - 6%
-* [ ] AxROM (Mapper 7) - 3%
+* [x] AxROM (Mapper 7) - 3%
 * [ ] MMC5 (Mapper 5) - 1%
 
 ## Resources
