@@ -19,6 +19,22 @@ func New[T any](capacity int) *Buffer[T] {
 	}
 }
 
+func (q *Buffer[T]) Grow(capacity int) {
+	if capacity < q.capacity {
+		panic("new capacity is smaller than current capacity")
+	}
+
+	newItems := make([]T, capacity)
+	for i := 0; i < q.length; i++ {
+		newItems[i] = q.items[(q.head+i)%len(q.items)]
+	}
+
+	q.items = newItems
+	q.capacity = capacity
+	q.head = 0
+	q.tail = q.length
+}
+
 func (q *Buffer[T]) PushBack(items ...T) {
 	if q.length+len(items) > q.capacity {
 		panic("queue is full")

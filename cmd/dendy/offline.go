@@ -111,6 +111,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 
 	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
 	audioBuffer := make([]float32, consts.AudioBufferSize)
+	audio.Mute(o.mute)
 	defer audio.Close()
 
 	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
@@ -141,7 +142,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 gameloop:
 	for {
 		for i := 0; i < consts.AudioBufferSize; i++ {
-			for j := 0; j < consts.TicksPerSecond; j++ {
+			for j := 0; j < consts.TicksPerSample; j++ {
 				bus.Tick()
 
 				if bus.ScanlineComplete() {

@@ -5,14 +5,18 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"time"
+
+	"github.com/maxpoletaev/dendy/internal/ringbuf"
 )
 
 const (
-	frameDuration      = time.Second / 60
+	frameDriftLimit    = 10
 	pingIntervalFrames = 60
-	frameDriftLimit    = 15
+	maxFrameSyncFreq   = 300
+	frameDuration      = time.Second / 60
 )
 
 type Netplay struct {
@@ -21,13 +25,16 @@ type Netplay struct {
 	toSend     chan Message
 	conn       net.Conn
 	rtt        time.Duration
+	rttWindow  *ringbuf.Buffer[time.Duration]
 	readerDone chan struct{}
 	writerDone chan struct{}
 	shouldExit bool
+	syncFrame  uint32
 }
 
 func newNetplay(game *Game, conn net.Conn) *Netplay {
 	return &Netplay{
+		rttWindow:  ringbuf.New[time.Duration](10),
 		toSend:     make(chan Message, 100),
 		toRecv:     make(chan Message, 100),
 		readerDone: make(chan struct{}),
@@ -148,6 +155,20 @@ func (np *Netplay) RunFrame(startTime time.Time) {
 	// Inject a ping message every N frames to measure latency.
 	if np.game.Frame()%pingIntervalFrames == 0 {
 		np.SendPing()
+	}
+
+	localFrame := np.game.Frame()
+	remoteFrame := np.game.RemoteFrame()
+
+	if localFrame < remoteFrame {
+		drift := remoteFrame - localFrame
+
+		// Ask the remote to wait if we are too far behind.
+		if drift > frameDriftLimit && np.syncFrame+maxFrameSyncFreq < localFrame {
+			log.Printf("[INFO] asking the remote to wait for %d frames", drift)
+			np.syncFrame = localFrame + uint32(rand.Int31n(maxFrameSyncFreq/10))
+			np.SendWait(drift)
+		}
 	}
 }
 

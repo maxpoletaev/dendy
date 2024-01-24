@@ -38,15 +38,15 @@ type Game struct {
 	localInput      *ringbuf.Buffer[uint8]
 	remoteInput     *ringbuf.Buffer[uint8]
 	speculatedInput *ringbuf.Buffer[uint8]
+
+	rtt             time.Duration // round trip time
+	lastRemoteFrame uint32
 	lastRemoteInput uint8
+	unreadFrames    uint32
+	sleepFrames     uint32
 
-	rtt         time.Duration // round trip time
-	remoteFrame uint32
-	frameDrift  int
-	sleepFrames int
-
-	playDurationAvg time.Duration // how long it takes to emulate a frame
-	playDurBuffer   *ringbuf.Buffer[time.Duration]
+	frameDuration       time.Duration // how long it takes to emulate a frame
+	frameDurationWindow *ringbuf.Buffer[time.Duration]
 
 	audio          *ui.AudioOut
 	audioBuffer    []float32
@@ -70,16 +70,15 @@ func NewGame(bus *console.Bus, audio *ui.AudioOut) *Game {
 
 func (g *Game) Init(cp *Checkpoint) {
 	g.lastRemoteInput = 0
+	g.lastRemoteFrame = 0
 	g.sleepFrames = 0
-	g.remoteFrame = 0
 	g.catchingPos = 0
-	g.frameDrift = 0
 	g.frame = 0
 
-	g.localInput = ringbuf.New[uint8](300)
-	g.remoteInput = ringbuf.New[uint8](300)
-	g.speculatedInput = ringbuf.New[uint8](300)
-	g.playDurBuffer = ringbuf.New[time.Duration](10)
+	g.localInput = ringbuf.New[uint8](512)
+	g.remoteInput = ringbuf.New[uint8](512)
+	g.speculatedInput = ringbuf.New[uint8](512)
+	g.frameDurationWindow = ringbuf.New[time.Duration](16)
 
 	if cp != nil {
 		g.checkpoint = cp
@@ -95,7 +94,7 @@ func (g *Game) Reset() {
 	g.bus.Reset()
 }
 
-func (g *Game) Sleep(n int) {
+func (g *Game) SleepFrames(n uint32) {
 	g.sleepFrames = n
 }
 
@@ -126,22 +125,20 @@ func (g *Game) Sleeping() bool {
 }
 
 func (g *Game) reportFrameDuration(delta time.Duration) {
-	if g.frame%100 != 0 {
-		return // no need to report every frame
-	}
-
-	g.playDurBuffer.PushBackEvict(delta)
+	g.frameDurationWindow.PushBackEvict(delta)
 
 	var sum time.Duration
-	for i := 0; i < g.playDurBuffer.Len(); i++ {
-		sum += g.playDurBuffer.At(i)
+	for i := 0; i < g.frameDurationWindow.Len(); i++ {
+		sum += g.frameDurationWindow.At(i)
 	}
 
-	g.playDurationAvg = sum / time.Duration(g.playDurBuffer.Len())
+	g.frameDuration = sum / time.Duration(g.frameDurationWindow.Len())
 	//log.Printf("[INFO] frame duration: %s", g.playDurationAvg)
 }
 
 func (g *Game) playFrame() {
+	start := time.Now()
+
 	for {
 		g.bus.Tick()
 		g.tick++
@@ -151,7 +148,7 @@ func (g *Game) playFrame() {
 			g.audioBufferPos++
 
 			if g.audioBufferPos == len(g.audioBuffer) {
-				g.audio.WaitStreamProcessed()
+				//g.audio.WaitStreamProcessed()
 				g.audio.UpdateStream(g.audioBuffer)
 				g.audioBufferPos = 0
 			}
@@ -168,11 +165,13 @@ func (g *Game) playFrame() {
 	if g.frame == 0 {
 		panic("frame counter overflow")
 	}
+
+	if g.frame%10 == 0 {
+		g.reportFrameDuration(time.Since(start))
+	}
 }
 
 func (g *Game) playFrameFast() {
-	start := time.Now()
-
 	g.bus.PPU.EnableFastForward()
 	defer g.bus.PPU.DisableFastForward()
 
@@ -185,13 +184,9 @@ func (g *Game) playFrameFast() {
 		}
 	}
 
-	// Overflow will happen after ~2 years of continuous play :)
-	// Don't think it's a problem though.
 	if g.frame == 0 {
 		panic("frame counter overflow")
 	}
-
-	g.reportFrameDuration(time.Since(start))
 }
 
 func (g *Game) dropInputs(n int) {
@@ -200,15 +195,21 @@ func (g *Game) dropInputs(n int) {
 	g.speculatedInput.TruncFront(n)
 }
 
+// RemoteFrame returns the approximate frame number the remote player is currently on.
+func (g *Game) RemoteFrame() uint32 {
+	if g.rtt == 0 {
+		return 0
+	}
+
+	latencyFrames := uint32(g.rtt / 2 / frameDuration)
+
+	return g.lastRemoteFrame + g.unreadFrames + latencyFrames
+}
+
 // RunFrame runs a single frame of the game.
 func (g *Game) RunFrame(startTime time.Time) {
 	if g.sleepFrames > 0 {
 		g.sleepFrames--
-		return
-	}
-
-	if g.frameDrift > frameDriftLimit {
-		g.sleepFrames = g.frameDrift
 		return
 	}
 
@@ -253,25 +254,23 @@ func (g *Game) HandleLocalInput(buttons uint8) {
 
 	g.localInput.PushBack(buttons)
 	g.speculatedInput.PushBack(g.lastRemoteInput)
+
+	g.unreadFrames++
 }
 
 // HandleRemoteInput adds the input from the remote player.
 func (g *Game) HandleRemoteInput(buttons uint8, frame uint32) {
 	g.remoteInput.PushBack(buttons)
 	g.lastRemoteInput = buttons
-
-	if g.rtt > 0 {
-		// Try to guess the frame of the remote player is on adjusted for latency.
-		g.remoteFrame = frame + uint32(g.rtt/2/frameDuration) + 1
-		g.frameDrift = int(g.frame) - int(g.remoteFrame)
-	}
+	g.lastRemoteFrame = frame
+	g.unreadFrames = 0
 }
 
 func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos int) {
 	for f := g.frame; f < endFrame; f++ {
 		timeLeft := frameDuration - time.Since(startTime)
 
-		if timeLeft < g.playDurationAvg*3 { // TODO: why 3?
+		if timeLeft < g.frameDuration*2 {
 			g.save(g.catching)
 			g.rollback(g.current)
 			g.catchingPos = inputPos
@@ -281,7 +280,6 @@ func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos i
 
 		g.RemoteJoy.SetButtons(g.speculatedInput.At(inputPos))
 		g.LocalJoy.SetButtons(g.localInput.At(inputPos))
-
 		g.playFrameFast()
 
 		inputPos++
@@ -341,7 +339,7 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 	for i := 0; i < inputSize; i++ {
 		timeLeft := frameDuration - time.Since(startTime)
 
-		if timeLeft < g.playDurationAvg*3 {
+		if timeLeft < g.frameDuration*2 {
 			g.save(g.checkpoint)
 			g.rollback(g.current)
 			g.dropInputs(i)
@@ -362,7 +360,7 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 	}
 
 	// Rebuild the speculated input from this point as the last remote input could have changed.
-	for i := inputSize; i < g.localInput.Len(); i++ {
+	for i := inputSize; i < g.speculatedInput.Len(); i++ {
 		g.speculatedInput.Set(i, g.remoteInput.At(inputSize-1))
 	}
 

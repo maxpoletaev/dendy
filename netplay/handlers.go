@@ -24,10 +24,22 @@ func (np *Netplay) handleMessage(msg Message) {
 		np.handleInput(msg)
 	case MsgTypeBye:
 		np.handleBye(msg)
+	case MsgTypeWait:
+		np.handleWait(msg)
 	default:
 		// should never reach here
 		panic(fmt.Errorf("unknown message type: %d", msg.Type))
 	}
+}
+
+func (np *Netplay) handleWait(msg Message) {
+	frames := binary.LittleEndian.Uint32(msg.Payload)
+
+	log.Printf("[INFO] sleeping for %d frames", frames)
+
+	np.syncFrame = np.game.Frame() + frames
+
+	np.game.SleepFrames(frames)
 }
 
 func (np *Netplay) handleBye(msg Message) {
@@ -67,7 +79,15 @@ func (np *Netplay) handlePing(msg Message) {
 
 func (np *Netplay) handlePong(msg Message) {
 	timeSent := time.UnixMilli(int64(binary.LittleEndian.Uint64(msg.Payload)))
-	np.rtt = time.Since(timeSent)
+	np.rttWindow.PushBackEvict(time.Since(timeSent))
+
+	var sum time.Duration
+	for i := 0; i < np.rttWindow.Len(); i++ {
+		sum += np.rttWindow.At(i)
+	}
+
+	np.rtt = sum / time.Duration(np.rttWindow.Len())
+
 	np.game.SetRTT(np.rtt)
 }
 

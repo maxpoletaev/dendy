@@ -121,3 +121,18 @@ func (np *Netplay) SendBye() {
 	<-np.readerDone
 	close(np.toRecv)
 }
+
+func (np *Netplay) SendWait(frames uint32) {
+	if np.game.Sleeping() || frames == 0 {
+		return
+	}
+
+	payload := make([]byte, 4)
+	binary.LittleEndian.PutUint32(payload, frames)
+
+	np.sendMsg(Message{
+		Type:       MsgTypeWait,
+		Generation: np.game.Gen(),
+		Payload:    payload,
+	})
+}

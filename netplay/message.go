@@ -15,6 +15,7 @@ type MsgType = uint8
 
 const (
 	MsgTypeReset MsgType = iota + 1
+	MsgTypeWait
 	MsgTypeInput
 	MsgTypePing
 	MsgTypePong
