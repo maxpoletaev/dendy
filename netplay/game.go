@@ -144,11 +144,12 @@ func (g *Game) playFrame() {
 		g.tick++
 
 		if g.tick%consts.TicksPerSample == 0 {
-			g.audioBuffer[g.audioBufferPos] = g.bus.APU.Output()
-			g.audioBufferPos++
+			if g.audioBufferPos < len(g.audioBuffer) {
+				g.audioBuffer[g.audioBufferPos] = g.bus.APU.Output()
+				g.audioBufferPos++
+			}
 
-			if g.audioBufferPos == len(g.audioBuffer) {
-				//g.audio.WaitStreamProcessed()
+			if g.audioBufferPos == len(g.audioBuffer) && g.audio.IsStreamProcessed() {
 				g.audio.UpdateStream(g.audioBuffer)
 				g.audioBufferPos = 0
 			}
@@ -201,7 +202,7 @@ func (g *Game) RemoteFrame() uint32 {
 		return 0
 	}
 
-	latencyFrames := uint32(g.rtt / 2 / frameDuration)
+	latencyFrames := uint32(g.rtt / 2 / consts.FrameDuration)
 
 	return g.lastRemoteFrame + g.unreadFrames + latencyFrames
 }
@@ -268,8 +269,7 @@ func (g *Game) HandleRemoteInput(buttons uint8, frame uint32) {
 
 func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos int) {
 	for f := g.frame; f < endFrame; f++ {
-		timeLeft := frameDuration - time.Since(startTime)
-
+		timeLeft := consts.FrameDuration - time.Since(startTime)
 		if timeLeft < g.frameDuration*2 {
 			g.save(g.catching)
 			g.rollback(g.current)
@@ -294,6 +294,8 @@ func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos i
 // is reset to the last checkpoint and then both local and remote inputs are
 // replayed until they catch up to the current frame.
 func (g *Game) processDelayedInput(startTime time.Time) {
+	endFrame := g.frame
+
 	// Continue catching up to our current frame, as we didn't have enough time
 	// during the last frame. As soon as the emulation is faster than the real
 	// time, we will catch up eventually.
@@ -319,7 +321,6 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 	g.save(g.current)
 
 	// Rollback to the last known synchronized state.
-	endFrame := g.frame
 	g.rollback(g.checkpoint)
 
 	// Ensure we are always back to where we started.
@@ -337,8 +338,7 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 
 	// Replay the inputs until the local and remote emulators are in sync.
 	for i := 0; i < inputSize; i++ {
-		timeLeft := frameDuration - time.Since(startTime)
-
+		timeLeft := consts.FrameDuration - time.Since(startTime)
 		if timeLeft < g.frameDuration*2 {
 			g.save(g.checkpoint)
 			g.rollback(g.current)
@@ -349,7 +349,6 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 
 		g.LocalJoy.SetButtons(g.localInput.At(i))
 		g.RemoteJoy.SetButtons(g.remoteInput.At(i))
-
 		g.playFrameFast()
 	}
 

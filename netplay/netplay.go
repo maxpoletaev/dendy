@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	frameDriftLimit    = 10
-	pingIntervalFrames = 60
-	maxFrameSyncFreq   = 300
-	frameDuration      = time.Second / 60
+	maxFrameSyncFreq       = 300
+	pingIntervalFrames     = 60
+	initialFrameDriftLimit = 2
+	maxFrameDriftLimit     = 20
 )
 
 type Netplay struct {
@@ -29,7 +29,9 @@ type Netplay struct {
 	readerDone chan struct{}
 	writerDone chan struct{}
 	shouldExit bool
+
 	syncFrame  uint32
+	driftLimit uint32
 }
 
 func newNetplay(game *Game, conn net.Conn) *Netplay {
@@ -37,6 +39,7 @@ func newNetplay(game *Game, conn net.Conn) *Netplay {
 		rttWindow:  ringbuf.New[time.Duration](10),
 		toSend:     make(chan Message, 100),
 		toRecv:     make(chan Message, 100),
+		driftLimit: initialFrameDriftLimit,
 		readerDone: make(chan struct{}),
 		writerDone: make(chan struct{}),
 		game:       game,
@@ -164,10 +167,13 @@ func (np *Netplay) RunFrame(startTime time.Time) {
 		drift := remoteFrame - localFrame
 
 		// Ask the remote to wait if we are too far behind.
-		if drift > frameDriftLimit && np.syncFrame+maxFrameSyncFreq < localFrame {
+		if drift > np.driftLimit && np.syncFrame+maxFrameSyncFreq < localFrame {
 			log.Printf("[INFO] asking the remote to wait for %d frames", drift)
 			np.syncFrame = localFrame + uint32(rand.Int31n(maxFrameSyncFreq/10))
-			np.SendWait(drift)
+			np.SendWait(drift + 1) // +1 to account for the current frame
+
+			// Gradually increase the drift limit to avoid oscillations.
+			np.driftLimit = max(maxFrameDriftLimit, uint32(float32(drift)*1.25))
 		}
 	}
 }

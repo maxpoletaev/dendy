@@ -365,7 +365,7 @@ func (p *PPU) renderingEnabled() bool {
 	return p.getMask(MaskShowBackground) || p.getMask(MaskShowSprites)
 }
 
-func (p *PPU) checkSpriteZeroHit() bool {
+func (p *PPU) fastSpriteZeroHit() bool {
 	spriteX, spriteY := int(p.oamData[3]), int(p.oamData[0])
 	frameY, frameX := p.scanline, p.cycle
 	spriteY += 1
@@ -407,7 +407,7 @@ func (p *PPU) Tick() {
 		// Manual sprite zero hit detection during fast-forward.
 		if p.FastForward && p.cycle >= 0 && p.cycle <= 255 {
 			if p.renderingEnabled() && !p.getStatus(StatusSpriteZeroHit) {
-				p.setStatus(StatusSpriteZeroHit, p.checkSpriteZeroHit())
+				p.setStatus(StatusSpriteZeroHit, p.fastSpriteZeroHit())
 			}
 		}
 

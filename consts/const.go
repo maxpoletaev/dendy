@@ -1,5 +1,7 @@
 package consts
 
+import "time"
+
 const (
 	SampleSize        = 32
 	FramesPerSecond   = 60
@@ -9,4 +11,5 @@ const (
 	SamplesPerFrame   = SamplesPerSecond / FramesPerSecond
 	TicksPerSample    = TicksPerSecond / SamplesPerSecond
 	AudioBufferSize   = SamplesPerFrame * 3
+	FrameDuration     = time.Second / FramesPerSecond
 )
