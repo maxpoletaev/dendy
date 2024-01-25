@@ -63,7 +63,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	}
 
 	log.Printf("[INFO] waiting for client...")
-	sess, addr, err := netplay.Listen(game, o.listenAddr)
+	sess, addr, err := netplay.Listen(game, o.listenAddr, o.protocol())
 
 	if err != nil {
 		log.Printf("[ERROR] failed to listen: %v", err)

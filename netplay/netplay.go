@@ -2,7 +2,6 @@ package netplay
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"math/rand"
@@ -45,35 +44,6 @@ func newNetplay(game *Game, conn net.Conn) *Netplay {
 		game:       game,
 		conn:       conn,
 	}
-}
-
-func Listen(game *Game, addr string) (*Netplay, net.Addr, error) {
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("netplay: failed to listen on %s: %v", addr, err)
-	}
-
-	conn, err := listener.Accept()
-	if err != nil {
-		return nil, nil, fmt.Errorf("netplay: failed to accept connection: %v", err)
-	}
-
-	np := newNetplay(game, conn)
-	np.start()
-
-	return np, conn.RemoteAddr(), nil
-}
-
-func Connect(game *Game, addr string) (*Netplay, net.Addr, error) {
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("netplay: failed to connect to %s: %v", addr, err)
-	}
-
-	np := newNetplay(game, conn)
-	np.start()
-
-	return np, conn.RemoteAddr(), nil
 }
 
 func (np *Netplay) startWriter() {

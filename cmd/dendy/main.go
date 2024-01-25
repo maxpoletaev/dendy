@@ -11,6 +11,7 @@ import (
 
 	apupkg "github.com/maxpoletaev/dendy/apu"
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
+	"github.com/maxpoletaev/dendy/netplay"
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
 
 	"github.com/maxpoletaev/dendy/console"
@@ -33,6 +34,7 @@ type opts struct {
 	verbose       bool
 	disasm        string
 	cpuprof       string
+	udp           bool
 	mute          bool
 	noLogo        bool
 }
@@ -46,6 +48,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")
+	flag.BoolVar(&o.udp, "udp", false, "use udp instead of tcp")
 	flag.BoolVar(&o.noLogo, "nologo", false, "do not print logo")
 
 	// Debugging flags.
@@ -69,6 +72,14 @@ func (o *opts) logLevel() loglevel.Level {
 	}
 
 	return loglevel.LevelInfo
+}
+
+func (o *opts) protocol() netplay.Protocol {
+	if o.udp {
+		return netplay.UDP
+	}
+
+	return netplay.TCP
 }
 
 func printLogo() {

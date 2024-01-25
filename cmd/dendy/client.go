@@ -54,7 +54,7 @@ func runAsClient(bus *console.Bus, o *opts) {
 	}
 
 	log.Printf("[INFO] connecting to server...")
-	sess, addr, err := netplay.Connect(game, o.connectAddr)
+	sess, addr, err := netplay.Connect(game, o.connectAddr, o.protocol())
 
 	if err != nil {
 		log.Printf("[ERROR] failed to connect: %v", err)
