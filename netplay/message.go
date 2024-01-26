@@ -31,7 +31,7 @@ type Message struct {
 
 func (m *Message) Encode() ([]byte, error) {
 	buf := bytes.Buffer{}
-	w := binario.NewWriter(&buf, binary.LittleEndian)
+	w := binario.NewWriter(&buf, byteOrder)
 
 	err := errors.Join(
 		w.WriteUint8(m.Type),
@@ -49,7 +49,7 @@ func (m *Message) Encode() ([]byte, error) {
 
 func (m *Message) Decode(data []byte) error {
 	buf := bytes.NewReader(data)
-	reader := binario.NewReader(buf, binary.LittleEndian)
+	reader := binario.NewReader(buf, byteOrder)
 
 	err := errors.Join(
 		reader.ReadUint8To(&m.Type),
@@ -76,7 +76,7 @@ func readMsg(conn net.Conn) (Message, error) {
 	)
 
 	var size uint32
-	if err = binary.Read(conn, binary.LittleEndian, &size); err != nil {
+	if err = binary.Read(conn, byteOrder, &size); err != nil {
 		return msg, fmt.Errorf("failed to read message length: %w", err)
 	}
 
@@ -98,7 +98,7 @@ func writeMsg(conn net.Conn, msg Message) error {
 		return fmt.Errorf("failed to encode message: %w", err)
 	}
 
-	if err = binary.Write(conn, binary.LittleEndian, uint32(len(data))); err != nil {
+	if err = binary.Write(conn, byteOrder, uint32(len(data))); err != nil {
 		return fmt.Errorf("failed to write message length: %w", err)
 	}
 

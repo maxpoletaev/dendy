@@ -1,6 +1,7 @@
 package netplay
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 	"log"
@@ -12,10 +13,15 @@ import (
 )
 
 const (
-	maxFrameSyncFreq       = 300
-	pingIntervalFrames     = 60
-	initialFrameDriftLimit = 2
-	maxFrameDriftLimit     = 20
+	maxFrameSyncFreq    = 300
+	pingIntervalFrames  = 120
+	maxFrameDriftWindow = 20
+	minFrameDriftWindow = 3    // should not be <3 as int(2*1.35)=2
+	driftWindowFactor   = 1.35 // factor to increase/decrease the drift window
+)
+
+var (
+	byteOrder = binary.LittleEndian
 )
 
 type Netplay struct {
@@ -28,21 +34,23 @@ type Netplay struct {
 	readerDone chan struct{}
 	writerDone chan struct{}
 	shouldExit bool
+	isHost     bool
 
-	syncFrame  uint32
-	driftLimit uint32
+	driftWindow   int
+	syncFrame     uint32
+	noDriftFrames uint32
 }
 
 func newNetplay(game *Game, conn net.Conn) *Netplay {
 	return &Netplay{
-		rttWindow:  ringbuf.New[time.Duration](10),
-		toSend:     make(chan Message, 100),
-		toRecv:     make(chan Message, 100),
-		driftLimit: initialFrameDriftLimit,
-		readerDone: make(chan struct{}),
-		writerDone: make(chan struct{}),
-		game:       game,
-		conn:       conn,
+		rttWindow:   ringbuf.New[time.Duration](10),
+		toSend:      make(chan Message, 100),
+		toRecv:      make(chan Message, 100),
+		driftWindow: minFrameDriftWindow,
+		readerDone:  make(chan struct{}),
+		writerDone:  make(chan struct{}),
+		game:        game,
+		conn:        conn,
 	}
 }
 
@@ -81,7 +89,11 @@ func (np *Netplay) startReader() {
 			break
 		}
 
-		np.toRecv <- msg
+		select {
+		case np.toRecv <- msg:
+		default:
+			log.Printf("[WARN] recv buffer is full, blocking")
+		}
 	}
 }
 
@@ -107,7 +119,7 @@ func (np *Netplay) ShouldExit() bool {
 // HandleMessages handles incoming messages from the remote player.
 func (np *Netplay) HandleMessages() {
 loop:
-	for {
+	for i := 0; i < 10; i++ {
 		select {
 		case msg, ok := <-np.toRecv:
 			if ok {
@@ -121,6 +133,40 @@ loop:
 	}
 }
 
+// handleFrameDrift makes sure both emulators are running approximately at the same speed,
+// by asking the remote side to wait if it detects a difference in the frame count.
+func (np *Netplay) handleFrameDrift() {
+	localFrame := np.game.Frame()
+	drift := np.game.FrameDrift()
+
+	if drift < 0 {
+		drift = -drift
+
+		// Ask the remote to wait if we are too far behind.
+		if drift > np.driftWindow && np.syncFrame+maxFrameSyncFreq < localFrame {
+			log.Printf("[INFO] asking the remote to wait for %d frames", drift)
+			np.syncFrame = localFrame + uint32(rand.Int31n(maxFrameSyncFreq/10))
+			np.SendWait(uint32(drift))
+			np.noDriftFrames = 0
+
+			// Gradually increase the window to avoid oscillations.
+			if np.driftWindow < maxFrameDriftWindow {
+				np.driftWindow = min(maxFrameDriftWindow, int(float32(np.driftWindow)*driftWindowFactor))
+				log.Printf("[DEBUG] drift window increased to %d", np.driftWindow)
+			}
+		}
+	}
+
+	// Start shrinking the window if everything is fine.
+	if np.driftWindow > minFrameDriftWindow && np.noDriftFrames > maxFrameSyncFreq*10 {
+		np.driftWindow = max(minFrameDriftWindow, int(float32(np.driftWindow)/driftWindowFactor))
+		log.Printf("[DEBUG] drift window decreased to %d", np.driftWindow)
+		np.noDriftFrames = 0
+	}
+
+	np.noDriftFrames++
+}
+
 // RunFrame progresses the game by one frame.
 func (np *Netplay) RunFrame(startTime time.Time) {
 	np.game.RunFrame(startTime)
@@ -130,22 +176,7 @@ func (np *Netplay) RunFrame(startTime time.Time) {
 		np.SendPing()
 	}
 
-	localFrame := np.game.Frame()
-	remoteFrame := np.game.RemoteFrame()
-
-	if localFrame < remoteFrame {
-		drift := remoteFrame - localFrame
-
-		// Ask the remote to wait if we are too far behind.
-		if drift > np.driftLimit && np.syncFrame+maxFrameSyncFreq < localFrame {
-			log.Printf("[INFO] asking the remote to wait for %d frames", drift)
-			np.syncFrame = localFrame + uint32(rand.Int31n(maxFrameSyncFreq/10))
-			np.SendWait(drift + 1) // +1 to account for the current frame
-
-			// Gradually increase the drift limit to avoid oscillations.
-			np.driftLimit = max(maxFrameDriftLimit, uint32(float32(drift)*1.25))
-		}
-	}
+	np.handleFrameDrift()
 }
 
 // RemotePing returns the ping time to the remote peer in milliseconds.

@@ -48,6 +48,7 @@ func listenTCP(game *Game, addr string) (*Netplay, net.Addr, error) {
 	}
 
 	np := newNetplay(game, conn)
+	np.isHost = true
 	np.start()
 
 	return np, conn.RemoteAddr(), nil
@@ -65,6 +66,7 @@ func listenUDP(game *Game, addr string) (*Netplay, net.Addr, error) {
 	}
 
 	np := newNetplay(game, conn)
+	np.isHost = true
 	np.start()
 
 	return np, conn.RemoteAddr(), nil

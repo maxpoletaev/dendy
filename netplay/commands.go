@@ -1,7 +1,6 @@
 package netplay
 
 import (
-	"encoding/binary"
 	"log"
 	"time"
 )
@@ -83,8 +82,8 @@ func (np *Netplay) SendPing() {
 	}
 
 	payload := make([]byte, 8)
-	timestamp := time.Now().UnixMilli()
-	binary.LittleEndian.PutUint64(payload, uint64(timestamp))
+	timestamp := time.Now().UnixMicro()
+	byteOrder.PutUint64(payload, uint64(timestamp))
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
@@ -128,7 +127,7 @@ func (np *Netplay) SendWait(frames uint32) {
 	}
 
 	payload := make([]byte, 4)
-	binary.LittleEndian.PutUint32(payload, frames)
+	byteOrder.PutUint32(payload, frames)
 
 	np.sendMsg(Message{
 		Type:       MsgTypeWait,

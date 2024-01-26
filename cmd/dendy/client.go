@@ -90,7 +90,6 @@ func runAsClient(bus *console.Bus, o *opts) {
 
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-		w.SetGrayscale(game.Sleeping())
 		w.SetPingInfo(sess.RemotePing())
 
 		sess.HandleMessages()

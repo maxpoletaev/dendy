@@ -40,9 +40,8 @@ type Game struct {
 	speculatedInput *ringbuf.Buffer[uint8]
 
 	rtt             time.Duration // round trip time
-	lastRemoteFrame uint32
+	frameDrift      int
 	lastRemoteInput uint8
-	unreadFrames    uint32
 	sleepFrames     uint32
 
 	frameDuration       time.Duration // how long it takes to emulate a frame
@@ -70,7 +69,6 @@ func NewGame(bus *console.Bus, audio *ui.AudioOut) *Game {
 
 func (g *Game) Init(cp *Checkpoint) {
 	g.lastRemoteInput = 0
-	g.lastRemoteFrame = 0
 	g.sleepFrames = 0
 	g.catchingPos = 0
 	g.frame = 0
@@ -196,17 +194,6 @@ func (g *Game) dropInputs(n int) {
 	g.speculatedInput.TruncFront(n)
 }
 
-// RemoteFrame returns the approximate frame number the remote player is currently on.
-func (g *Game) RemoteFrame() uint32 {
-	if g.rtt == 0 {
-		return 0
-	}
-
-	latencyFrames := uint32(g.rtt / 2 / consts.FrameDuration)
-
-	return g.lastRemoteFrame + g.unreadFrames + latencyFrames
-}
-
 // RunFrame runs a single frame of the game.
 func (g *Game) RunFrame(startTime time.Time) {
 	if g.sleepFrames > 0 {
@@ -216,6 +203,10 @@ func (g *Game) RunFrame(startTime time.Time) {
 
 	g.processDelayedInput(startTime)
 	g.playFrame()
+}
+
+func (g *Game) FrameDrift() int {
+	return g.frameDrift
 }
 
 func (g *Game) save(cp *Checkpoint) {
@@ -255,16 +246,24 @@ func (g *Game) HandleLocalInput(buttons uint8) {
 
 	g.localInput.PushBack(buttons)
 	g.speculatedInput.PushBack(g.lastRemoteInput)
-
-	g.unreadFrames++
 }
 
 // HandleRemoteInput adds the input from the remote player.
 func (g *Game) HandleRemoteInput(buttons uint8, frame uint32) {
 	g.remoteInput.PushBack(buttons)
 	g.lastRemoteInput = buttons
-	g.lastRemoteFrame = frame
-	g.unreadFrames = 0
+
+	if g.rtt > 0 {
+		localFrame := g.frame
+		latencyFrames := uint32(g.rtt / 2 / consts.FrameDuration)
+		remoteFrame := frame + latencyFrames // just a good guess
+
+		if localFrame < remoteFrame {
+			g.frameDrift = -int(remoteFrame - localFrame)
+		} else {
+			g.frameDrift = int(localFrame - remoteFrame)
+		}
+	}
 }
 
 func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos int) {

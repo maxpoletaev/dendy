@@ -115,7 +115,6 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 
 		w.HandleHotKeys()
 		w.UpdateJoystick()
-		w.SetGrayscale(game.Sleeping())
 		w.SetPingInfo(sess.RemotePing())
 
 		sess.HandleMessages()

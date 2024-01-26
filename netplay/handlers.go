@@ -1,7 +1,6 @@
 package netplay
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
 	"time"
@@ -33,11 +32,13 @@ func (np *Netplay) handleMessage(msg Message) {
 }
 
 func (np *Netplay) handleWait(msg Message) {
-	frames := binary.LittleEndian.Uint32(msg.Payload)
+	frames := byteOrder.Uint32(msg.Payload)
 
 	log.Printf("[INFO] sleeping for %d frames", frames)
 
 	np.syncFrame = np.game.Frame() + frames
+
+	np.noDriftFrames = 0
 
 	np.game.SleepFrames(frames)
 }
@@ -78,7 +79,7 @@ func (np *Netplay) handlePing(msg Message) {
 }
 
 func (np *Netplay) handlePong(msg Message) {
-	timeSent := time.UnixMilli(int64(binary.LittleEndian.Uint64(msg.Payload)))
+	timeSent := time.UnixMicro(int64(byteOrder.Uint64(msg.Payload)))
 	np.rttWindow.PushBackEvict(time.Since(timeSent))
 
 	var sum time.Duration
