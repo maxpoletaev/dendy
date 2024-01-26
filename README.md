@@ -14,15 +14,37 @@ Yet, it is capable of running most of the games I tried, so it’s not completel
 
 <img src="screenshots.png" alt="Screenshots">
 
-## Try it
+## Download
+
+You can download the latest pre-built binaries for Windows, macOS, and Linux
+from the [releases page](https://github.com/maxpoletaev/dendy/releases): (not tested).
+
+Alternatively, if you have Go installed, you can build it from source:
 
 ```
 $ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
+```
+
+For this, you may need to install additional dependencies required by raylib. See
+https://github.com/gen2brain/raylib-go#requirements for more details.
+
+## Play
+
+There is no GUI, so you will have to run the emulator from the command line.
+Just point it to the ROM file you want to play (only `.nes`, `.zip` won’t work
+for now):
+
+```
 $ dendy romfile.nes
 ```
 
-You may need to install additional dependencies required by raylib. See
-https://github.com/gen2brain/raylib-go#requirements for more details.
+There’s a bunch of command line flags that you can know about by running
+`dendy -help`. Here are some of the most useful ones:
+
+ * `-scale=<n>` - Scale the window by `n` times (default: 2)
+ * `-nospritelimit` - Disable original sprite per scanline limit (eliminates flickering)
+ * `-listen` and `-connect` - For network multiplayer (see below)
+ * `-nosave` - Do not load and save the game state on exit
 
 ## Controls
 
