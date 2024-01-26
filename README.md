@@ -17,7 +17,7 @@ Yet, it is capable of running most of the games I tried, so it’s not completel
 ## Download
 
 You can download the latest pre-built binaries for Windows, macOS, and Linux
-from the [releases page](https://github.com/maxpoletaev/dendy/releases): (not tested).
+from the releases page: https://github.com/maxpoletaev/dendy/releases (not tested).
 
 Alternatively, if you have Go installed, you can build it from source:
 
