@@ -5,7 +5,7 @@ import (
 )
 
 type Tile struct {
-	Pixels    [8][8]uint8
+	Pixels    [8]uint8
 	PaletteID uint8
 }
 
@@ -20,7 +20,7 @@ func (p *PPU) tilePatternTableOffset() uint16 {
 
 // fetchTileLine fetches a 8x1 tile line from the pattern table.
 // We usually don’t need the full tile, just the line we’re currently rendering.
-func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
+func (p *PPU) fetchTileScanline(tileX, tileY, y int) (tile Tile) {
 	nametableID := p.vramAddr.nametable()
 
 	if tileX >= 32 {
@@ -42,7 +42,7 @@ func (p *PPU) fetchTileLine(tileX, tileY, y int) (tile Tile) {
 	for x := 0; x < 8; x++ {
 		pixel := p1 & (0x80 >> x) >> (7 - x) << 0
 		pixel |= (p2 & (0x80 >> x) >> (7 - x)) << 1
-		tile.Pixels[x][y] = pixel // two-bit pixel value
+		tile.Pixels[x] = pixel // two-bit pixel value
 	}
 
 	// two-bit palette ID
@@ -86,15 +86,17 @@ func (p *PPU) renderTileScanline() {
 		// cross a tile boundary. We don’t need a full tile here either, just the line
 		// we’re currently rendering.
 		if tileX != lastTileX {
-			tile = p.fetchTileLine(tileX, tileY, pixelY)
+			tile = p.fetchTileScanline(tileX, tileY, pixelY)
 			lastTileX = tileX
 		}
 
-		pixel := tile.Pixels[pixelX][pixelY]
-		p.transparent[screenX][screenY] = pixel == 0
-
-		if pixel > 0 {
-			p.Frame[screenX][screenY] = p.readTileColor(pixel, tile.PaletteID)
+		pixel := tile.Pixels[pixelX]
+		if pixel == 0 {
+			p.transparent[screenX][screenY] = true
+			continue
 		}
+
+		p.Frame[screenX][screenY] = p.readTileColor(pixel, tile.PaletteID)
+		p.transparent[screenX][screenY] = false
 	}
 }

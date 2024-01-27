@@ -155,19 +155,18 @@ func (p *PPU) Read(addr uint16) uint8 {
 		return data
 
 	case 0x2007:
-		// Palette reads are not delayed.
 		if p.vramAddr >= 0x3F00 {
+			// Palette reads are not delayed.
 			data := p.readVRAM(uint16(p.vramAddr))
 			p.incrementAddr()
 			return data
+		} else {
+			// Reads from pattern tables are delayed by one cycle.
+			data := p.vramBuffer
+			p.vramBuffer = p.readVRAM(uint16(p.vramAddr))
+			p.incrementAddr()
+			return data
 		}
-
-		// Reads from pattern tables are delayed by one cycle.
-		data := p.vramBuffer
-		p.vramBuffer = p.readVRAM(uint16(p.vramAddr))
-		p.incrementAddr()
-		return data
-
 	default:
 		return 0
 	}
@@ -178,10 +177,10 @@ func (p *PPU) Write(addr uint16, data uint8) {
 
 	switch addr {
 	case 0x2000:
-		p.ctrl = CtrlFlags(data)
+		p.ctrl = data
 		p.tmpAddr.setNametable(uint16(data) & 0x03)
 	case 0x2001:
-		p.mask = MaskFlags(data)
+		p.mask = data
 	case 0x2003:
 		p.oamAddr = data
 	case 0x2004:
@@ -382,7 +381,7 @@ func (p *PPU) fastSpriteZeroHit() bool {
 
 	pixelX, pixelY := frameX%8, frameY%8
 	spritePixel := p.fetchSpritePixel(0, frameX-spriteX, frameY-spriteY)
-	tilePixel := p.fetchTileLine(frameX/8, frameY/8, pixelY).Pixels[pixelX][pixelY]
+	tilePixel := p.fetchTileScanline(frameX/8, frameY/8, pixelY).Pixels[pixelX]
 
 	return spritePixel != 0 && tilePixel != 0
 }

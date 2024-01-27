@@ -13,37 +13,10 @@ const (
 
 type Sprite struct {
 	Index     int
-	Pixels    [8][16]uint8
+	Pixels    [8]uint8
 	PaletteID uint8
 	X, Y      uint8
-	FlipX     bool
-	FlipY     bool
 	Behind    bool
-}
-
-// flipPixels flips the given pixels horizontally and/or vertically depending on the flip flags.
-func flipPixels(pixels [8][16]uint8, flipX, flipY bool, height int) (flipped [8][16]uint8) {
-	if !flipX && !flipY {
-		return pixels
-	}
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < 8; x++ {
-			fx, fy := x, y
-
-			if flipX {
-				fx = 7 - x
-			}
-
-			if flipY {
-				fy = height - y - 1
-			}
-
-			flipped[fx][fy] = pixels[x][y]
-		}
-	}
-
-	return flipped
 }
 
 // spritePatternTableOffset returns the address offset in VRAM for the sprite pattern table.
@@ -99,8 +72,8 @@ func (p *PPU) fetchSpritePixel(idx int, x, y int) uint8 {
 	return px
 }
 
-// fetchSprite returns the sprite data for the given sprite index.
-func (p *PPU) fetchSprite(idx int) Sprite {
+// fetchSpriteScanline returns the sprite data for the given sprite index.
+func (p *PPU) fetchSpriteScanline(idx int, y int) Sprite {
 	var (
 		spriteID  = p.oamData[idx*4+1]
 		attr      = p.oamData[idx*4+2]
@@ -110,26 +83,38 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 		tableAddr = p.spritePatternTableOffset()
 	)
 
+	var (
+		flipX = attr&spriteAttrFlipX != 0
+		flipY = attr&spriteAttrFlipY != 0
+	)
+
 	sprite := Sprite{
 		Index:     idx,
 		PaletteID: attr & spriteAttrPalette,
 		Behind:    attr&spriteAttrPriority != 0,
-		FlipX:     attr&spriteAttrFlipX != 0,
-		FlipY:     attr&spriteAttrFlipY != 0,
 		Y:         spriteY,
 		X:         spriteX,
 	}
 
-	for y := 0; y < height; y++ {
-		addr := p.spriteAddr(tableAddr, spriteID, y, height)
-		p1 := p.readVRAM(addr + 0)
-		p2 := p.readVRAM(addr + 8)
+	//fy := y
+	if flipY {
+		y = height - 1 - y
+	}
 
-		for x := 0; x < 8; x++ {
-			px := p1 & (0x80 >> x) >> (7 - x) << 0
-			px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
-			sprite.Pixels[x][y] = px // two-bit pixel value (0-3)
+	addr := p.spriteAddr(tableAddr, spriteID, y, height)
+	p1 := p.readVRAM(addr + 0)
+	p2 := p.readVRAM(addr + 8)
+
+	for x := 0; x < 8; x++ {
+		px := p1 & (0x80 >> x) >> (7 - x) << 0
+		px |= (p2 & (0x80 >> x) >> (7 - x)) << 1
+
+		fx := x
+		if flipX {
+			fx = 7 - x
 		}
+
+		sprite.Pixels[fx] = px // two-bit pixel value (0-3)
 	}
 
 	return sprite
@@ -138,14 +123,14 @@ func (p *PPU) fetchSprite(idx int) Sprite {
 // evaluateSprites checks which sprites will be visible on the next scanline, and
 // stores them in the p.spriteScanline array.
 func (p *PPU) evaluateSprites() {
+	nextScanline := p.scanline + 1
 	height := p.spriteHeight()
-	scanline := p.scanline + 1
 	p.spriteCount = 0
 
 	for i := 0; i < 64; i++ {
 		spriteY := int(p.oamData[i*4+0])
 
-		if scanline < spriteY || scanline >= spriteY+height {
+		if nextScanline < spriteY || nextScanline >= spriteY+height {
 			continue
 		}
 
@@ -157,7 +142,9 @@ func (p *PPU) evaluateSprites() {
 			}
 		}
 
-		p.spriteScanline[p.spriteCount] = p.fetchSprite(i)
+		pixelY := nextScanline - spriteY
+
+		p.spriteScanline[p.spriteCount] = p.fetchSpriteScanline(i, pixelY)
 
 		p.spriteCount++
 	}
@@ -177,21 +164,8 @@ func (p *PPU) renderSpriteScanline() {
 		return
 	}
 
-	var (
-		height = p.spriteHeight()
-	)
-
 	for i := p.spriteCount - 1; i >= 0; i-- {
 		sprite := p.spriteScanline[i]
-
-		pixels := flipPixels(sprite.Pixels, sprite.FlipX, sprite.FlipY, height)
-		pixelY := p.scanline - int(sprite.Y)
-
-		// FIXME: sometimes crashes due to pixelY being negative or > 15
-		//  (e.g. ninja cat, when you climb the first ladder).
-		if pixelY < 0 || pixelY >= height {
-			continue
-		}
 
 		for pixelX := 0; pixelX < 8; pixelX++ {
 			frameX := int(sprite.X) + pixelX
@@ -203,7 +177,7 @@ func (p *PPU) renderSpriteScanline() {
 				continue
 			}
 
-			px := pixels[pixelX][pixelY]
+			px := sprite.Pixels[pixelX]
 			if px == 0 {
 				continue
 			}
