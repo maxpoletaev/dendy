@@ -93,6 +93,8 @@ $ dendy -listen=0.0.0.0:1234 roms/game.nes       # Player 1
 $ dendy -connect=192.168.1.4:1234 roms/game.nes  # Player 2
 ```
 
+### When players are behind NATs
+
 There is also a way to connect two players behind NATs without having to set up 
 port forwarding, with a little help from an external relay server. You can use 
 the `-createroom` flag to create a room on the public server, and the 
@@ -107,6 +109,8 @@ NATs are not symmetric).
 $ dendy -createroom roms/game.nes            # Player 1
 $ dendy -joinroom=XXX-XXX-XXX roms/game.nes  # Player 2
 ```
+
+### Behind the scenes
 
 The multiplayer part works by using something called rollback networking. This 
 is a fancy way of making sure that when you play a game with someone else over the 
@@ -127,8 +131,9 @@ The emulator can detect that one of the players is falling behind too much and
 adjust the frame rate accordingly or even pause the game for one player for a 
 few frames to let the other player catch up.
 
-Within a reasonable latency, this should allow the game to feel very responsive. 
-When tested, ping of up to 150ms felt pretty playable.
+Within a reasonable latency, all of this should happen in a fraction of a second,
+without the players noticing anything weird. When tested, ping of up to 150ms 
+felt pretty playable.
 
 ## Tested Games
 
