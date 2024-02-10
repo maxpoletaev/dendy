@@ -73,8 +73,13 @@ func (p *PPU) renderTileScanline() {
 		tile          Tile
 	)
 
+	leftBoundary := 8
+	if p.getMask(MaskShowLeftTiles) {
+		leftBoundary = 0
+	}
+
 	for screenX := 0; screenX < 256; screenX++ {
-		if !p.getMask(MaskShowLeftTiles) && screenX < 8 {
+		if screenX < leftBoundary {
 			continue
 		}
 

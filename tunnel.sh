@@ -11,4 +11,10 @@ if [ -z "$SSH_HOST" ]; then
   exit 1
 fi
 
-ssh -N -L localhost:3001:localhost:4000 -R localhost:4000:localhost:3000 "$SSH_HOST"
+TARGET_PORT=3000 # port that the host will listen on
+SOURCE_PORT=3001 # port that the client will connect to
+
+ssh -N \
+  -L localhost:$SOURCE_PORT:localhost:4000 \
+  -R localhost:4000:localhost:$TARGET_PORT \
+  "$SSH_HOST"

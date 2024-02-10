@@ -13,4 +13,5 @@ const (
 	TicksPerSample    = TicksPerSecond / SamplesPerSecond
 	FrameDuration     = time.Second / FramesPerSecond
 	AudioBufferSize   = SamplesPerFrame * 3
+	DefaultRelayAddr  = "159.223.15.170:1234" // TODO: need FQDN for this
 )

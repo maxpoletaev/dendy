@@ -19,6 +19,7 @@ type Bus struct {
 	CPU    *cpupkg.CPU
 	PPU    *ppupkg.PPU
 	APU    *apupkg.APU
+	ROM    *ines.ROM
 	Cart   ines.Cartridge
 	Joy1   *input.Joystick
 	Joy2   *input.Joystick

@@ -81,11 +81,8 @@ func (p *PPU) fetchSpriteScanline(idx int, y int) Sprite {
 		spriteY   = p.oamData[idx*4+0]
 		height    = p.spriteHeight()
 		tableAddr = p.spritePatternTableOffset()
-	)
-
-	var (
-		flipX = attr&spriteAttrFlipX != 0
-		flipY = attr&spriteAttrFlipY != 0
+		flipX     = attr&spriteAttrFlipX != 0
+		flipY     = attr&spriteAttrFlipY != 0
 	)
 
 	sprite := Sprite{
@@ -96,7 +93,6 @@ func (p *PPU) fetchSpriteScanline(idx int, y int) Sprite {
 		X:         spriteX,
 	}
 
-	//fy := y
 	if flipY {
 		y = height - 1 - y
 	}
@@ -164,22 +160,19 @@ func (p *PPU) renderSpriteScanline() {
 		return
 	}
 
+	leftBoundary := 8
+	if p.getMask(MaskShowLeftSprites) {
+		leftBoundary = 0
+	}
+
 	for i := p.spriteCount - 1; i >= 0; i-- {
 		sprite := p.spriteScanline[i]
 
 		for pixelX := 0; pixelX < 8; pixelX++ {
 			frameX := int(sprite.X) + pixelX
-			if frameX > 255 {
-				continue
-			}
 
-			if !p.getMask(MaskShowLeftSprites) && frameX < 8 {
-				continue
-			}
-
-			px := sprite.Pixels[pixelX]
-			if px == 0 {
-				continue
+			if frameX > 255 || frameX < leftBoundary || sprite.Pixels[pixelX] == 0 {
+				continue // offscreen or empty pixel
 			}
 
 			// Sprite zero hit detection.
@@ -192,7 +185,10 @@ func (p *PPU) renderSpriteScanline() {
 				continue
 			}
 
-			p.Frame[frameX][frameY] = p.readSpriteColor(px, sprite.PaletteID)
+			p.Frame[frameX][frameY] = p.readSpriteColor(
+				sprite.Pixels[pixelX],
+				sprite.PaletteID,
+			)
 		}
 	}
 }

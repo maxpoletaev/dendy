@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -12,8 +13,55 @@ import (
 	"github.com/maxpoletaev/dendy/consts"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/netplay"
+	"github.com/maxpoletaev/dendy/relay"
 	"github.com/maxpoletaev/dendy/ui"
 )
+
+func joinSession(relayAddr string, sessionID string, romCRC32 uint32) (string, string, error) {
+	log.Printf("[INFO] connecting to relay server: %s", relayAddr)
+
+	relayClient, err := relay.Connect(relayAddr)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to connect to relay server: %w", err)
+	}
+
+	defer func() {
+		if err := relayClient.Close(); err != nil {
+			log.Printf("[ERROR] failed to close relay client: %s", err)
+		}
+	}()
+
+	log.Printf("[INFO] joining session...")
+
+	err = relayClient.JoinSession(sessionID, romCRC32)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to join session: %w", err)
+	}
+
+	lAddr, rAddr, err := relayClient.GetPeerAddress()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get address: %w", err)
+	}
+
+	log.Printf("[INFO] peer joined: %s", rAddr.String())
+
+	// Need to stop the relay client to free the port.
+	if err := relayClient.Close(); err != nil {
+		return "", "", fmt.Errorf("failed to close relay client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	time.Sleep(1 * time.Second) // give the host some time to start up
+
+	err = relay.HolePunchUDP(ctx, lAddr, rAddr)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to hole punch: %w", err)
+	}
+
+	return lAddr.String(), rAddr.String(), nil
+}
 
 func runAsClient(bus *console.Bus, o *opts) {
 	bus.Joy1 = input.NewJoystick()
@@ -53,8 +101,30 @@ func runAsClient(bus *console.Bus, o *opts) {
 		game.DisasmEnabled = true
 	}
 
-	log.Printf("[INFO] connecting to server...")
-	sess, addr, err := netplay.Connect(game, o.connectAddr, o.protocol())
+	var (
+		err      error
+		protocol = o.protocol
+		rAddr    = o.connectAddr
+		lAddr    = o.listenAddr
+	)
+
+	if o.joinRoom != "" {
+		lAddr, rAddr, err = joinSession(o.relayAddr, o.joinRoom, bus.ROM.CRC32)
+		if err != nil {
+			log.Printf("[ERROR] failed to join relay session: %s", err)
+			os.Exit(1)
+		}
+
+		protocol = "udp" // always use UDP for relay
+	}
+
+	if rAddr == "" {
+		log.Printf("[ERROR] no host address provided")
+		os.Exit(1)
+	}
+
+	log.Printf("[INFO] connecting to %s (%s)...", rAddr, protocol)
+	sess, addr, err := netplay.Connect(protocol, rAddr, lAddr, game)
 
 	if err != nil {
 		log.Printf("[ERROR] failed to connect: %v", err)

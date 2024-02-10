@@ -7,10 +7,11 @@
 
 <hr>
 
-Dendy is a NES/Famicom emulator written in Go and named after the soviet Famicom
+Dendy is a NES/Famicom emulator written in Go and named after the post-soviet Famicom
 clone, that I used to have back in my childhood. It’s nothing serious, so do not 
 expect it to beat any of the existing emulators in terms of performance or accuracy. 
-Yet, it is capable of running most of the games I tried, so it’s not completely useless.
+Yet, it is capable of running most of the games I tried, so it’s not completely useless,
+and it comes with a nice network multiplayer feature.
 
 <img src="screenshots.png" alt="Screenshots">
 
@@ -25,8 +26,9 @@ Alternatively, if you have Go installed, you can build it from source:
 $ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
 ```
 
-For this, you may need to install additional dependencies required by raylib. See
-https://github.com/gen2brain/raylib-go#requirements for more details.
+For this, you may need to install a C compiler (gcc or clang) and additional
+dependencies required by raylib. See https://github.com/gen2brain/raylib-go#requirements
+for more details.
 
 ## Play
 
@@ -67,8 +69,8 @@ follows. Multiplayer on a single keyboard is not supported.
 
 ### Zapper (Light Gun)
 
-Zapper is emulated using the mouse and can be used in games like Duck Hunt. Point
-the mouse cursor at the right position on the screen and click to shoot.
+Zapper is emulated using the mouse and can be used in games like Duck Hunt. Just 
+point the mouse cursor at the right position on the screen and click to shoot.
 
 ### Hotkeys
 
@@ -80,29 +82,59 @@ the mouse cursor at the right position on the screen and click to shoot.
 
 ## Network Multiplayer
 
-Run the emulator with the `-listen=<host>:<port>` flag to start a netplay server
-that will be waiting for the second player to connect via the `-connect=<host>:<port>`
-flag. Once the connection is established, the game will start for both sides.
-The player who started the server will be controlling the first joystick. Ensure
-that both sides are using the same ROM file and the same version of the emulator.
+To utilize the multiplayer feature, you need to start the emulator with the 
+`-listen=<host>:<port>` argument on the host machine and the `-connect=<host>:<port>` 
+argument on the client machine. Once the connection is established, the game 
+will start for both sides. The host machine will be the first player. The players 
+must ensure they are running the same ROM file and the same version of the emulator.
 
-The multiplayer feature is based on rollback networking, similar to how it is done in
-RetroArch and Fightcade. The emulation always runs at the full speed on both sides,
-and the player inputs for each frame are exchanged over the network.
+```bash
+$ dendy -listen=0.0.0.0:1234 roms/game.nes       # Player 1
+$ dendy -connect=192.168.1.4:1234 roms/game.nes  # Player 2
+```
 
-It compensates for slight drifts in the clock speed and network latency by predicting
-input events for the other player when the real input has not yet been received. When
-the input from the remote player arrives, it corrects itself by "rolling back" to the
-last known synchronized state and replaying the inputs from that point. Theoretically,
-this should keep the game playable for both sides without any local input delay, even
-if the network connection is not very stable (e.g., over the Internet). When tested,
-latencies of up to 150ms felt pretty playable.
+There is also a way to connect two players behind NATs without having to set up 
+port forwarding, with a little help from an external relay server. You can use 
+the `-createroom` flag to create a room on the public server, and the 
+`-joinroom=<id>` to join it. Two clients will exchange their public IP addresses 
+and port numbers through the relay server and establish a peer-to-peer UDP connection
+using a technique called "hole punching". The relay server will not be involved
+in the actual gameplay, so it should not affect the latency. This method won’t 
+work if both players are behind symmetric NATs (luckily, most home residential 
+NATs are not symmetric).
+
+```bash
+$ dendy -createroom roms/game.nes            # Player 1
+$ dendy -joinroom=XXX-XXX-XXX roms/game.nes  # Player 2
+```
+
+The multiplayer part works by using something called rollback networking. This 
+is a fancy way of making sure that when you play a game with someone else over the 
+internet, it feels smooth and quick, just like playing side by side.
+
+Here’s how it works: the game runs full speed for both players, and every move 
+you make is sent over the internet to the other player. The cool part is, the 
+local player should not notice any delay when they press buttons because the game 
+guesses what the other player is going to do before their moves actually get to you.
+If the guess is wrong, the game quickly fixes it by going back a tiny bit to when 
+both players agreed on what was happening, then moves forward again using the 
+correct moves.
+
+In addition to predicting and correcting player actions, it has a mechanism to 
+ensure frame rate synchronization between players, especially when there are 
+drifts in clock speed causing one player’s game running slower than the other’s. 
+The emulator can detect that one of the players is falling behind too much and
+adjust the frame rate accordingly or even pause the game for one player for a 
+few frames to let the other player catch up.
+
+Within a reasonable latency, this should allow the game to feel very responsive. 
+When tested, ping of up to 150ms felt pretty playable.
 
 ## Tested Games
 
 | Game | Status | Issues |
 |------|--------|--------|
-| [Bad Apple][bad] | Playable ||
+| [Bad Apple][badapple] | Playable ||
 | Balloon Fight | Playable ||
 | Batman| Playable ||
 | Battle City | Playable ||
@@ -141,7 +173,7 @@ latencies of up to 150ms felt pretty playable.
 | Teenage Mutant Ninja Turtles: Tournament Fighters | Not Playable | Graphical artifacts |
 | Tiny Toon Adventures | Playable ||
 
-[bad]: https://www.nesdev.org/wiki/Bad_Apple
+[badapple]: https://www.nesdev.org/wiki/Bad_Apple
 
 ## Status
 

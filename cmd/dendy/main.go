@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	apupkg "github.com/maxpoletaev/dendy/apu"
+	"github.com/maxpoletaev/dendy/consts"
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
-	"github.com/maxpoletaev/dendy/netplay"
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
 
 	"github.com/maxpoletaev/dendy/console"
@@ -26,30 +26,38 @@ const (
 type opts struct {
 	scale         int
 	noSpriteLimit bool
-	connectAddr   string
-	listenAddr    string
 	saveFile      string
 	noSave        bool
 	showFPS       bool
 	verbose       bool
 	disasm        string
 	cpuprof       string
-	udp           bool
+	protocol      string
 	mute          bool
 	noLogo        bool
+
+	connectAddr string
+	listenAddr  string
+	relayAddr   string
+	joinRoom    string
+	createRoom  bool
 }
 
 func (o *opts) parse() *opts {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.StringVar(&o.saveFile, "savefile", "", "save file (default: romname.save)")
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit (eliminates flickering)")
-	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address")
-	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address)")
 	flag.BoolVar(&o.noSave, "nosave", false, "disable save states")
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")
-	flag.BoolVar(&o.udp, "udp", false, "use udp instead of tcp")
 	flag.BoolVar(&o.noLogo, "nologo", false, "do not print logo")
+
+	flag.StringVar(&o.protocol, "protocol", "tcp", "netplay protocol (tcp, udp)")
+	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address")
+	flag.StringVar(&o.connectAddr, "connect", "", "netplay connect address")
+	flag.StringVar(&o.relayAddr, "relay", consts.DefaultRelayAddr, "relay server address")
+	flag.BoolVar(&o.createRoom, "createroom", false, "create new punlic session")
+	flag.StringVar(&o.joinRoom, "joinroom", "", "join public session by id")
 
 	// Debugging flags.
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
@@ -72,14 +80,6 @@ func (o *opts) logLevel() loglevel.Level {
 	}
 
 	return loglevel.LevelInfo
-}
-
-func (o *opts) protocol() netplay.Protocol {
-	if o.udp {
-		return netplay.UDP
-	}
-
-	return netplay.TCP
 }
 
 func printLogo() {
@@ -141,16 +141,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Printf("[INFO] loaded rom: mapper:%d", rom.MapperID)
+	log.Printf("[INFO] loaded rom: mapper:%d crc32:%08X", rom.MapperID, rom.CRC32)
 
 	apu := apupkg.New()
-
 	cpu := cpupkg.New()
-
 	ppu := ppupkg.New(cart)
 	ppu.NoSpriteLimit = o.noSpriteLimit
 
 	bus := &console.Bus{
+		ROM:  rom,
 		Cart: cart,
 		CPU:  cpu,
 		PPU:  ppu,
@@ -161,16 +160,16 @@ func main() {
 	romPrefix := strings.TrimSuffix(romFile, filepath.Ext(romFile))
 
 	switch {
-	case o.connectAddr != "":
+	case o.connectAddr != "" || o.joinRoom != "":
 		log.Printf("[INFO] starting client mode")
 		runAsClient(bus, o)
 
-	case o.listenAddr != "":
+	case o.listenAddr != "" || o.createRoom:
 		if saveFile == "" {
 			saveFile = romPrefix + ".mp.save"
 		}
 
-		log.Printf("[INFO] starting server mode")
+		log.Printf("[INFO] starting host mode")
 		runAsServer(bus, o, saveFile)
 
 	default:

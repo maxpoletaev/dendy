@@ -6,7 +6,9 @@ toolchain go1.21.0
 
 require (
 	github.com/gen2brain/raylib-go/raylib v0.0.0-20240116120507-49aab27a9ba4
+	github.com/google/uuid v1.6.0
 	github.com/xtaci/kcp-go v5.4.20+incompatible
+	golang.org/x/sync v0.6.0
 )
 
 require (

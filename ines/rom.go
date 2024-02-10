@@ -31,7 +31,7 @@ type ROM struct {
 	CHRBanks   int
 	PRG        []byte
 	CHR        []byte
-	crc32      uint32
+	CRC32      uint32
 	chrRAM     bool
 }
 
@@ -45,12 +45,9 @@ func OpenROM(filename string) (*ROM, error) {
 		_ = file.Close()
 	}()
 
-	h := crc32.NewIEEE()
-	reader := io.TeeReader(file, h)
-
 	// Read header.
 	header := make([]uint8, 16)
-	_, err = reader.Read(header)
+	_, err = file.Read(header)
 	if err != nil {
 		return nil, err
 	}
@@ -76,15 +73,19 @@ func OpenROM(filename string) (*ROM, error) {
 		}
 	}
 
+	// CRC32 of CHR+PRG
+	h := crc32.NewIEEE()
+	romReader := io.TeeReader(file, h)
+
 	// Read PRG-ROM.
 	prgData := make([]uint8, prgBanks*16384)
-	if _, err = reader.Read(prgData); err != nil {
+	if _, err = romReader.Read(prgData); err != nil {
 		return nil, fmt.Errorf("failed to read PRG ROM: %w", err)
 	}
 
 	// Read CHR-ROM.
 	chrData := make([]uint8, chrBanks*8192)
-	if _, err = reader.Read(chrData); err != nil {
+	if _, err = romReader.Read(chrData); err != nil {
 		return nil, fmt.Errorf("failed to read chr ROM: %w", err)
 	}
 
@@ -103,17 +104,13 @@ func OpenROM(filename string) (*ROM, error) {
 		MirrorMode: mirrorMode,
 		PRGBanks:   prgBanks,
 		CHRBanks:   chrBanks,
-		crc32:      h.Sum32(),
+		CRC32:      h.Sum32(),
 		chrRAM:     chrRAM,
 	}, nil
 }
 
-func (r *ROM) Checksum() uint32 {
-	return r.crc32
-}
-
 func (r *ROM) SaveState(w *binario.Writer) error {
-	if err := w.WriteUint32(r.crc32); err != nil {
+	if err := w.WriteUint32(r.CRC32); err != nil {
 		return err
 	}
 
@@ -132,7 +129,7 @@ func (r *ROM) LoadState(reader *binario.Reader) error {
 		return err
 	}
 
-	if hash != r.crc32 {
+	if hash != r.CRC32 {
 		return ErrSavedStateMismatch
 	}
 

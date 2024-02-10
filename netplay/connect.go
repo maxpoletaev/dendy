@@ -7,32 +7,25 @@ import (
 	"github.com/xtaci/kcp-go"
 )
 
-type Protocol int
-
-const (
-	TCP Protocol = iota
-	UDP
-)
-
-func Listen(game *Game, addr string, protocol Protocol) (*Netplay, net.Addr, error) {
+func Listen(protocol string, lAddr string, game *Game) (*Netplay, net.Addr, error) {
 	switch protocol {
-	case TCP:
-		return listenTCP(game, addr)
-	case UDP:
-		return listenUDP(game, addr)
+	case "tcp":
+		return listenTCP(game, lAddr)
+	case "udp":
+		return listenUDP(game, lAddr)
 	default:
-		panic(fmt.Errorf("unknown protocol %d", protocol))
+		return nil, nil, fmt.Errorf("unknown protocol: %s", protocol)
 	}
 }
 
-func Connect(game *Game, addr string, protocol Protocol) (*Netplay, net.Addr, error) {
+func Connect(protocol string, rAddr, lAddr string, game *Game) (*Netplay, net.Addr, error) {
 	switch protocol {
-	case TCP:
-		return connectTCP(game, addr)
-	case UDP:
-		return connectUDP(game, addr)
+	case "tcp":
+		return connectTCP(game, rAddr)
+	case "udp":
+		return connectUDP(game, lAddr, rAddr)
 	default:
-		panic(fmt.Errorf("unknown protocol %d", protocol))
+		return nil, nil, fmt.Errorf("unknown protocol: %s", protocol)
 	}
 }
 
@@ -75,7 +68,7 @@ func listenUDP(game *Game, addr string) (*Netplay, net.Addr, error) {
 func connectTCP(game *Game, addr string) (*Netplay, net.Addr, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to %s: %v", addr, err)
+		return nil, nil, err
 	}
 
 	np := newNetplay(game, conn)
@@ -84,10 +77,20 @@ func connectTCP(game *Game, addr string) (*Netplay, net.Addr, error) {
 	return np, conn.RemoteAddr(), nil
 }
 
-func connectUDP(game *Game, addr string) (*Netplay, net.Addr, error) {
-	conn, err := kcp.Dial(addr)
+func connectUDP(game *Game, lAddr, rAddr string) (*Netplay, net.Addr, error) {
+	lAddrUDP, err := net.ResolveUDPAddr("udp", lAddr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to %s: %v", addr, err)
+		return nil, nil, err
+	}
+
+	localConn, err := net.ListenUDP("udp", lAddrUDP)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	conn, err := kcp.NewConn(rAddr, nil, 0, 0, localConn)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	np := newNetplay(game, conn)
