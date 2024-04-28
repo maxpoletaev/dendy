@@ -7,6 +7,7 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 
 	"github.com/maxpoletaev/dendy/ppu"
+	"github.com/maxpoletaev/dendy/shaders"
 )
 
 func toGrayscale(c color.RGBA) color.RGBA {
@@ -25,6 +26,7 @@ type Window struct {
 	FPS            int
 
 	viewport    rl.RenderTexture2D
+	shader      *shaderFacade
 	remotePing  int64
 	shouldClose bool
 	grayscale   bool
@@ -35,7 +37,7 @@ type Window struct {
 
 func CreateWindow(scale int, verbose bool) *Window {
 	if !verbose {
-		rl.SetTraceLogLevel(rl.LogNone)
+		rl.SetTraceLogLevel(rl.LogWarning)
 	}
 
 	windowWidth := ppu.FrameWidth * scale
@@ -55,6 +57,10 @@ func CreateWindow(scale int, verbose bool) *Window {
 	}
 }
 
+func (w *Window) EnableCRT() {
+	w.shader = newShader(shaders.ScanlineFS)
+}
+
 func (w *Window) SetTitle(title string) {
 	rl.SetWindowTitle(title)
 }
@@ -68,6 +74,11 @@ func (w *Window) SetGrayscale(grayscale bool) {
 }
 
 func (w *Window) Close() {
+	if w.shader != nil {
+		w.shader.unload()
+	}
+
+	rl.UnloadRenderTexture(w.viewport)
 	rl.CloseWindow()
 }
 
@@ -100,6 +111,11 @@ func (w *Window) Refresh(ppuFrame []color.RGBA) {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.Black)
 
+	if w.shader != nil {
+		w.shader.setTimeUniform(float32(rl.GetTime()))
+		w.shader.begin()
+	}
+
 	rl.DrawTexturePro(
 		w.viewport.Texture,
 		rl.Rectangle{
@@ -117,6 +133,10 @@ func (w *Window) Refresh(ppuFrame []color.RGBA) {
 		0,
 		rl.White,
 	)
+
+	if w.shader != nil {
+		w.shader.end()
+	}
 
 	var offsetY int32
 

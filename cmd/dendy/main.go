@@ -35,6 +35,7 @@ type opts struct {
 	protocol      string
 	mute          bool
 	noLogo        bool
+	noCRT         bool
 
 	connectAddr string
 	listenAddr  string
@@ -51,6 +52,7 @@ func (o *opts) parse() *opts {
 	flag.BoolVar(&o.showFPS, "showfps", false, "show fps counter")
 	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")
 	flag.BoolVar(&o.noLogo, "nologo", false, "do not print logo")
+	flag.BoolVar(&o.noCRT, "nocrt", false, "disable CRT effect")
 
 	flag.StringVar(&o.protocol, "protocol", "tcp", "netplay protocol (tcp, udp)")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address")

@@ -119,12 +119,16 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 
 	w.SetFrameRate(consts.FramesPerSecond)
 	w.SetTitle(windowTitle)
-
 	w.InputDelegate = bus.Joy1.SetButtons
 	w.ZapperDelegate = bus.Zapper.Update
 	w.MuteDelegate = audio.ToggleMute
 	w.ResetDelegate = bus.Reset
 	w.ShowFPS = o.showFPS
+
+	if !o.noCRT {
+		log.Printf("[INFO] using experimental CRT effect, disable with -nocrt flag")
+		w.EnableCRT()
+	}
 
 	defer func() {
 		if err := recover(); err != nil {

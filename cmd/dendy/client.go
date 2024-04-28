@@ -144,6 +144,11 @@ func runAsClient(bus *console.Bus, o *opts) {
 	w.ShowFPS = o.showFPS
 	w.ShowPing = true
 
+	if !o.noCRT {
+		log.Printf("[INFO] using experimental CRT effect, disable with -nocrt flag")
+		w.EnableCRT()
+	}
+
 	for {
 		startTime := time.Now()
 
