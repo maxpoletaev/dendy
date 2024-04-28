@@ -114,7 +114,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 	audio.Mute(o.mute)
 	defer audio.Close()
 
-	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w := ui.CreateWindow(o.scale, o.verbose)
 	defer w.Close()
 
 	w.SetFrameRate(consts.FramesPerSecond)
@@ -146,7 +146,7 @@ gameloop:
 				bus.Tick()
 
 				if bus.ScanlineComplete() {
-					w.UpdateZapper()
+					w.UpdateZapper(bus.PPU.Frame)
 				}
 
 				if bus.FrameComplete() {
@@ -158,7 +158,7 @@ gameloop:
 					w.UpdateJoystick()
 					w.HandleHotKeys()
 					w.SetGrayscale(false)
-					w.Refresh()
+					w.Refresh(bus.PPU.Frame)
 
 					// Pause when not in focus.
 					for !w.InFocus() {
@@ -167,7 +167,7 @@ gameloop:
 						}
 
 						w.SetGrayscale(true)
-						w.Refresh()
+						w.Refresh(bus.PPU.Frame)
 					}
 				}
 			}

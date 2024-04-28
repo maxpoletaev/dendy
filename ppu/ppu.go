@@ -40,13 +40,18 @@ const (
 	StatusVBlank         StatusFlags = 1 << 7
 )
 
+const (
+	FrameWidth  = 256
+	FrameHeight = 240
+)
+
 type (
 	dmaFunc func(addr uint16, data []byte)
 )
 
 type PPU struct {
-	Frame       [256][240]color.RGBA
-	transparent [256][240]bool
+	transparent []bool       // 256*240
+	Frame       []color.RGBA // 256*240
 
 	NoSpriteLimit bool
 	FastForward   bool
@@ -80,7 +85,9 @@ type PPU struct {
 
 func New(cart ines.Cartridge) *PPU {
 	return &PPU{
-		cart: cart,
+		cart:        cart,
+		transparent: make([]bool, FrameWidth*FrameHeight),
+		Frame:       make([]color.RGBA, FrameWidth*FrameHeight),
 	}
 }
 
@@ -327,17 +334,14 @@ func (p *PPU) clearFrame(c color.RGBA) {
 		return
 	}
 
+	p.Frame[0] = c
+	p.transparent[0] = false
+
 	// Incremental copy optimization.
 	// See https://gist.github.com/taylorza/df2f89d5f9ab3ffd06865062a4cf015d
-
-	p.Frame[0][0] = c
-
-	for j := 1; j < 240; j *= 2 {
-		copy(p.Frame[0][j:], p.Frame[0][:j])
-	}
-
-	for i := 1; i < 256; i *= 2 {
+	for i := 1; i < len(p.Frame); i *= 2 {
 		copy(p.Frame[i:], p.Frame[:i])
+		copy(p.transparent[i:], p.transparent[:i])
 	}
 }
 

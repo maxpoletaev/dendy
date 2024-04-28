@@ -96,7 +96,7 @@ func (g *Game) SleepFrames(n uint32) {
 	g.sleepFrames = n
 }
 
-func (g *Game) SetRTT(t time.Duration) {
+func (g *Game) SetRoundTripTime(t time.Duration) {
 	g.rtt = t
 }
 
@@ -269,6 +269,7 @@ func (g *Game) HandleRemoteInput(buttons uint8, frame uint32) {
 func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos int) {
 	for f := g.frame; f < endFrame; f++ {
 		timeLeft := consts.FrameDuration - time.Since(startTime)
+
 		if timeLeft < g.frameDuration*2 {
 			g.save(g.catching)
 			g.rollback(g.current)
@@ -348,6 +349,7 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 
 		g.LocalJoy.SetButtons(g.localInput.At(i))
 		g.RemoteJoy.SetButtons(g.remoteInput.At(i))
+
 		g.playFrameFast()
 	}
 

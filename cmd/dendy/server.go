@@ -157,7 +157,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 
 	sess.SendInitialState()
 
-	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w := ui.CreateWindow(o.scale, o.verbose)
 	defer w.Close()
 
 	w.SetTitle(fmt.Sprintf("%s (P1)", windowTitle))
@@ -190,7 +190,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 		sess.HandleMessages()
 		sess.RunFrame(startTime)
 
-		w.Refresh()
+		w.Refresh(bus.PPU.Frame)
 	}
 
 	if !o.noSave {

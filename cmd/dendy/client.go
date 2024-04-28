@@ -134,7 +134,7 @@ func runAsClient(bus *console.Bus, o *opts) {
 	log.Printf("[INFO] connected to server: %s", addr)
 	log.Printf("[INFO] starting game...")
 
-	w := ui.CreateWindow(&bus.PPU.Frame, o.scale, o.verbose)
+	w := ui.CreateWindow(o.scale, o.verbose)
 	defer w.Close()
 
 	w.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
@@ -165,6 +165,6 @@ func runAsClient(bus *console.Bus, o *opts) {
 		sess.HandleMessages()
 		sess.RunFrame(startTime)
 
-		w.Refresh()
+		w.Refresh(bus.PPU.Frame)
 	}
 }

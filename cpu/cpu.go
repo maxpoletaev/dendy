@@ -135,7 +135,7 @@ func (cpu *CPU) Reset(mem Memory) {
 
 func (cpu *CPU) nmi(mem Memory) {
 	cpu.pushWord(mem, cpu.PC)
-	cpu.pushByte(mem, uint8(cpu.P))
+	cpu.pushByte(mem, cpu.P)
 	cpu.setFlag(flagInterrupt, true)
 	cpu.PC = readWord(mem, vecNMI)
 	cpu.Halt += 7
@@ -148,7 +148,7 @@ func (cpu *CPU) TriggerNMI() {
 
 func (cpu *CPU) irq(mem Memory) {
 	cpu.pushWord(mem, cpu.PC)
-	cpu.pushByte(mem, uint8(cpu.P))
+	cpu.pushByte(mem, cpu.P)
 	cpu.setFlag(flagInterrupt, true)
 	cpu.PC = readWord(mem, vecIRQ)
 	cpu.Halt += 7

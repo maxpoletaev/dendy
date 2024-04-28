@@ -5,11 +5,8 @@ import (
 	"image/color"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
-)
 
-const (
-	width  = 256
-	height = 240
+	"github.com/maxpoletaev/dendy/ppu"
 )
 
 func toGrayscale(c color.RGBA) color.RGBA {
@@ -27,39 +24,34 @@ type Window struct {
 	ShowFPS        bool
 	FPS            int
 
+	viewport    rl.RenderTexture2D
 	remotePing  int64
 	shouldClose bool
-	frame       *[width][height]color.RGBA
-	texture     rl.RenderTexture2D
-	pixels      []color.RGBA
 	grayscale   bool
 	scale       int
-
-	sourceRec rl.Rectangle
-	targetRec rl.Rectangle
+	width       int
+	height      int
 }
 
-func CreateWindow(frame *[width][height]color.RGBA, scale int, verbose bool) *Window {
+func CreateWindow(scale int, verbose bool) *Window {
 	if !verbose {
 		rl.SetTraceLogLevel(rl.LogNone)
 	}
 
-	rl.InitWindow(width*int32(scale), height*int32(scale), "")
+	windowWidth := ppu.FrameWidth * scale
+	windowHeight := ppu.FrameHeight * scale
+
+	rl.InitWindow(int32(windowWidth), int32(windowHeight), "Dendy Emulator")
 	rl.SetExitKey(0) // disable exit on ESC
 
-	texture := rl.LoadRenderTexture(width, height)
-	rl.SetTextureFilter(texture.Texture, rl.FilterPoint)
-
-	sourceRec := rl.NewRectangle(0, 0, width, height)
-	targetRec := rl.NewRectangle(0, 0, float32(width*scale), float32(height*scale))
+	viewport := rl.LoadRenderTexture(ppu.FrameWidth, ppu.FrameHeight)
+	rl.SetTextureFilter(viewport.Texture, rl.TextureFilterLinear)
 
 	return &Window{
-		pixels:    make([]color.RGBA, width*height),
-		texture:   texture,
-		frame:     frame,
-		scale:     scale,
-		sourceRec: sourceRec,
-		targetRec: targetRec,
+		viewport: viewport,
+		scale:    scale,
+		width:    windowWidth,
+		height:   windowHeight,
 	}
 }
 
@@ -83,20 +75,6 @@ func (w *Window) ShouldClose() bool {
 	return w.shouldClose || rl.WindowShouldClose()
 }
 
-func (w *Window) updateTexture() {
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			if w.grayscale {
-				w.pixels[x+y*width] = toGrayscale(w.frame[x][y])
-			} else {
-				w.pixels[x+y*width] = w.frame[x][y]
-			}
-		}
-	}
-
-	rl.UpdateTexture(w.texture.Texture, w.pixels)
-}
-
 func (w *Window) SetPingInfo(pingMs int64) {
 	w.remotePing = pingMs
 }
@@ -106,13 +84,39 @@ func (w *Window) drawTextWithShadow(text string, x int32, y int32, size int32, c
 	rl.DrawText(text, x, y, size, colour)
 }
 
-func (w *Window) Refresh() {
-	w.updateTexture()
-	rl.BeginDrawing()
+func (w *Window) updateTexture(ppuFrame []color.RGBA) {
+	if w.grayscale {
+		for i, c := range ppuFrame {
+			ppuFrame[i] = toGrayscale(c)
+		}
+	}
 
-	origin := rl.NewVector2(0, 0)
+	rl.UpdateTexture(w.viewport.Texture, ppuFrame)
+}
+
+func (w *Window) Refresh(ppuFrame []color.RGBA) {
+	w.updateTexture(ppuFrame)
+
+	rl.BeginDrawing()
 	rl.ClearBackground(rl.Black)
-	rl.DrawTexturePro(w.texture.Texture, w.sourceRec, w.targetRec, origin, 0, rl.White)
+
+	rl.DrawTexturePro(
+		w.viewport.Texture,
+		rl.Rectangle{
+			Width:  float32(w.viewport.Texture.Width),
+			Height: float32(w.viewport.Texture.Height),
+		},
+		rl.Rectangle{
+			Width:  float32(w.width),
+			Height: float32(w.height),
+		},
+		rl.Vector2{
+			X: 0,
+			Y: 0,
+		},
+		0,
+		rl.White,
+	)
 
 	var offsetY int32
 

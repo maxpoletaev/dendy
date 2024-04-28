@@ -64,26 +64,22 @@ func (p *PPU) renderTileScanline() {
 	var (
 		scrollX = p.vramAddr.coarseX()*8 + uint16(p.fineX)
 		scrollY = p.vramAddr.coarseY()*8 + p.vramAddr.fineY()
-		screenY = p.scanline
+		frameY  = p.scanline
 	)
 
 	var (
 		tileY, pixelY = int(scrollY / 8), int(scrollY % 8)
+		showLeftTiles = p.getMask(MaskShowLeftTiles)
 		lastTileX     = -1
 		tile          Tile
 	)
 
-	leftBoundary := 8
-	if p.getMask(MaskShowLeftTiles) {
-		leftBoundary = 0
-	}
-
-	for screenX := 0; screenX < 256; screenX++ {
-		if screenX < leftBoundary {
+	for frameX := 0; frameX < 256; frameX++ {
+		if !showLeftTiles && frameX < 8 {
 			continue
 		}
 
-		scrolledX := screenX + int(scrollX)
+		scrolledX := frameX + int(scrollX)
 		pixelX := scrolledX % 8
 		tileX := scrolledX / 8
 
@@ -97,11 +93,11 @@ func (p *PPU) renderTileScanline() {
 
 		pixel := tile.Pixels[pixelX]
 		if pixel == 0 {
-			p.transparent[screenX][screenY] = true
+			p.transparent[frameY*FrameWidth+frameX] = true
 			continue
 		}
 
-		p.Frame[screenX][screenY] = p.readTileColor(pixel, tile.PaletteID)
-		p.transparent[screenX][screenY] = false
+		p.Frame[frameY*FrameWidth+frameX] = p.readTileColor(pixel, tile.PaletteID)
+		p.transparent[frameY*FrameWidth+frameX] = false
 	}
 }

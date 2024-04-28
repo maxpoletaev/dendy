@@ -1,13 +1,23 @@
 package ui
 
 import (
+	"image/color"
+
 	"github.com/gen2brain/raylib-go/raylib"
+
+	"github.com/maxpoletaev/dendy/ppu"
 )
 
 func (w *Window) getFrameMousePosition() (int, int, bool) {
 	pos := rl.GetMousePosition()
-	x, y := int(pos.X)/w.scale, int(pos.Y)/w.scale
-	if x < 0 || x >= width || y < 0 || y >= height {
+
+	x := int(pos.X) / w.scale
+	if x < 0 || x >= ppu.FrameWidth {
+		return 0, 0, false
+	}
+
+	y := int(pos.Y) / w.scale
+	if y < 0 || y >= ppu.FrameHeight {
 		return 0, 0, false
 	}
 
@@ -15,10 +25,11 @@ func (w *Window) getFrameMousePosition() (int, int, bool) {
 }
 
 func (w *Window) isTriggerPressed() bool {
-	return rl.IsMouseButtonDown(rl.MouseLeftButton) || rl.IsMouseButtonPressed(rl.MouseLeftButton)
+	return rl.IsMouseButtonDown(rl.MouseLeftButton) ||
+		rl.IsMouseButtonPressed(rl.MouseLeftButton)
 }
 
-func (w *Window) UpdateZapper() {
+func (w *Window) UpdateZapper(ppuFrame []color.RGBA) {
 	if w.ZapperDelegate == nil {
 		return
 	}
@@ -33,7 +44,9 @@ func (w *Window) UpdateZapper() {
 		return
 	}
 
-	rgb := w.frame[x][y]
+	rgb := ppuFrame[y*ppu.FrameWidth+x]
+
 	brightness := (rgb.R + rgb.G + rgb.B) / 3
+
 	w.ZapperDelegate(brightness, w.isTriggerPressed())
 }

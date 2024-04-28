@@ -176,16 +176,16 @@ func (p *PPU) renderSpriteScanline() {
 			}
 
 			// Sprite zero hit detection.
-			if sprite.Index == 0 && !p.transparent[frameX][frameY] {
+			if sprite.Index == 0 && !p.transparent[frameY*FrameWidth+frameX] {
 				p.setStatus(StatusSpriteZeroHit, true)
 			}
 
 			// Sprite is behind the background, so don't render.
-			if sprite.Behind && !p.transparent[frameX][frameY] {
+			if sprite.Behind && !p.transparent[frameY*FrameWidth+frameX] {
 				continue
 			}
 
-			p.Frame[frameX][frameY] = p.readSpriteColor(
+			p.Frame[frameY*FrameWidth+frameX] = p.readSpriteColor(
 				sprite.Pixels[pixelX],
 				sprite.PaletteID,
 			)

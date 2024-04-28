@@ -89,7 +89,7 @@ func (np *Netplay) handlePong(msg Message) {
 
 	np.rtt = sum / time.Duration(np.rttWindow.Len())
 
-	np.game.SetRTT(np.rtt)
+	np.game.SetRoundTripTime(np.rtt)
 }
 
 func (np *Netplay) handleInput(msg Message) {

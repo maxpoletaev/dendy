@@ -1,7 +1,7 @@
 <div align="center">
    <img src="logo.png" width="300" alt="Kivi Logo">
    <p>NES/Famicom emulator with network multiplayer written in Go</p>
-   <img src="https://img.shields.io/badge/status-Beta-yellow?style=flat-square" alt=""> 
+   <img src="https://img.shields.io/badge/status-Stable-green?style=flat-square" alt="">
    <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="">
 </div>
 

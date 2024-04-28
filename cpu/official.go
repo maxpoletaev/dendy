@@ -97,12 +97,12 @@ func pla(cpu *CPU, mem Memory, arg operand) {
 
 // php pushes the processor status onto the stack.
 func php(cpu *CPU, mem Memory, arg operand) {
-	cpu.pushByte(mem, uint8(cpu.P)|0x10)
+	cpu.pushByte(mem, cpu.P|0x10)
 }
 
 // plp pops a value from the stack into the processor status.
 func plp(cpu *CPU, mem Memory, arg operand) {
-	cpu.P = Flags(cpu.popByte(mem))&0xEF | 0x20
+	cpu.P = cpu.popByte(mem)
 }
 
 // inc increments a value in memory.
@@ -427,8 +427,9 @@ func bvs(cpu *CPU, mem Memory, arg operand) {
 }
 
 func brk(cpu *CPU, mem Memory, arg operand) {
-	cpu.pushWord(mem, cpu.PC)
-	cpu.pushByte(mem, uint8(cpu.P&flagBreak))
+	cpu.pushWord(mem, cpu.PC+1)
+	cpu.pushByte(mem, cpu.P|0x30)
+	cpu.setFlag(flagInterrupt, true)
 	cpu.PC = readWord(mem, vecIRQ)
 }
 
