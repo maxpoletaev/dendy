@@ -45,7 +45,7 @@ func CreateWindow(scale int, verbose bool) *Window {
 	rl.SetExitKey(0) // disable exit on ESC
 
 	viewport := rl.LoadRenderTexture(ppu.FrameWidth, ppu.FrameHeight)
-	rl.SetTextureFilter(viewport.Texture, rl.TextureFilterLinear)
+	rl.SetTextureFilter(viewport.Texture, rl.FilterPoint)
 
 	return &Window{
 		viewport: viewport,
