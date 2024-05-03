@@ -31,6 +31,7 @@ type opts struct {
 	showFPS       bool
 	verbose       bool
 	disasm        string
+	memprof       string
 	cpuprof       string
 	protocol      string
 	mute          bool
@@ -63,6 +64,7 @@ func (o *opts) parse() *opts {
 
 	// Debugging flags.
 	flag.StringVar(&o.cpuprof, "cpuprof", "", "write cpu profile to file")
+	flag.StringVar(&o.memprof, "memprof", "", "write memory profile to file")
 	flag.StringVar(&o.disasm, "disasm", "", "write cpu disassembly to file")
 	flag.BoolVar(&o.verbose, "verbose", false, "enable verbose logging")
 
@@ -126,6 +128,24 @@ func main() {
 		}
 
 		defer pprof.StopCPUProfile()
+	}
+
+	if o.memprof != "" {
+		log.Printf("[INFO] writing memory profile to %s", o.memprof)
+
+		f, err := os.Create(o.memprof)
+		if err != nil {
+			log.Printf("[ERROR] failed to create memory profile: %v", err)
+			os.Exit(1)
+		}
+
+		defer func() {
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				log.Printf("[ERROR] failed to write memory profile: %v", err)
+			}
+
+			_ = f.Close()
+		}()
 	}
 
 	romFile := flag.Arg(0)

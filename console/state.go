@@ -8,7 +8,7 @@ import (
 
 func (b *Bus) SaveState(w *binario.Writer) error {
 	err := errors.Join(
-		w.WriteBytes(b.RAM[:]),
+		w.WriteByteSlice(b.RAM[:]),
 		w.WriteUint64(b.cycles),
 		b.CPU.SaveState(w),
 		b.PPU.SaveState(w),
@@ -23,7 +23,7 @@ func (b *Bus) SaveState(w *binario.Writer) error {
 
 func (b *Bus) LoadState(r *binario.Reader) error {
 	err := errors.Join(
-		r.ReadBytesTo(b.RAM[:]),
+		r.ReadByteSliceTo(b.RAM[:]),
 		r.ReadUint64To(&b.cycles),
 		b.CPU.LoadState(r),
 		b.PPU.LoadState(r),

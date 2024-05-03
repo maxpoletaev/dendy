@@ -234,6 +234,11 @@ nescartdb.com.
 * [x] AxROM (Mapper 7) - 3%
 * [ ] MMC5 (Mapper 5) - 1%
 
+## Dependencies
+
+ * https://github.com/gen2brain/raylib-go/raylib - Go bindings for raylib (graphics/audio)
+ * https://github.com/xtaci/kcp-go - TCP-over-UDP for netplay
+
 ## Resources
 
 Although NES emulation is a pretty well-covered topic, It is still a very

@@ -32,7 +32,9 @@ func (w *Writer) WriteBool(value bool) error {
 
 // WriteUint8 writes a single byte.
 func (w *Writer) WriteUint8(value uint8) error {
-	_, err := w.writer.Write([]byte{value})
+	bf := w.buf[:1]
+	bf[0] = value
+	_, err := w.writer.Write(bf)
 	return err
 }
 
@@ -63,8 +65,8 @@ func (w *Writer) WriteUint64(value uint64) error {
 	return err
 }
 
-// WriteBytes writes a byte slice prefixed with its length.
-func (w *Writer) WriteBytes(value []byte) error {
+// WriteByteSlice writes a byte slice prefixed with its length.
+func (w *Writer) WriteByteSlice(value []byte) error {
 	length := uint32(len(value))
 	if err := w.WriteUint32(length); err != nil {
 		return err
@@ -81,9 +83,17 @@ func (w *Writer) WriteBytes(value []byte) error {
 	return nil
 }
 
+func (w *Writer) WriteRawBytes(value []byte) error {
+	if _, err := w.writer.Write(value); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // WriteString writes a string prefixed with its length.
 func (w *Writer) WriteString(value string) error {
-	return w.WriteBytes([]byte(value))
+	return w.WriteByteSlice([]byte(value))
 }
 
 // WriteVarUint writes a variable-length encoded unsigned integer.

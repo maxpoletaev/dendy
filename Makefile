@@ -4,7 +4,6 @@ TEST_PACKAGE = ./...
 PWD = $(shell pwd)
 GO_MODULE = github.com/maxpoletaev/dendy
 COMMIT_HASH = $(shell git rev-parse --short HEAD)
-PROTO_FILES = $(shell find . -type f -name '*.proto')
 PGO_PROFILES = $(shell find profiles -type f -name '*.pprof')
 
 .PHONY: help
@@ -24,8 +23,8 @@ build: ## build dendy
 	CGO_ENABLED=1 GODEBUG=cgocheck=0 go build -pgo=default.pgo -o=bin/dendy ./cmd/dendy
 	CGO_ENABLED=0 go build -pgo=off -o=bin/relay ./cmd/relay
 
-.PHONY: build-cross
-build-cross:  ## cross compile for linux_amd64 and win_amd64 targets (requires docker)
+.PHONY: build-x
+build-x:  ## cross compile for linux_amd64 and win_amd64 targets (requires docker)
 	@echo "--------- running: $@ ---------"
 	docker buildx build -f build/Dockerfile -t dendy-builder .
 	docker run --rm -v $(PWD):/src dendy-builder build/build.sh
@@ -40,16 +39,3 @@ nestest: ## run nestest rom
 	@echo "--------- running: $@ ---------"
 	go test -tags testrom -v ./nestest > nestest.log
 	sed -i '1d' nestest.log # remove the first line to match the good.log
-
-.PHONY: proto-clean
-proto-clean:  ## clean generated protobuf code
-	@echo "--------- running: $@ ---------"
-	find . -name '*.pb.go' -not -path './vendor' -delete
-
-.PHONY: proto-gen
-proto-gen:  ## generate protobuf/grpc models
-	@echo "--------- running: $@ ---------"
-	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative $(PROTO_FILES)
-
-.PHONY: proto
-proto: proto-clean proto-gen ## re-generate protobuf models

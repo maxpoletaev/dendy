@@ -48,7 +48,7 @@ func (s *AudioOut) IsStreamProcessed() bool {
 
 func (s *AudioOut) WaitStreamProcessed() {
 	for !rl.IsAudioStreamProcessed(s.stream) {
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 16)
 	}
 }
 

@@ -115,7 +115,7 @@ func (r *ROM) SaveState(w *binario.Writer) error {
 	}
 
 	if r.chrRAM {
-		if err := w.WriteBytes(r.CHR); err != nil {
+		if err := w.WriteByteSlice(r.CHR); err != nil {
 			return err
 		}
 	}
@@ -134,7 +134,7 @@ func (r *ROM) LoadState(reader *binario.Reader) error {
 	}
 
 	if r.chrRAM {
-		if err = reader.ReadBytesTo(r.CHR); err != nil {
+		if err = reader.ReadByteSliceTo(r.CHR); err != nil {
 			return err
 		}
 	}

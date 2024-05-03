@@ -15,11 +15,28 @@ import (
 )
 
 type Checkpoint struct {
+	State       *bytes.Buffer
+	Reader      *binario.Reader
+	Writer      *binario.Writer
 	Frame       uint32
-	State       []byte
 	Crc32       uint32
 	LocalInput  uint8
 	RemoteInput uint8
+	RolledBack  bool
+}
+
+func newCheckpoint() *Checkpoint {
+	buf := bytes.NewBuffer(nil)
+
+	// NOTE: checkpoint can only be rolled back once (because bytes.Buffer is not
+	// seekable, and can only be read once). This works for now but may require a
+	// seekable bytes.Buffer implementation in the future. We need to keep the buffer
+	// global to avoid heap allocations on every frame.
+	return &Checkpoint{
+		State:  buf,
+		Reader: binario.NewReader(buf, binary.LittleEndian),
+		Writer: binario.NewWriter(buf, binary.LittleEndian),
+	}
 }
 
 // Game is a network play state manager. It keeps track of the inputs from both
@@ -59,9 +76,9 @@ type Game struct {
 func NewGame(bus *console.Bus, audio *ui.AudioOut) *Game {
 	return &Game{
 		bus:         bus,
-		current:     &Checkpoint{},
-		checkpoint:  &Checkpoint{},
-		catching:    &Checkpoint{},
+		current:     newCheckpoint(),
+		checkpoint:  newCheckpoint(),
+		catching:    newCheckpoint(),
 		audio:       audio,
 		audioBuffer: make([]float32, consts.AudioBufferSize),
 	}
@@ -80,7 +97,6 @@ func (g *Game) Init(cp *Checkpoint) {
 
 	if cp != nil {
 		g.checkpoint = cp
-		g.rollback(g.checkpoint)
 	} else {
 		g.save(g.checkpoint)
 	}
@@ -210,29 +226,29 @@ func (g *Game) FrameDrift() int {
 }
 
 func (g *Game) save(cp *Checkpoint) {
-	buf := bytes.NewBuffer(cp.State[:0])
-	writer := binario.NewWriter(buf, binary.LittleEndian)
+	cp.State.Reset()
 
-	if err := g.bus.SaveState(writer); err != nil {
+	if err := g.bus.SaveState(cp.Writer); err != nil {
 		panic(fmt.Errorf("failed create checkpoint: %w", err))
 	}
 
 	cp.Frame = g.frame
-	cp.State = buf.Bytes() // re-assign in case it was re-allocated
-
+	cp.RolledBack = false
 	cp.LocalInput = g.LocalJoy.Buttons()
 	cp.RemoteInput = g.RemoteJoy.Buttons()
 }
 
 func (g *Game) rollback(cp *Checkpoint) {
-	buf := bytes.NewBuffer(cp.State)
-	reader := binario.NewReader(buf, binary.LittleEndian)
+	if cp.RolledBack {
+		panic("checkpoint already rolled back")
+	}
 
-	if err := g.bus.LoadState(reader); err != nil {
+	if err := g.bus.LoadState(cp.Reader); err != nil {
 		panic(fmt.Errorf("failed to restore checkpoint: %w", err))
 	}
 
 	g.frame = cp.Frame
+	cp.RolledBack = true
 	g.LocalJoy.SetButtons(cp.LocalInput)
 	g.RemoteJoy.SetButtons(cp.RemoteInput)
 }

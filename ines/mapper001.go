@@ -206,7 +206,7 @@ func (m *Mapper1) WriteCHR(addr uint16, data byte) {
 func (m *Mapper1) SaveState(w *binario.Writer) error {
 	return errors.Join(
 		m.rom.SaveState(w),
-		w.WriteBytes(m.sram[:]),
+		w.WriteByteSlice(m.sram[:]),
 		w.WriteUint8(m.control),
 		w.WriteUint8(m.chrBank0),
 		w.WriteUint8(m.chrBank1),
@@ -219,7 +219,7 @@ func (m *Mapper1) SaveState(w *binario.Writer) error {
 func (m *Mapper1) LoadState(r *binario.Reader) error {
 	return errors.Join(
 		m.rom.LoadState(r),
-		r.ReadBytesTo(m.sram[:]),
+		r.ReadByteSliceTo(m.sram[:]),
 		r.ReadUint8To(&m.control),
 		r.ReadUint8To(&m.chrBank0),
 		r.ReadUint8To(&m.chrBank1),

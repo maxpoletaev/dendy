@@ -86,7 +86,7 @@ type StartGameMsg struct {
 
 func (m *StartGameMsg) ToBytes(w *binario.Writer) error {
 	return errors.Join(
-		w.WriteBytes(m.IP),
+		w.WriteByteSlice(m.IP),
 		w.WriteUint16(m.Port),
 	)
 }
@@ -95,7 +95,7 @@ func (m *StartGameMsg) FromBytes(r *binario.Reader) error {
 	m.IP = make(net.IP, 4)
 
 	return errors.Join(
-		r.ReadBytesTo(m.IP),
+		r.ReadByteSliceTo(m.IP),
 		r.ReadUint16To(&m.Port),
 	)
 }

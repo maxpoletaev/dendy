@@ -12,13 +12,16 @@ func (np *Netplay) SendInitialState() {
 	}
 
 	np.game.Init(nil)
-	checkpoint := np.game.Checkpoint()
+
+	cp := np.game.Checkpoint()
+	payload := np.pool.Get(cp.State.Len())
+	copy(payload.Data, cp.State.Bytes())
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      checkpoint.Frame,
-		Payload:    checkpoint.State,
+		Frame:      cp.Frame,
+		Payload:    payload,
 	})
 }
 
@@ -30,13 +33,16 @@ func (np *Netplay) SendReset() {
 
 	np.game.Reset()
 	np.game.Init(nil)
-	checkpoint := np.game.Checkpoint()
+
+	cp := np.game.Checkpoint()
+	payload := np.pool.Get(cp.State.Len())
+	copy(payload.Data, cp.State.Bytes())
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      checkpoint.Frame,
-		Payload:    checkpoint.State,
+		Frame:      cp.Frame,
+		Payload:    payload,
 	})
 }
 
@@ -46,13 +52,16 @@ func (np *Netplay) SendResync() {
 	}
 
 	np.game.Init(nil)
-	checkpoint := np.game.Checkpoint()
+
+	cp := np.game.Checkpoint()
+	payload := np.pool.Get(cp.State.Len())
+	copy(payload.Data, cp.State.Bytes())
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      checkpoint.Frame,
-		Payload:    checkpoint.State,
+		Frame:      cp.Frame,
+		Payload:    payload,
 	})
 }
 
@@ -66,11 +75,14 @@ func (np *Netplay) SendButtons(buttons uint8) {
 		return
 	}
 
+	payload := np.pool.Get(1)
+	payload.Data[0] = buttons
+
 	np.sendMsg(Message{
 		Type:       MsgTypeInput,
-		Payload:    []uint8{buttons},
 		Frame:      np.game.Frame(),
 		Generation: np.game.Gen(),
+		Payload:    payload,
 	})
 
 	np.game.HandleLocalInput(buttons)
@@ -81,9 +93,9 @@ func (np *Netplay) SendPing() {
 		return
 	}
 
-	payload := make([]byte, 8)
+	payload := np.pool.Get(8)
 	timestamp := time.Now().UnixMicro()
-	byteOrder.PutUint64(payload, uint64(timestamp))
+	byteOrder.PutUint64(payload.Data, uint64(timestamp))
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
@@ -126,8 +138,8 @@ func (np *Netplay) SendWait(frames uint32) {
 		return
 	}
 
-	payload := make([]byte, 4)
-	byteOrder.PutUint32(payload, frames)
+	payload := np.pool.Get(4)
+	byteOrder.PutUint32(payload.Data, frames)
 
 	np.sendMsg(Message{
 		Type:       MsgTypeWait,

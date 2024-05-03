@@ -9,6 +9,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/maxpoletaev/dendy/internal/binario"
+	"github.com/maxpoletaev/dendy/internal/bytepool"
 	"github.com/maxpoletaev/dendy/internal/ringbuf"
 )
 
@@ -18,6 +20,7 @@ const (
 	maxFrameDriftWindow = 20
 	minFrameDriftWindow = 3    // should not be <3 as int(2*1.35)=2
 	driftWindowFactor   = 1.35 // factor to increase/decrease the drift window
+	maxPoolItemSize     = 8
 )
 
 var (
@@ -30,6 +33,7 @@ type Netplay struct {
 	toSend     chan Message
 	conn       net.Conn
 	rtt        time.Duration
+	pool       *bytepool.Pool
 	rttWindow  *ringbuf.Buffer[time.Duration]
 	readerDone chan struct{}
 	writerDone chan struct{}
@@ -42,6 +46,8 @@ type Netplay struct {
 }
 
 func newNetplay(game *Game, conn net.Conn) *Netplay {
+	pool := bytepool.New(maxPoolItemSize)
+
 	return &Netplay{
 		rttWindow:   ringbuf.New[time.Duration](10),
 		toSend:      make(chan Message, 100),
@@ -49,12 +55,15 @@ func newNetplay(game *Game, conn net.Conn) *Netplay {
 		driftWindow: minFrameDriftWindow,
 		readerDone:  make(chan struct{}),
 		writerDone:  make(chan struct{}),
+		pool:        pool,
 		game:        game,
 		conn:        conn,
 	}
 }
 
 func (np *Netplay) startWriter() {
+	w := binario.NewWriter(np.conn, byteOrder)
+
 	defer close(np.writerDone)
 
 	for {
@@ -63,7 +72,7 @@ func (np *Netplay) startWriter() {
 			break
 		}
 
-		if err := writeMsg(np.conn, msg); err != nil {
+		if err := writeMsg(w, &msg); err != nil {
 			log.Printf("[ERROR] failed to write message: %v", err)
 			np.shouldExit = true
 
@@ -73,17 +82,20 @@ func (np *Netplay) startWriter() {
 }
 
 func (np *Netplay) startReader() {
+	r := binario.NewReader(np.conn, byteOrder)
+
 	defer close(np.readerDone)
 
 	for {
-		msg, err := readMsg(np.conn)
+		msg := Message{}
 
-		if err != nil {
+		if err := readMsg(r, &msg, np.pool); err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 				break
 			}
 
 			log.Printf("[ERROR] failed to read message: %v", err)
+
 			np.shouldExit = true
 
 			break
@@ -124,6 +136,7 @@ loop:
 		case msg, ok := <-np.toRecv:
 			if ok {
 				np.handleMessage(msg)
+				msg.Payload.Free()
 			} else {
 				break loop
 			}

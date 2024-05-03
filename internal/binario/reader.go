@@ -109,7 +109,7 @@ func (r *Reader) ReadUint64To(dst *uint64) error {
 	return nil
 }
 
-func (r *Reader) ReadBytes() ([]byte, error) {
+func (r *Reader) ReadByteSlice() ([]byte, error) {
 	length, err := r.ReadUint32()
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (r *Reader) ReadBytes() ([]byte, error) {
 	return bs, nil
 }
 
-func (r *Reader) ReadBytesTo(dst []byte) error {
+func (r *Reader) ReadByteSliceTo(dst []byte) error {
 	length, err := r.ReadUint32()
 	if err != nil {
 		return err
@@ -149,13 +149,21 @@ func (r *Reader) ReadBytesTo(dst []byte) error {
 	return nil
 }
 
+func (r *Reader) ReadRawBytesTo(dst []byte) error {
+	if _, err := r.reader.Read(dst); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *Reader) ReadString() (string, error) {
-	bs, err := r.ReadBytes()
+	bs, err := r.ReadByteSlice()
 	return string(bs), err
 }
 
 func (r *Reader) ReadStringTo(dst *string) error {
-	bs, err := r.ReadBytes()
+	bs, err := r.ReadByteSlice()
 	if err != nil {
 		return err
 	}

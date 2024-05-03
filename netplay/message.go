@@ -1,14 +1,10 @@
 package netplay
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
-	"fmt"
-	"io"
-	"net"
 
 	"github.com/maxpoletaev/dendy/internal/binario"
+	"github.com/maxpoletaev/dendy/internal/bytepool"
 )
 
 type MsgType = uint8
@@ -26,85 +22,41 @@ type Message struct {
 	Type       MsgType
 	Frame      uint32
 	Generation uint32
-	Payload    []byte
+	Payload    bytepool.Buffer
 }
 
-func (m *Message) Encode() ([]byte, error) {
-	buf := bytes.Buffer{}
-	w := binario.NewWriter(&buf, byteOrder)
-
-	err := errors.Join(
-		w.WriteUint8(m.Type),
-		w.WriteUint32(m.Frame),
-		w.WriteUint32(m.Generation),
-		w.WriteBytes(m.Payload),
-	)
-
-	if err != nil {
-		return nil, err
+func readMsg(r *binario.Reader, msg *Message, pool *bytepool.Pool) error {
+	if err := errors.Join(
+		r.ReadUint8To(&msg.Type),
+		r.ReadUint32To(&msg.Frame),
+		r.ReadUint32To(&msg.Generation),
+	); err != nil {
+		return err
 	}
 
-	return buf.Bytes(), nil
-}
-
-func (m *Message) Decode(data []byte) error {
-	buf := bytes.NewReader(data)
-	reader := binario.NewReader(buf, byteOrder)
-
-	err := errors.Join(
-		reader.ReadUint8To(&m.Type),
-		reader.ReadUint32To(&m.Frame),
-		reader.ReadUint32To(&m.Generation),
-	)
-
+	size, err := r.ReadUint32()
 	if err != nil {
 		return err
 	}
 
-	m.Payload, err = reader.ReadBytes()
-	if err != nil {
-		return err
+	if size > 0 {
+		msg.Payload = pool.Get(int(size))
+		if err := r.ReadRawBytesTo(msg.Payload.Data); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func readMsg(conn net.Conn) (Message, error) {
-	var (
-		msg Message
-		err error
+func writeMsg(w *binario.Writer, msg *Message) error {
+	defer msg.Payload.Free()
+
+	return errors.Join(
+		w.WriteUint8(msg.Type),
+		w.WriteUint32(msg.Frame),
+		w.WriteUint32(msg.Generation),
+		w.WriteUint32(uint32(len(msg.Payload.Data))),
+		w.WriteRawBytes(msg.Payload.Data),
 	)
-
-	var size uint32
-	if err = binary.Read(conn, byteOrder, &size); err != nil {
-		return msg, fmt.Errorf("failed to read message length: %w", err)
-	}
-
-	buf := make([]byte, size)
-	if _, err = io.ReadFull(conn, buf); err != nil {
-		return msg, fmt.Errorf("failed to read message: %w", err)
-	}
-
-	if err = msg.Decode(buf); err != nil {
-		return msg, fmt.Errorf("failed to decode message: %w", err)
-	}
-
-	return msg, nil
-}
-
-func writeMsg(conn net.Conn, msg Message) error {
-	data, err := msg.Encode()
-	if err != nil {
-		return fmt.Errorf("failed to encode message: %w", err)
-	}
-
-	if err = binary.Write(conn, byteOrder, uint32(len(data))); err != nil {
-		return fmt.Errorf("failed to write message length: %w", err)
-	}
-
-	if _, err = conn.Write(data); err != nil {
-		return fmt.Errorf("failed to write message: %w", err)
-	}
-
-	return nil
 }
