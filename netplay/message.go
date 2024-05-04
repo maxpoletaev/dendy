@@ -25,7 +25,7 @@ type Message struct {
 	Payload    bytepool.Buffer
 }
 
-func readMsg(r *binario.Reader, msg *Message, pool *bytepool.Pool) error {
+func readMsg(r *binario.Reader, msg *Message, pool *bytepool.BytePool) error {
 	if err := errors.Join(
 		r.ReadUint8To(&msg.Type),
 		r.ReadUint32To(&msg.Frame),
@@ -40,8 +40,8 @@ func readMsg(r *binario.Reader, msg *Message, pool *bytepool.Pool) error {
 	}
 
 	if size > 0 {
-		msg.Payload = pool.Get(int(size))
-		if err := r.ReadRawBytesTo(msg.Payload.Data); err != nil {
+		msg.Payload = pool.Buffer(int(size))
+		if err = r.ReadRawBytesTo(msg.Payload.Data); err != nil {
 			return err
 		}
 	}
@@ -50,13 +50,15 @@ func readMsg(r *binario.Reader, msg *Message, pool *bytepool.Pool) error {
 }
 
 func writeMsg(w *binario.Writer, msg *Message) error {
-	defer msg.Payload.Free()
-
-	return errors.Join(
+	err := errors.Join(
 		w.WriteUint8(msg.Type),
 		w.WriteUint32(msg.Frame),
 		w.WriteUint32(msg.Generation),
 		w.WriteUint32(uint32(len(msg.Payload.Data))),
 		w.WriteRawBytes(msg.Payload.Data),
 	)
+
+	msg.Payload.Free()
+
+	return err
 }

@@ -33,7 +33,7 @@ type Netplay struct {
 	toSend     chan Message
 	conn       net.Conn
 	rtt        time.Duration
-	pool       *bytepool.Pool
+	pool       *bytepool.BytePool
 	rttWindow  *ringbuf.Buffer[time.Duration]
 	readerDone chan struct{}
 	writerDone chan struct{}

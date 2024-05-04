@@ -72,7 +72,7 @@ func (np *Netplay) handleReset(msg Message) {
 }
 
 func (np *Netplay) handlePing(msg Message) {
-	payload := np.pool.Get(len(msg.Payload.Data))
+	payload := np.pool.Buffer(len(msg.Payload.Data))
 	copy(payload.Data, msg.Payload.Data)
 
 	np.sendMsg(Message{

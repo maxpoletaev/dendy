@@ -14,7 +14,7 @@ func (np *Netplay) SendInitialState() {
 	np.game.Init(nil)
 
 	cp := np.game.Checkpoint()
-	payload := np.pool.Get(cp.State.Len())
+	payload := np.pool.Buffer(cp.State.Len())
 	copy(payload.Data, cp.State.Bytes())
 
 	np.sendMsg(Message{
@@ -35,7 +35,7 @@ func (np *Netplay) SendReset() {
 	np.game.Init(nil)
 
 	cp := np.game.Checkpoint()
-	payload := np.pool.Get(cp.State.Len())
+	payload := np.pool.Buffer(cp.State.Len())
 	copy(payload.Data, cp.State.Bytes())
 
 	np.sendMsg(Message{
@@ -54,7 +54,7 @@ func (np *Netplay) SendResync() {
 	np.game.Init(nil)
 
 	cp := np.game.Checkpoint()
-	payload := np.pool.Get(cp.State.Len())
+	payload := np.pool.Buffer(cp.State.Len())
 	copy(payload.Data, cp.State.Bytes())
 
 	np.sendMsg(Message{
@@ -75,7 +75,7 @@ func (np *Netplay) SendButtons(buttons uint8) {
 		return
 	}
 
-	payload := np.pool.Get(1)
+	payload := np.pool.Buffer(1)
 	payload.Data[0] = buttons
 
 	np.sendMsg(Message{
@@ -93,7 +93,7 @@ func (np *Netplay) SendPing() {
 		return
 	}
 
-	payload := np.pool.Get(8)
+	payload := np.pool.Buffer(8)
 	timestamp := time.Now().UnixMicro()
 	byteOrder.PutUint64(payload.Data, uint64(timestamp))
 
@@ -138,7 +138,7 @@ func (np *Netplay) SendWait(frames uint32) {
 		return
 	}
 
-	payload := np.pool.Get(4)
+	payload := np.pool.Buffer(4)
 	byteOrder.PutUint32(payload.Data, frames)
 
 	np.sendMsg(Message{
