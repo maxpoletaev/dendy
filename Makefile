@@ -23,6 +23,7 @@ build: ## build dendy
 	CGO_ENABLED=1 GODEBUG=cgocheck=0 go build -pgo=default.pgo -o=bin/dendy ./cmd/dendy
 	CGO_ENABLED=0 go build -pgo=off -o=bin/relay ./cmd/relay
 
+
 .PHONY: build-x
 build-x:  ## cross compile for linux_amd64 and win_amd64 targets (requires docker)
 	@echo "--------- running: $@ ---------"

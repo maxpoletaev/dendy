@@ -2,7 +2,6 @@ package apu
 
 import (
 	"errors"
-	"math/bits"
 
 	"github.com/maxpoletaev/dendy/internal/binario"
 )
@@ -31,8 +30,7 @@ type dmc struct {
 	isEmpty  bool
 	isSilent bool
 
-	dmaRead func(addr uint16) byte
-	reverse bool
+	dmaCallback func(addr uint16) byte
 }
 
 func (d *dmc) reset() {
@@ -116,13 +114,7 @@ func (d *dmc) tickTimer() {
 	}
 
 	if d.length > 0 && d.isEmpty {
-		d.buffer = d.dmaRead(d.addr)
-
-		if d.reverse {
-			// Reverse sample bits (sometimes may sound better).
-			d.buffer = bits.Reverse8(d.buffer)
-		}
-
+		d.buffer = d.dmaCallback(d.addr)
 		d.addr = (d.addr + 1) | 0x8000
 		d.isEmpty = false
 		d.length--

@@ -9,14 +9,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/consts"
+	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/binario"
+	"github.com/maxpoletaev/dendy/system"
 	"github.com/maxpoletaev/dendy/ui"
 )
 
-func loadState(bus *console.Bus, saveFile string) (bool, error) {
+func loadState(nes *system.System, saveFile string) (bool, error) {
 	f, err := os.OpenFile(saveFile, os.O_RDONLY, 0644)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -33,14 +34,14 @@ func loadState(bus *console.Bus, saveFile string) (bool, error) {
 	}()
 
 	reader := binario.NewReader(f, binary.LittleEndian)
-	if err := bus.LoadState(reader); err != nil {
+	if err := nes.LoadState(reader); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-func saveState(bus *console.Bus, saveFile string) error {
+func saveState(nes *system.System, saveFile string) error {
 	tmpFile := saveFile + ".tmp"
 
 	f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY, 0644)
@@ -55,7 +56,7 @@ func saveState(bus *console.Bus, saveFile string) error {
 	}()
 
 	writer := binario.NewWriter(f, binary.LittleEndian)
-	if err := bus.SaveState(writer); err != nil {
+	if err := nes.SaveState(writer); err != nil {
 		return err
 	}
 
@@ -66,12 +67,10 @@ func saveState(bus *console.Bus, saveFile string) error {
 	return nil
 }
 
-func runOffline(bus *console.Bus, o *opts, saveFile string) {
-	bus.Joy1 = input.NewJoystick()
-	bus.Joy2 = input.NewJoystick()
-	bus.Zapper = input.NewZapper()
-	bus.InitDMA()
-	bus.Reset()
+func runOffline(cart ines.Cartridge, o *options, saveFile string) {
+	joy1 := input.NewJoystick()
+	zapper := input.NewZapper()
+	nes := system.New(cart, joy1, zapper)
 
 	if o.disasm != "" {
 		file, err := os.Create(o.disasm)
@@ -81,6 +80,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 		}
 
 		writer := bufio.NewWriterSize(file, 1024*1024)
+		nes.SetDebugOutput(writer)
 
 		defer func() {
 			flushErr := writer.Flush()
@@ -90,13 +90,10 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 				log.Printf("[ERROR] failed to close disassembly file: %s", err)
 			}
 		}()
-
-		bus.DisasmWriter = writer
-		bus.DisasmEnabled = true
 	}
 
 	if !o.noSave {
-		if ok, err := loadState(bus, saveFile); err != nil {
+		if ok, err := loadState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to load save file: %s", err)
 			os.Exit(1)
 		} else if ok {
@@ -119,10 +116,11 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 
 	w.SetFrameRate(consts.FramesPerSecond)
 	w.SetTitle(windowTitle)
-	w.InputDelegate = bus.Joy1.SetButtons
-	w.ZapperDelegate = bus.Zapper.Update
+
+	w.InputDelegate = joy1.SetButtons
+	w.ZapperDelegate = zapper.Update
 	w.MuteDelegate = audio.ToggleMute
-	w.ResetDelegate = bus.Reset
+	w.ResetDelegate = nes.Reset
 	w.ShowFPS = o.showFPS
 
 	if !o.noCRT {
@@ -135,7 +133,7 @@ func runOffline(bus *console.Bus, o *opts, saveFile string) {
 			// Save state on crash to quickly reconstruct the faulty state,
 			// unless we are already playing the crash state.
 			if !strings.HasSuffix(saveFile, ".crash") {
-				_ = saveState(bus, fmt.Sprintf("%s.crash", saveFile))
+				_ = saveState(nes, fmt.Sprintf("%s.crash", saveFile))
 				log.Printf("[INFO] pre-crash state saved: %s.crash", saveFile)
 			}
 
@@ -147,22 +145,24 @@ gameloop:
 	for {
 		for i := 0; i < consts.AudioBufferSize; i++ {
 			for j := 0; j < consts.TicksPerSample; j++ {
-				bus.Tick()
+				nes.Tick()
 
-				if bus.ScanlineComplete() {
-					w.UpdateZapper(bus.PPU.Frame)
+				if nes.ScanlineReady() {
+					w.UpdateZapper(nes.Frame())
 				}
 
-				if bus.FrameComplete() {
+				if nes.FrameReady() {
+					frame := nes.Frame()
+
 					if w.ShouldClose() {
 						break gameloop
 					}
 
-					bus.Zapper.VBlank()
+					zapper.VBlank()
 					w.UpdateJoystick()
 					w.HandleHotKeys()
 					w.SetGrayscale(false)
-					w.Refresh(bus.PPU.Frame)
+					w.Refresh(frame)
 
 					// Pause when not in focus.
 					for !w.InFocus() {
@@ -171,12 +171,12 @@ gameloop:
 						}
 
 						w.SetGrayscale(true)
-						w.Refresh(bus.PPU.Frame)
+						w.Refresh(frame)
 					}
 				}
 			}
 
-			audioBuffer[i] = bus.APU.Output()
+			audioBuffer[i] = nes.AudioSample()
 		}
 
 		audio.WaitStreamProcessed()
@@ -184,7 +184,7 @@ gameloop:
 	}
 
 	if !o.noSave {
-		if err := saveState(bus, saveFile); err != nil {
+		if err := saveState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to save state: %s", err)
 			os.Exit(1)
 		}

@@ -12,7 +12,8 @@ var lengthTable = []byte{
 }
 
 type APU struct {
-	Enabled bool
+	Enabled    bool
+	PendingIRQ bool
 
 	mode     uint8
 	cycle    uint64
@@ -26,7 +27,6 @@ type APU struct {
 
 	irqDisable bool
 	frameIRQ   bool
-	pendingIRQ bool
 }
 
 func New() *APU {
@@ -176,7 +176,7 @@ func (a *APU) Tick() {
 			a.triangle.tickLength()
 
 			if a.mode == 0 && !a.irqDisable {
-				a.pendingIRQ = true
+				a.PendingIRQ = true
 				a.frameIRQ = true
 			}
 		}
@@ -195,13 +195,8 @@ func (a *APU) Tick() {
 	a.cycle++
 }
 
-func (a *APU) PendingIRQ() (v bool) {
-	v, a.pendingIRQ = a.pendingIRQ, false
-	return v
-}
-
 func (a *APU) SetDMACallback(cb func(addr uint16) byte) {
-	a.dmc.dmaRead = cb
+	a.dmc.dmaCallback = cb
 }
 
 func (a *APU) SaveState(w *binario.Writer) error {
@@ -211,7 +206,7 @@ func (a *APU) SaveState(w *binario.Writer) error {
 		a.triangle.saveState(w),
 		a.noise.saveState(w),
 		a.dmc.saveState(w),
-		w.WriteBool(a.pendingIRQ),
+		w.WriteBool(a.PendingIRQ),
 		w.WriteUint8(a.mode),
 		w.WriteUint64(a.cycle),
 		w.WriteUint64(a.frame),
@@ -227,7 +222,7 @@ func (a *APU) LoadState(r *binario.Reader) error {
 		a.triangle.loadState(r),
 		a.noise.loadState(r),
 		a.dmc.loadState(r),
-		r.ReadBoolTo(&a.pendingIRQ),
+		r.ReadBoolTo(&a.PendingIRQ),
 		r.ReadUint8To(&a.mode),
 		r.ReadUint64To(&a.cycle),
 		r.ReadUint64To(&a.frame),

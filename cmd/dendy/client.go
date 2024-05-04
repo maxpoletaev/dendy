@@ -9,11 +9,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/consts"
+	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/netplay"
 	"github.com/maxpoletaev/dendy/relay"
+	"github.com/maxpoletaev/dendy/system"
 	"github.com/maxpoletaev/dendy/ui"
 )
 
@@ -63,29 +64,27 @@ func joinSession(relayAddr string, sessionID string, romCRC32 uint32) (string, s
 	return lAddr.String(), rAddr.String(), nil
 }
 
-func runAsClient(bus *console.Bus, o *opts) {
-	bus.Joy1 = input.NewJoystick()
-	bus.Joy2 = input.NewJoystick()
-	bus.InitDMA()
-	bus.Reset()
+func runAsClient(cart ines.Cartridge, opts *options, rom *ines.ROM) {
+	joy1 := input.NewJoystick()
+	joy2 := input.NewJoystick()
+	nes := system.New(cart, joy1, joy2)
 
 	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
 	defer audio.Close()
-	audio.Mute(o.mute)
+	audio.Mute(opts.mute)
 
-	game := netplay.NewGame(bus, audio)
-	game.RemoteJoy = bus.Joy1
-	game.LocalJoy = bus.Joy2
+	game := netplay.NewGame(nes, audio, joy2, joy1)
 	game.Init(nil)
 
-	if o.disasm != "" {
-		file, err := os.Create(o.disasm)
+	if opts.disasm != "" {
+		file, err := os.Create(opts.disasm)
 		if err != nil {
 			log.Printf("[ERROR] failed to create disassembly file: %s", err)
 			os.Exit(1)
 		}
 
 		writer := bufio.NewWriterSize(file, 1024*1024)
+		game.SetDebugOutput(writer)
 
 		defer func() {
 			flushErr := writer.Flush()
@@ -95,21 +94,17 @@ func runAsClient(bus *console.Bus, o *opts) {
 				log.Printf("[ERROR] failed to close disassembly file: %s", err)
 			}
 		}()
-
-		bus.DisasmWriter = writer
-		bus.DisasmEnabled = false // will be controlled by the game
-		game.DisasmEnabled = true
 	}
 
 	var (
 		err      error
-		protocol = o.protocol
-		rAddr    = o.connectAddr
-		lAddr    = o.listenAddr
+		protocol = opts.protocol
+		rAddr    = opts.connectAddr
+		lAddr    = opts.listenAddr
 	)
 
-	if o.joinRoom != "" {
-		lAddr, rAddr, err = joinSession(o.relayAddr, o.joinRoom, bus.ROM.CRC32)
+	if opts.joinRoom != "" {
+		lAddr, rAddr, err = joinSession(opts.relayAddr, opts.joinRoom, rom.CRC32)
 		if err != nil {
 			log.Printf("[ERROR] failed to join relay session: %s", err)
 			os.Exit(1)
@@ -134,25 +129,25 @@ func runAsClient(bus *console.Bus, o *opts) {
 	log.Printf("[INFO] connected to server: %s", addr)
 	log.Printf("[INFO] starting game...")
 
-	w := ui.CreateWindow(o.scale, o.verbose)
-	defer w.Close()
+	win := ui.CreateWindow(opts.scale, opts.verbose)
+	defer win.Close()
 
-	w.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
-	w.SetFrameRate(consts.FramesPerSecond)
-	w.InputDelegate = sess.SendButtons
-	w.MuteDelegate = audio.ToggleMute
-	w.ShowFPS = o.showFPS
-	w.ShowPing = true
+	win.SetTitle(fmt.Sprintf("%s (P2)", windowTitle))
+	win.SetFrameRate(consts.FramesPerSecond)
+	win.InputDelegate = sess.SendButtons
+	win.MuteDelegate = audio.ToggleMute
+	win.ShowFPS = opts.showFPS
+	win.ShowPing = true
 
-	if !o.noCRT {
+	if !opts.noCRT {
 		log.Printf("[INFO] using experimental CRT effect, disable with -nocrt flag")
-		w.EnableCRT()
+		win.EnableCRT()
 	}
 
 	for {
 		startTime := time.Now()
 
-		if w.ShouldClose() {
+		if win.ShouldClose() {
 			log.Printf("[INFO] saying goodbye...")
 			sess.SendBye()
 			break
@@ -163,13 +158,13 @@ func runAsClient(bus *console.Bus, o *opts) {
 			break
 		}
 
-		w.HandleHotKeys()
-		w.UpdateJoystick()
-		w.SetPingInfo(sess.RemotePing())
+		win.HandleHotKeys()
+		win.UpdateJoystick()
+		win.SetPingInfo(sess.RemotePing())
 
 		sess.HandleMessages()
 		sess.RunFrame(startTime)
 
-		w.Refresh(bus.PPU.Frame)
+		win.Refresh(nes.Frame())
 	}
 }

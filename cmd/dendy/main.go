@@ -9,12 +9,7 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	apupkg "github.com/maxpoletaev/dendy/apu"
 	"github.com/maxpoletaev/dendy/consts"
-	cpupkg "github.com/maxpoletaev/dendy/cpu"
-	ppupkg "github.com/maxpoletaev/dendy/ppu"
-
-	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/internal/loglevel"
 )
@@ -23,7 +18,7 @@ const (
 	windowTitle = "Dendy Emulator"
 )
 
-type opts struct {
+type options struct {
 	scale         int
 	noSpriteLimit bool
 	saveFile      string
@@ -45,7 +40,7 @@ type opts struct {
 	createRoom  bool
 }
 
-func (o *opts) parse() *opts {
+func (o *options) parse() *options {
 	flag.IntVar(&o.scale, "scale", 2, "scale factor (default: 2)")
 	flag.StringVar(&o.saveFile, "savefile", "", "save file (default: romname.save)")
 	flag.BoolVar(&o.noSpriteLimit, "nospritelimit", false, "disable sprite limit (eliminates flickering)")
@@ -72,13 +67,13 @@ func (o *opts) parse() *opts {
 	return o
 }
 
-func (o *opts) sanitize() {
+func (o *options) sanitize() {
 	if o.scale < 1 {
 		o.scale = 1
 	}
 }
 
-func (o *opts) logLevel() loglevel.Level {
+func (o *options) logLevel() loglevel.Level {
 	if o.verbose {
 		return loglevel.LevelDebug
 	}
@@ -97,25 +92,25 @@ func printLogo() {
 }
 
 func main() {
-	o := new(opts).parse()
-	o.sanitize()
+	opts := new(options).parse()
+	opts.sanitize()
 
 	log.Default().SetFlags(0)
-	log.Default().SetOutput(loglevel.New(os.Stderr, o.logLevel()))
+	log.Default().SetOutput(loglevel.New(os.Stderr, opts.logLevel()))
 
 	if flag.NArg() != 1 {
 		fmt.Println("usage: dendy [-scale=2] [-nosave] [-nospritelimit] [-listen=addr:port] [-connect=addr:port] romfile")
 		os.Exit(1)
 	}
 
-	if !o.noLogo {
+	if !opts.noLogo {
 		printLogo()
 	}
 
-	if o.cpuprof != "" {
-		log.Printf("[INFO] writing cpu profile to %s", o.cpuprof)
+	if opts.cpuprof != "" {
+		log.Printf("[INFO] writing cpu profile to %s", opts.cpuprof)
 
-		f, err := os.Create(o.cpuprof)
+		f, err := os.Create(opts.cpuprof)
 		if err != nil {
 			log.Printf("[ERROR] failed to create cpu profile: %v", err)
 			os.Exit(1)
@@ -130,10 +125,10 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	if o.memprof != "" {
-		log.Printf("[INFO] writing memory profile to %s", o.memprof)
+	if opts.memprof != "" {
+		log.Printf("[INFO] writing memory profile to %s", opts.memprof)
 
-		f, err := os.Create(o.memprof)
+		f, err := os.Create(opts.memprof)
 		if err != nil {
 			log.Printf("[ERROR] failed to create memory profile: %v", err)
 			os.Exit(1)
@@ -165,34 +160,21 @@ func main() {
 
 	log.Printf("[INFO] loaded rom: mapper:%d crc32:%08X", rom.MapperID, rom.CRC32)
 
-	apu := apupkg.New()
-	cpu := cpupkg.New()
-	ppu := ppupkg.New(cart)
-	ppu.NoSpriteLimit = o.noSpriteLimit
-
-	bus := &console.Bus{
-		ROM:  rom,
-		Cart: cart,
-		CPU:  cpu,
-		PPU:  ppu,
-		APU:  apu,
-	}
-
-	saveFile := o.saveFile
+	saveFile := opts.saveFile
 	romPrefix := strings.TrimSuffix(romFile, filepath.Ext(romFile))
 
 	switch {
-	case o.connectAddr != "" || o.joinRoom != "":
+	case opts.connectAddr != "" || opts.joinRoom != "":
 		log.Printf("[INFO] starting client mode")
-		runAsClient(bus, o)
+		runAsClient(cart, opts, rom)
 
-	case o.listenAddr != "" || o.createRoom:
+	case opts.listenAddr != "" || opts.createRoom:
 		if saveFile == "" {
 			saveFile = romPrefix + ".mp.save"
 		}
 
 		log.Printf("[INFO] starting host mode")
-		runAsServer(bus, o, saveFile)
+		runAsServer(cart, opts, saveFile, rom)
 
 	default:
 		if saveFile == "" {
@@ -200,6 +182,6 @@ func main() {
 		}
 
 		log.Printf("[INFO] starting offline mode")
-		runOffline(bus, o, saveFile)
+		runOffline(cart, opts, saveFile)
 	}
 }

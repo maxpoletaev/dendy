@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maxpoletaev/dendy/console"
 	"github.com/maxpoletaev/dendy/consts"
+	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/netplay"
 	"github.com/maxpoletaev/dendy/relay"
+	"github.com/maxpoletaev/dendy/system"
 	"github.com/maxpoletaev/dendy/ui"
 )
 
@@ -81,14 +82,13 @@ func createSession(relayAddr string, romCRC32 uint32, public bool) (string, erro
 	return lAddr.String(), nil
 }
 
-func runAsServer(bus *console.Bus, o *opts, saveFile string) {
-	bus.Joy1 = input.NewJoystick()
-	bus.Joy2 = input.NewJoystick()
-	bus.InitDMA()
-	bus.Reset()
+func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM) {
+	joy1 := input.NewJoystick()
+	joy2 := input.NewJoystick()
+	nes := system.New(cart, joy1, joy2)
 
 	if !o.noSave {
-		if ok, err := loadState(bus, saveFile); err != nil {
+		if ok, err := loadState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to load save state: %s", err)
 			os.Exit(1)
 		} else if ok {
@@ -100,9 +100,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	defer audio.Close()
 	audio.Mute(o.mute)
 
-	game := netplay.NewGame(bus, audio)
-	game.RemoteJoy = bus.Joy2
-	game.LocalJoy = bus.Joy1
+	game := netplay.NewGame(nes, audio, joy1, joy2)
 	game.Init(nil)
 
 	if o.disasm != "" {
@@ -113,6 +111,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 		}
 
 		writer := bufio.NewWriterSize(file, 1024*1024)
+		game.SetDebugOutput(writer)
 
 		defer func() {
 			flushErr := writer.Flush()
@@ -122,10 +121,6 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 				log.Printf("[ERROR] failed to close disassembly file: %s", err)
 			}
 		}()
-
-		bus.DisasmWriter = writer
-		bus.DisasmEnabled = false // will be controlled by the game
-		game.DisasmEnabled = true
 	}
 
 	var (
@@ -135,7 +130,7 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 	)
 
 	if o.createRoom {
-		listenAddr, err = createSession(o.relayAddr, bus.ROM.CRC32, false)
+		listenAddr, err = createSession(o.relayAddr, rom.CRC32, false)
 		if err != nil {
 			log.Printf("[ERROR] failed to create relay session: %s", err)
 			os.Exit(1)
@@ -195,11 +190,11 @@ func runAsServer(bus *console.Bus, o *opts, saveFile string) {
 		sess.HandleMessages()
 		sess.RunFrame(startTime)
 
-		w.Refresh(bus.PPU.Frame)
+		w.Refresh(nes.Frame())
 	}
 
 	if !o.noSave {
-		if err := saveState(bus, saveFile); err != nil {
+		if err := saveState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to save state: %s", err)
 			os.Exit(1)
 		}

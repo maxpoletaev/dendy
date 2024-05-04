@@ -19,6 +19,10 @@ const (
 	ButtonRight  Button = 1 << 7
 )
 
+var (
+	_ Device = (*Joystick)(nil)
+)
+
 type Joystick struct {
 	buttons uint8
 	index   uint8

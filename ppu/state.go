@@ -8,9 +8,9 @@ import (
 
 func (p *PPU) SaveState(w *binario.Writer) error {
 	return errors.Join(
-		w.WriteBool(p.pendingNMI),
-		w.WriteBool(p.frameComplete),
-		w.WriteBool(p.scanlineComplete),
+		w.WriteBool(p.PendingNMI),
+		w.WriteBool(p.FrameComplete),
+		w.WriteBool(p.ScanlineComplete),
 		w.WriteUint8(p.ctrl),
 		w.WriteUint8(p.mask),
 		w.WriteUint8(p.status),
@@ -39,9 +39,9 @@ func (p *PPU) LoadState(r *binario.Reader) error {
 	)
 
 	err := errors.Join(
-		r.ReadBoolTo(&p.pendingNMI),
-		r.ReadBoolTo(&p.frameComplete),
-		r.ReadBoolTo(&p.scanlineComplete),
+		r.ReadBoolTo(&p.PendingNMI),
+		r.ReadBoolTo(&p.FrameComplete),
+		r.ReadBoolTo(&p.ScanlineComplete),
 		r.ReadUint8To(&p.ctrl),
 		r.ReadUint8To(&p.mask),
 		r.ReadUint8To(&p.status),

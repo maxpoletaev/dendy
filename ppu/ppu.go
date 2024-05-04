@@ -50,12 +50,14 @@ type (
 )
 
 type PPU struct {
-	transparent []bool       // 256*240
 	Frame       []color.RGBA // 256*240
+	transparent []bool       // 256*240
 
-	NoSpriteLimit bool
-	FastForward   bool
-	dmaCopy       dmaFunc
+	NoSpriteLimit    bool
+	FastForward      bool
+	PendingNMI       bool
+	ScanlineComplete bool
+	FrameComplete    bool
 
 	cart         ines.Cartridge // $0000-$1FFF (CHR-ROM)
 	ctrl         CtrlFlags      // $2000
@@ -76,11 +78,9 @@ type PPU struct {
 	spriteCount    int
 	spriteScanline [64]Sprite
 
-	cycle            int
-	scanline         int
-	pendingNMI       bool
-	scanlineComplete bool
-	frameComplete    bool
+	cycle       int
+	scanline    int
+	dmaCallback dmaFunc
 }
 
 func New(cart ines.Cartridge) *PPU {
@@ -108,9 +108,9 @@ func (p *PPU) Reset() {
 
 	p.cycle = 0
 	p.scanline = 0
-	p.scanlineComplete = false
-	p.pendingNMI = false
-	p.frameComplete = false
+	p.ScanlineComplete = false
+	p.PendingNMI = false
+	p.FrameComplete = false
 }
 
 func (p *PPU) getStatus(flag StatusFlags) bool {
@@ -220,50 +220,37 @@ func (p *PPU) Write(addr uint16, data uint8) {
 }
 
 func (p *PPU) SetDMACallback(callback dmaFunc) {
-	p.dmaCopy = callback
+	p.dmaCallback = callback
 }
 
 func (p *PPU) TransferOAM(pageAddr uint8) {
 	addr := uint16(pageAddr) << 8
-	p.dmaCopy(addr, p.oamData[:])
+	p.dmaCallback(addr, p.oamData[:])
 }
 
 // nameTableIdx returns the index of the nametable (0 or 1) for the given vram
 // address, based on the cartridge’s mirroring mode.
 func (p *PPU) nameTableIdx(addr uint16) int {
-	switch p.cart.MirrorMode() {
+	addrIdx := (addr - 0x2000) / 0x0400 // normalize to 0-3
+
+	switch mode := p.cart.MirrorMode(); mode {
 	case ines.MirrorHorizontal:
-		switch {
-		case addr >= 0x2000 && addr <= 0x23FF: // Nametable 0
+		if addrIdx == 0 || addrIdx == 1 {
 			return 0
-		case addr >= 0x2400 && addr <= 0x27FF: // Nametable 1
-			return 0
-		case addr >= 0x2800 && addr <= 0x2BFF: // Nametable 2
-			return 1
-		case addr >= 0x2C00 && addr <= 0x2FFF: // Nametable 3
-			return 1
 		}
+		return 1
 	case ines.MirrorVertical:
-		switch {
-		case addr >= 0x2000 && addr <= 0x23FF: // Nametable 0
+		if addrIdx == 0 || addrIdx == 2 {
 			return 0
-		case addr >= 0x2400 && addr <= 0x27FF: // Nametable 1
-			return 1
-		case addr >= 0x2800 && addr <= 0x2BFF: // Nametable 2
-			return 0
-		case addr >= 0x2C00 && addr <= 0x2FFF: // Nametable 3
-			return 1
 		}
+		return 1
 	case ines.MirrorSingle0:
 		return 0
 	case ines.MirrorSingle1:
 		return 1
 	default:
-		mode := p.cart.MirrorMode()
 		panic(fmt.Sprintf("invalid mirroring mode: %d", mode))
 	}
-
-	panic(fmt.Sprintf("invalid nametable address: %04X", addr))
 }
 
 // readVRAM returns the value at the given VRAM address. Depending on the
@@ -444,7 +431,7 @@ func (p *PPU) Tick() {
 				p.evaluateSprites()
 			}
 
-			p.scanlineComplete = true
+			p.ScanlineComplete = true
 		}
 
 		// During cycles 280-304 of the pre-render scanline, vertical scroll
@@ -469,10 +456,10 @@ func (p *PPU) Tick() {
 	if p.scanline == 241 {
 		if p.cycle == 1 {
 			p.setStatus(StatusVBlank, true)
-			p.frameComplete = true
+			p.FrameComplete = true
 
 			if p.getCtrl(CtrlNMI) {
-				p.pendingNMI = true
+				p.PendingNMI = true
 			}
 		}
 	}
@@ -487,29 +474,4 @@ func (p *PPU) Tick() {
 			p.scanline = -1
 		}
 	}
-}
-
-func (p *PPU) PendingNMI() (v bool) {
-	v, p.pendingNMI = p.pendingNMI, false
-	return v
-}
-
-func (p *PPU) ScanlineComplete() (v bool) {
-	v = p.scanlineComplete
-	p.scanlineComplete = false
-	return v
-}
-
-func (p *PPU) FrameComplete() (v bool) {
-	v = p.frameComplete
-	p.frameComplete = false
-	return v
-}
-
-func (p *PPU) EnableFastForward() {
-	p.FastForward = true
-}
-
-func (p *PPU) DisableFastForward() {
-	p.FastForward = false
 }
