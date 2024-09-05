@@ -82,12 +82,14 @@ func createSession(relayAddr string, romCRC32 uint32, public bool) (string, erro
 	return lAddr.String(), nil
 }
 
-func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM) {
+func runAsServer(cart ines.Cartridge, opts *options, saveFile string, rom *ines.ROM) {
 	joy1 := input.NewJoystick()
 	joy2 := input.NewJoystick()
-	nes := system.New(cart, joy1, joy2)
 
-	if !o.noSave {
+	nes := system.New(cart, joy1, joy2)
+	nes.SetNoSpriteLimit(opts.noSpriteLimit)
+
+	if !opts.noSave {
 		if ok, err := loadState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to load save state: %s", err)
 			os.Exit(1)
@@ -98,13 +100,13 @@ func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM
 
 	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
 	defer audio.Close()
-	audio.Mute(o.mute)
+	audio.Mute(opts.mute)
 
 	game := netplay.NewGame(nes, audio, joy1, joy2)
 	game.Init(nil)
 
-	if o.disasm != "" {
-		file, err := os.Create(o.disasm)
+	if opts.disasm != "" {
+		file, err := os.Create(opts.disasm)
 		if err != nil {
 			log.Printf("[ERROR] failed to create disassembly file: %s", err)
 			os.Exit(1)
@@ -125,12 +127,12 @@ func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM
 
 	var (
 		err        error
-		protocol   = o.protocol
-		listenAddr = o.listenAddr
+		protocol   = opts.protocol
+		listenAddr = opts.listenAddr
 	)
 
-	if o.createRoom {
-		listenAddr, err = createSession(o.relayAddr, rom.CRC32, false)
+	if opts.createRoom {
+		listenAddr, err = createSession(opts.relayAddr, rom.CRC32, false)
 		if err != nil {
 			log.Printf("[ERROR] failed to create relay session: %s", err)
 			os.Exit(1)
@@ -152,7 +154,7 @@ func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM
 
 	sess.SendInitialState()
 
-	w := ui.CreateWindow(o.scale, o.verbose)
+	w := ui.CreateWindow(opts.scale, opts.verbose)
 	defer w.Close()
 
 	w.SetTitle(fmt.Sprintf("%s (P1)", windowTitle))
@@ -161,10 +163,10 @@ func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM
 	w.InputDelegate = sess.SendButtons
 	w.ResetDelegate = sess.SendReset
 	w.MuteDelegate = audio.ToggleMute
-	w.ShowFPS = o.showFPS
+	w.ShowFPS = opts.showFPS
 	w.ShowPing = true
 
-	if !o.noCRT {
+	if !opts.noCRT {
 		log.Printf("[INFO] using experimental CRT effect, disable with -nocrt flag")
 		w.EnableCRT()
 	}
@@ -193,7 +195,7 @@ func runAsServer(cart ines.Cartridge, o *options, saveFile string, rom *ines.ROM
 		w.Refresh(nes.Frame())
 	}
 
-	if !o.noSave {
+	if !opts.noSave {
 		if err := saveState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to save state: %s", err)
 			os.Exit(1)

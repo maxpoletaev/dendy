@@ -3,14 +3,19 @@ package ui
 import rl "github.com/gen2brain/raylib-go/raylib"
 
 type shaderFacade struct {
-	shader  rl.Shader
-	timeLoc int32
+	shader   rl.Shader
+	timeLoc  int32
+	scaleLoc int32
 }
 
 func newShader(code string) *shaderFacade {
 	shader := rl.LoadShaderFromMemory("", code)
-	timeLoc := rl.GetShaderLocation(shader, "time")
-	return &shaderFacade{shader, timeLoc}
+
+	return &shaderFacade{
+		shader:   shader,
+		timeLoc:  rl.GetShaderLocation(shader, "time"),
+		scaleLoc: rl.GetShaderLocation(shader, "scale"),
+	}
 }
 
 func (s *shaderFacade) begin() {
@@ -27,4 +32,8 @@ func (s *shaderFacade) unload() {
 
 func (s *shaderFacade) setTimeUniform(time float32) {
 	rl.SetShaderValue(s.shader, s.timeLoc, []float32{time}, rl.ShaderUniformFloat)
+}
+
+func (s *shaderFacade) setScaleUniform(scale float32) {
+	rl.SetShaderValue(s.shader, s.scaleLoc, []float32{scale}, rl.ShaderUniformFloat)
 }

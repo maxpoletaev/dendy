@@ -10,8 +10,8 @@
 Dendy is a NES/Famicom emulator written in Go and named after the post-soviet Famicom
 clone, that I used to have back in my childhood. It’s nothing serious, so do not 
 expect it to beat any of the existing emulators in terms of performance or accuracy. 
-Yet, it is capable of running most of the games I tried, so it’s not completely useless,
-and it comes with a nice network multiplayer feature.
+Yet, it is capable of running most of the games I tried, and it comes with a nice 
+network multiplayer feature, so it’s not completely useless.
 
 <img src="screenshots.png" alt="Screenshots">
 

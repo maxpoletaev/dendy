@@ -67,7 +67,9 @@ func joinSession(relayAddr string, sessionID string, romCRC32 uint32) (string, s
 func runAsClient(cart ines.Cartridge, opts *options, rom *ines.ROM) {
 	joy1 := input.NewJoystick()
 	joy2 := input.NewJoystick()
+
 	nes := system.New(cart, joy1, joy2)
+	nes.SetNoSpriteLimit(opts.noSpriteLimit)
 
 	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
 	defer audio.Close()

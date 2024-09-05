@@ -5,4 +5,4 @@ import (
 )
 
 //go:embed scanline.fs
-var ScanlineFS string
+var ScanlineFragment string

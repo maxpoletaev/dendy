@@ -188,6 +188,11 @@ func (s *System) SetDebugOutput(w io.StringWriter) {
 	s.debugWriter = w
 }
 
+// SetNoSpriteLimit enables or disables scanline sprite limit on the PPU.
+func (s *System) SetNoSpriteLimit(v bool) {
+	s.ppu.NoSpriteLimit = v
+}
+
 // SaveState saves the current state of the system to the given writer.
 func (s *System) SaveState(w *binario.Writer) error {
 	err := errors.Join(

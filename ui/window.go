@@ -1,8 +1,9 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
+	"log"
+	"strconv"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 
@@ -58,7 +59,12 @@ func CreateWindow(scale int, verbose bool) *Window {
 }
 
 func (w *Window) EnableCRT() {
-	w.shader = newShader(shaders.ScanlineFS)
+	if w.scale == 1 {
+		log.Printf("[WARN] CRT effect cannot be used with scale 1 (not enough pixels)")
+		return
+	}
+
+	w.shader = newShader(shaders.ScanlineFragment)
 }
 
 func (w *Window) SetTitle(title string) {
@@ -105,15 +111,13 @@ func (w *Window) updateTexture(ppuFrame []color.RGBA) {
 	rl.UpdateTexture(w.viewport.Texture, ppuFrame)
 }
 
-func (w *Window) Refresh(ppuFrame []color.RGBA) {
-	w.updateTexture(ppuFrame)
-
-	rl.BeginDrawing()
-	rl.ClearBackground(rl.Black)
-
+func (w *Window) drawScreen() {
 	if w.shader != nil {
 		w.shader.setTimeUniform(float32(rl.GetTime()))
+		w.shader.setScaleUniform(float32(w.scale))
+
 		w.shader.begin()
+		defer w.shader.end()
 	}
 
 	rl.DrawTexturePro(
@@ -133,17 +137,15 @@ func (w *Window) Refresh(ppuFrame []color.RGBA) {
 		0,
 		rl.White,
 	)
+}
 
-	if w.shader != nil {
-		w.shader.end()
-	}
-
+func (w *Window) drawHUD() {
 	var offsetY int32
 
 	if w.ShowFPS {
 		textY := offsetY + 5
-		fps := fmt.Sprintf("%d fps", rl.GetFPS())
-		w.drawTextWithShadow(fps, 6, textY, 10, rl.White)
+		fpsText := strconv.Itoa(int(rl.GetFPS())) + " fps"
+		w.drawTextWithShadow(fpsText, 6, textY, 10, rl.White)
 		offsetY += 10
 	}
 
@@ -157,9 +159,19 @@ func (w *Window) Refresh(ppuFrame []color.RGBA) {
 			colour = rl.Yellow
 		}
 
-		ping := fmt.Sprintf("%d ms", w.remotePing)
-		w.drawTextWithShadow(ping, 6, textY, 10, colour)
+		pingText := strconv.Itoa(int(w.remotePing)) + " ms"
+		w.drawTextWithShadow(pingText, 6, textY, 10, colour)
 	}
+}
+
+func (w *Window) Refresh(ppuFrame []color.RGBA) {
+	w.updateTexture(ppuFrame)
+
+	rl.BeginDrawing()
+	rl.ClearBackground(rl.Black)
+
+	w.drawScreen()
+	w.drawHUD()
 
 	rl.EndDrawing()
 }

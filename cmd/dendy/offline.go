@@ -67,13 +67,15 @@ func saveState(nes *system.System, saveFile string) error {
 	return nil
 }
 
-func runOffline(cart ines.Cartridge, o *options, saveFile string) {
+func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 	joy1 := input.NewJoystick()
 	zapper := input.NewZapper()
-	nes := system.New(cart, joy1, zapper)
 
-	if o.disasm != "" {
-		file, err := os.Create(o.disasm)
+	nes := system.New(cart, joy1, zapper)
+	nes.SetNoSpriteLimit(opts.noSpriteLimit)
+
+	if opts.disasm != "" {
+		file, err := os.Create(opts.disasm)
 		if err != nil {
 			log.Printf("[ERROR] failed to create disassembly file: %s", err)
 			os.Exit(1)
@@ -92,7 +94,7 @@ func runOffline(cart ines.Cartridge, o *options, saveFile string) {
 		}()
 	}
 
-	if !o.noSave {
+	if !opts.noSave {
 		if ok, err := loadState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to load save file: %s", err)
 			os.Exit(1)
@@ -102,16 +104,16 @@ func runOffline(cart ines.Cartridge, o *options, saveFile string) {
 
 		if strings.HasSuffix(saveFile, ".crash") {
 			log.Printf("[INFO] loaded from crash state, further saves disabled")
-			o.noSave = true
+			opts.noSave = true
 		}
 	}
 
 	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
 	audioBuffer := make([]float32, consts.AudioBufferSize)
-	audio.Mute(o.mute)
+	audio.Mute(opts.mute)
 	defer audio.Close()
 
-	w := ui.CreateWindow(o.scale, o.verbose)
+	w := ui.CreateWindow(opts.scale, opts.verbose)
 	defer w.Close()
 
 	w.SetFrameRate(consts.FramesPerSecond)
@@ -121,9 +123,9 @@ func runOffline(cart ines.Cartridge, o *options, saveFile string) {
 	w.ZapperDelegate = zapper.Update
 	w.MuteDelegate = audio.ToggleMute
 	w.ResetDelegate = nes.Reset
-	w.ShowFPS = o.showFPS
+	w.ShowFPS = opts.showFPS
 
-	if !o.noCRT {
+	if !opts.noCRT {
 		log.Printf("[INFO] using experimental CRT effect, disable with -nocrt flag")
 		w.EnableCRT()
 	}
@@ -183,7 +185,7 @@ gameloop:
 		audio.UpdateStream(audioBuffer)
 	}
 
-	if !o.noSave {
+	if !opts.noSave {
 		if err := saveState(nes, saveFile); err != nil {
 			log.Printf("[ERROR] failed to save state: %s", err)
 			os.Exit(1)
