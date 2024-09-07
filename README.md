@@ -30,7 +30,7 @@ go install "github.com/maxpoletaev/dendy/cmd/dendy@latest"
 Or clone the repo and build it from source (preferable):
 
 ```sh
-git clone https://github.com/maxpoletaev/dendy
+git clone https://github.com/maxpoletaev/dendy.git
 cd dendy
 make build
 ```
