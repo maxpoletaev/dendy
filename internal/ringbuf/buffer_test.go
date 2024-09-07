@@ -52,8 +52,8 @@ func TestBuffer_PushPop(t *testing.T) {
 
 	testutil.Equal(t, q.Len(), 3)
 	testutil.Equal(t, q.PopFront(), 1)
+	testutil.Equal(t, q.PopBack(), 3)
 	testutil.Equal(t, q.PopFront(), 2)
-	testutil.Equal(t, q.PopFront(), 3)
 
 	testutil.Panic(t, func() {
 		q.PopFront() // no more items

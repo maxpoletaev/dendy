@@ -72,6 +72,19 @@ func (q *Buffer[T]) PopFront() T {
 	return item
 }
 
+func (q *Buffer[T]) PopBack() T {
+	if q.length == 0 {
+		panic("queue is empty")
+	}
+
+	q.tail = (q.tail - 1 + len(q.items)) % len(q.items)
+	item := q.items[q.tail]
+	q.items[q.tail] = q.EmptyValue
+	q.length--
+
+	return item
+}
+
 func (q *Buffer[T]) TruncFront(n int) {
 	if n < 0 || n > q.length {
 		panic(fmt.Errorf("index out of range: %d", n))

@@ -1,10 +1,14 @@
 package system
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"image/color"
 	"io"
+	"log"
+	"time"
 
 	apupkg "github.com/maxpoletaev/dendy/apu"
 	cpupkg "github.com/maxpoletaev/dendy/cpu"
@@ -12,7 +16,13 @@ import (
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/internal/binario"
+	"github.com/maxpoletaev/dendy/internal/ringbuf"
 	ppupkg "github.com/maxpoletaev/dendy/ppu"
+)
+
+const (
+	autoSaveInterval = 5 * time.Second
+	maxAutoSaves     = 10
 )
 
 // System the emulated system. It owns all the components and is responsible for
@@ -32,6 +42,11 @@ type System struct {
 	frameReady    bool
 	cycles        uint64
 	debugWriter   io.StringWriter
+
+	autoSaves      *ringbuf.Buffer[[]byte]
+	removedBuffers chan []byte
+	lastAutoSave   time.Time
+	rewindEnabled  bool
 }
 
 // New creates a new System instance with the given Cartridge and input devices.
@@ -42,14 +57,16 @@ func New(cart ines.Cartridge, port1, port2 input.Device) *System {
 	apu := apupkg.New()
 
 	s := &System{
-		ram:   ram,
-		cpu:   cpu,
-		ppu:   ppu,
-		apu:   apu,
-		cart:  cart,
-		port1: port1,
-		port2: port2,
-		bus:   newBus(ram, ppu, apu, cart, port1, port2),
+		ram:            ram,
+		cpu:            cpu,
+		ppu:            ppu,
+		apu:            apu,
+		cart:           cart,
+		port1:          port1,
+		port2:          port2,
+		bus:            newBus(ram, ppu, apu, cart, port1, port2),
+		autoSaves:      ringbuf.New[[]byte](maxAutoSaves),
+		removedBuffers: make(chan []byte, maxAutoSaves),
 	}
 
 	s.initDMACallbacks()
@@ -145,6 +162,11 @@ func (s *System) Tick() {
 	if s.ppu.FrameComplete {
 		s.ppu.FrameComplete = false
 		s.frameReady = true
+
+		if s.rewindEnabled && time.Since(s.lastAutoSave) >= autoSaveInterval {
+			s.lastAutoSave = time.Now()
+			s.createAutoSave()
+		}
 	}
 }
 
@@ -152,6 +174,11 @@ func (s *System) Tick() {
 // skip rendering frames and audio samples, and will only run the CPU and PPU.
 func (s *System) SetFastForward(v bool) {
 	s.ppu.FastForward = v
+}
+
+// SetNoSpriteLimit enables or disables scanline sprite limit on the PPU.
+func (s *System) SetNoSpriteLimit(v bool) {
+	s.ppu.NoSpriteLimit = v
 }
 
 // ScanlineReady returns true if a scanline has just completed.
@@ -188,11 +215,6 @@ func (s *System) SetDebugOutput(w io.StringWriter) {
 	s.debugWriter = w
 }
 
-// SetNoSpriteLimit enables or disables scanline sprite limit on the PPU.
-func (s *System) SetNoSpriteLimit(v bool) {
-	s.ppu.NoSpriteLimit = v
-}
-
 // SaveState saves the current state of the system to the given writer.
 func (s *System) SaveState(w *binario.Writer) error {
 	err := errors.Join(
@@ -223,4 +245,64 @@ func (s *System) LoadState(r *binario.Reader) error {
 	)
 
 	return err
+}
+
+func (s *System) createAutoSave() {
+	if s.autoSaves.Full() {
+		buf := bytes.NewBuffer(s.autoSaves.PopFront()[:0])
+		w := binario.NewWriter(buf, binary.LittleEndian)
+
+		if err := s.SaveState(w); err != nil {
+			log.Printf("[WARN] auto-save failed: %s", err)
+			return
+		}
+
+		s.autoSaves.PushBack(buf.Bytes())
+	}
+
+	var buf *bytes.Buffer
+
+	select {
+	case sl := <-s.removedBuffers:
+		// Reuse the buffer that was previously used for rewinding.
+		buf = bytes.NewBuffer(sl[:0])
+	default:
+		// Otherwise allocate a new one. If it is not the first time, we will know the
+		// size from the previous auto-save (the state is always the same size).
+		var sl []byte
+		if !s.autoSaves.Empty() {
+			sl = make([]byte, 0, len(s.autoSaves.Back()))
+		}
+		buf = bytes.NewBuffer(sl)
+	}
+
+	if err := s.SaveState(binario.NewWriter(buf, binary.LittleEndian)); err != nil {
+		log.Printf("[WARN] auto-save failed: %s", err)
+		return
+	}
+
+	s.autoSaves.PushBackEvict(buf.Bytes())
+}
+
+// SetRewindEnabled enables or disables the rewind feature.
+func (s *System) SetRewindEnabled(v bool) {
+	s.rewindEnabled = v
+}
+
+// Rewind rewinds the game to the previous auto-save (up to 5 seconds ago).
+func (s *System) Rewind() {
+	if s.autoSaves.Empty() {
+		return
+	}
+
+	b := s.autoSaves.PopBack()
+	buf := bytes.NewBuffer(b)
+	r := binario.NewReader(buf, binary.LittleEndian)
+
+	if err := s.LoadState(r); err != nil {
+		panic(fmt.Sprintf("error loading state: %v", err))
+	}
+
+	s.lastAutoSave = time.Now() // prevent immediate re-rewind
+	s.removedBuffers <- b       // recycle the buffer for later use
 }

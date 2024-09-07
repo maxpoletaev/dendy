@@ -73,6 +73,7 @@ func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 
 	nes := system.New(cart, joy1, zapper)
 	nes.SetNoSpriteLimit(opts.noSpriteLimit)
+	nes.SetRewindEnabled(true)
 
 	if opts.disasm != "" {
 		file, err := os.Create(opts.disasm)
@@ -122,6 +123,7 @@ func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 	w.InputDelegate = joy1.SetButtons
 	w.ZapperDelegate = zapper.Update
 	w.MuteDelegate = audio.ToggleMute
+	w.RewindDelegate = nes.Rewind
 	w.ResetDelegate = nes.Reset
 	w.ShowFPS = opts.showFPS
 

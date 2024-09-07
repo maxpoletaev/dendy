@@ -77,6 +77,7 @@ point the mouse cursor at the right position on the screen and click to shoot.
  * `CTRL+R` or `⌘+R` - Reset the game
  * `CTRL+Q` or `⌘+Q` - Quit the emulator
  * `CTRL+X` or `⌘+X` - Resync the emulators (netplay)
+ * `CTRL+Z` or `⌘+Z` - Undo/Rewind 5 seconds back in time
  * `F12` - Take a screenshot
  * `M` - Mute/unmute
 

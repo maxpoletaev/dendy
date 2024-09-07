@@ -22,6 +22,7 @@ type Window struct {
 	MuteDelegate   func()
 	ResyncDelegate func()
 	ResetDelegate  func()
+	RewindDelegate func()
 	ShowPing       bool
 	ShowFPS        bool
 	FPS            int
@@ -207,6 +208,11 @@ func (w *Window) HandleHotKeys() {
 	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyX):
 		if w.ResyncDelegate != nil {
 			w.ResyncDelegate()
+		}
+
+	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyZ):
+		if w.RewindDelegate != nil {
+			w.RewindDelegate()
 		}
 	}
 }
