@@ -18,26 +18,34 @@ network multiplayer feature, so it’s not completely useless.
 ## Download
 
 You can download the latest pre-built binaries for Windows, macOS, and Linux
-from the releases page: https://github.com/maxpoletaev/dendy/releases (not tested).
+from the releases page: https://github.com/maxpoletaev/dendy/releases (not
+guaranteed to work as I don’t have a Windows machine to check it).
 
-Alternatively, if you have Go installed, you can build it from source:
+Alternatively, if you have Go installed, you either install it using:
 
+```sh
+go install "github.com/maxpoletaev/dendy/cmd/dendy@latest"
 ```
-$ go install github.com/maxpoletaev/dendy/cmd/dendy@latest
+
+Or clone the repo and build it from source (preferable):
+
+```sh
+git clone https://github.com/maxpoletaev/dendy
+cd dendy
+make build
 ```
 
-For this, you may need to install a C compiler (gcc or clang) and additional
+For this to work, you may need to install a C compiler (gcc or clang) and additional
 dependencies required by raylib. See https://github.com/gen2brain/raylib-go#requirements
 for more details.
 
 ## Play
 
 There is no GUI, so you will have to run the emulator from the command line.
-Just point it to the ROM file you want to play (only `.nes`, `.zip` won’t work
-for now):
+Just point it to a`.nes` ROM file you want to play:
 
-```
-$ dendy romfile.nes
+```sh
+dendy romfile.nes
 ```
 
 There’s a bunch of command line flags that you can know about by running
@@ -47,6 +55,7 @@ There’s a bunch of command line flags that you can know about by running
  * `-nospritelimit` - Disable original sprite per scanline limit (eliminates flickering)
  * `-listen` and `-connect` - For network multiplayer (see below)
  * `-nosave` - Do not load and save the game state on exit
+ * `-nocrt` - Disables the CRT effect, in case you don’t like it
 
 ## Controls
 
@@ -90,26 +99,32 @@ will start for both sides. The host machine will be the first player. The player
 must ensure they are running the same ROM file and the same version of the emulator.
 
 ```bash
-$ dendy -listen=0.0.0.0:1234 roms/game.nes       # Player 1
-$ dendy -connect=192.168.1.4:1234 roms/game.nes  # Player 2
+dendy -listen=0.0.0.0:1234 roms/game.nes       # Player 1
+dendy -connect=192.168.1.4:1234 roms/game.nes  # Player 2
 ```
 
 ### When players are behind NATs
 
-There is also a way to connect two players behind NATs without having to set up 
-port forwarding, with a little help from an external relay server. You can use 
-the `-createroom` flag to create a room on the public server, and the 
-`-joinroom=<id>` to join it. Two clients will exchange their public IP addresses 
-and port numbers through the relay server and establish a peer-to-peer UDP connection
-using a technique called "hole punching". The relay server will not be involved
-in the actual gameplay, so it should not affect the latency. This method won’t 
-work if both players are behind symmetric NATs (luckily, most home residential 
-NATs are not symmetric).
+There is also a way to connect two players behind NATs without having to set up
+port forwarding, with a little help from an external relay server. You can use
+the `-createroom` flag to create a room on the public server, and the
+`-joinroom=<id>` to join it.
+
+Two clients will exchange their public IP addresses and port numbers through the
+relay server and establish a peer-to-peer UDP connection using a technique called
+"hole punching". The relay server will not be involved in the actual gameplay,
+so it should not affect the latency. This method won’t work if both players are
+behind symmetric NATs (luckily, most home residential NATs are not symmetric).
 
 ```bash
-$ dendy -createroom roms/game.nes            # Player 1
-$ dendy -joinroom=XXX-XXX-XXX roms/game.nes  # Player 2
+dendy -createroom roms/game.nes            # Player 1 - get a room ID
+dendy -joinroom=XXX-XXX-XXX roms/game.nes  # Player 2 - use the room ID
 ```
+
+I currently host a public relay server, which IP is hardcoded within the emulator.
+In case it goes down at some point, you can run your own using the `dendy-relay`
+binary (available when building from source), and then set the `-relay` flag in
+the emulator to use it.
 
 ### Behind the scenes
 
