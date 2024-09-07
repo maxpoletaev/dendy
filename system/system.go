@@ -46,6 +46,7 @@ type System struct {
 	autoSaves      *ringbuf.Buffer[[]byte]
 	removedBuffers chan []byte
 	lastAutoSave   time.Time
+	lastRewind     time.Time
 	rewindEnabled  bool
 }
 
@@ -258,6 +259,8 @@ func (s *System) createAutoSave() {
 		}
 
 		s.autoSaves.PushBack(buf.Bytes())
+
+		return
 	}
 
 	var buf *bytes.Buffer
@@ -295,7 +298,12 @@ func (s *System) Rewind() {
 		return
 	}
 
-	b := s.autoSaves.PopBack()
+	// We just rewound, probably we want to go back further.
+	if time.Since(s.lastRewind) < time.Second && s.autoSaves.Len() > 1 {
+		s.removedBuffers <- s.autoSaves.PopBack()
+	}
+
+	b := s.autoSaves.Back()
 	buf := bytes.NewBuffer(b)
 	r := binario.NewReader(buf, binary.LittleEndian)
 
@@ -303,6 +311,7 @@ func (s *System) Rewind() {
 		panic(fmt.Sprintf("error loading state: %v", err))
 	}
 
-	s.lastAutoSave = time.Now() // prevent immediate re-rewind
-	s.removedBuffers <- b       // recycle the buffer for later use
+	now := time.Now()
+	s.lastRewind = now
+	s.lastAutoSave = now // prevent immediate re-saves
 }
