@@ -12,16 +12,15 @@ func (np *Netplay) SendInitialState() {
 	}
 
 	np.game.Init(nil)
-
-	cp := np.game.Checkpoint()
-	payload := np.pool.Buffer(cp.State.Len())
-	copy(payload.Data, cp.State.Bytes())
+	cp := np.game.syncState
+	payload := np.pool.Buffer(cp.state.Len())
+	copy(payload.Data, cp.state.Bytes())
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      cp.Frame,
-		Payload:    payload,
+		Frame:      cp.frame,
+		Buffer:     payload,
 	})
 }
 
@@ -34,15 +33,15 @@ func (np *Netplay) SendReset() {
 	np.game.Reset()
 	np.game.Init(nil)
 
-	cp := np.game.Checkpoint()
-	payload := np.pool.Buffer(cp.State.Len())
-	copy(payload.Data, cp.State.Bytes())
+	cp := np.game.syncState
+	payload := np.pool.Buffer(cp.state.Len())
+	copy(payload.Data, cp.state.Bytes())
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      cp.Frame,
-		Payload:    payload,
+		Frame:      cp.frame,
+		Buffer:     payload,
 	})
 }
 
@@ -52,16 +51,15 @@ func (np *Netplay) SendResync() {
 	}
 
 	np.game.Init(nil)
-
-	cp := np.game.Checkpoint()
-	payload := np.pool.Buffer(cp.State.Len())
-	copy(payload.Data, cp.State.Bytes())
+	cp := np.game.syncState
+	payload := np.pool.Buffer(cp.state.Len())
+	copy(payload.Data, cp.state.Bytes())
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypeReset,
-		Frame:      cp.Frame,
-		Payload:    payload,
+		Frame:      cp.frame,
+		Buffer:     payload,
 	})
 }
 
@@ -75,14 +73,14 @@ func (np *Netplay) SendButtons(buttons uint8) {
 		return
 	}
 
-	payload := np.pool.Buffer(1)
-	payload.Data[0] = buttons
+	buf := np.pool.Buffer(1)
+	buf.Data[0] = buttons
 
 	np.sendMsg(Message{
 		Type:       MsgTypeInput,
 		Frame:      np.game.Frame(),
 		Generation: np.game.Gen(),
-		Payload:    payload,
+		Buffer:     buf,
 	})
 
 	np.game.HandleLocalInput(buttons)
@@ -93,14 +91,14 @@ func (np *Netplay) SendPing() {
 		return
 	}
 
-	payload := np.pool.Buffer(8)
+	buf := np.pool.Buffer(8)
 	timestamp := time.Now().UnixMicro()
-	byteOrder.PutUint64(payload.Data, uint64(timestamp))
+	byteOrder.PutUint64(buf.Data, uint64(timestamp))
 
 	np.sendMsg(Message{
 		Generation: np.game.Gen(),
 		Type:       MsgTypePing,
-		Payload:    payload,
+		Buffer:     buf,
 	})
 }
 
@@ -138,12 +136,12 @@ func (np *Netplay) SendWait(frames uint32) {
 		return
 	}
 
-	payload := np.pool.Buffer(4)
-	byteOrder.PutUint32(payload.Data, frames)
+	buf := np.pool.Buffer(4)
+	byteOrder.PutUint32(buf.Data, frames)
 
 	np.sendMsg(Message{
 		Type:       MsgTypeWait,
 		Generation: np.game.Gen(),
-		Payload:    payload,
+		Buffer:     buf,
 	})
 }

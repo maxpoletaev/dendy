@@ -142,9 +142,7 @@ func (p *PPU) incrementAddr() {
 }
 
 func (p *PPU) Read(addr uint16) uint8 {
-	addr = 0x2000 + (addr % 8)
-
-	switch addr {
+	switch addr & 0x2007 {
 	case 0x2002:
 		// We only use the top 3 bits of the status register, and the rest are filled
 		// with noise from the bottom 5 bits of the vram buffer. It also clears the
@@ -153,14 +151,12 @@ func (p *PPU) Read(addr uint16) uint8 {
 		p.addrLatch = false
 		p.setStatus(StatusVBlank, false)
 		return uint8(status)&0xE0 | p.vramBuffer&0x1F
-
 	case 0x2004:
 		data := p.oamData[p.oamAddr]
 		if p.oamAddr&0x03 == 0x02 {
 			data &= 0xE3
 		}
 		return data
-
 	case 0x2007:
 		if p.vramAddr >= 0x3F00 {
 			// Palette reads are not delayed.
@@ -180,9 +176,7 @@ func (p *PPU) Read(addr uint16) uint8 {
 }
 
 func (p *PPU) Write(addr uint16, data uint8) {
-	addr = 0x2000 + (addr % 8)
-
-	switch addr {
+	switch addr & 0x2007 {
 	case 0x2000:
 		p.ctrl = data
 		p.tmpAddr.setNametable(uint16(data) & 0x03)
@@ -230,20 +224,27 @@ func (p *PPU) TransferOAM(pageAddr uint8) {
 
 // nameTableIdx returns the index of the nametable (0 or 1) for the given vram
 // address, based on the cartridge’s mirroring mode.
-func (p *PPU) nameTableIdx(addr uint16) int {
-	addrIdx := (addr - 0x2000) / 0x0400 // normalize to 0-3
+func (p *PPU) nameTableIdx(addr uint16) uint {
+	var (
+		idx  = (addr - 0x2000) / 0x0400
+		mode = p.cart.MirrorMode()
+	)
 
-	switch mode := p.cart.MirrorMode(); mode {
+	switch mode {
 	case ines.MirrorHorizontal:
-		if addrIdx == 0 || addrIdx == 1 {
+		switch idx {
+		case 0, 1:
 			return 0
+		default:
+			return 1
 		}
-		return 1
 	case ines.MirrorVertical:
-		if addrIdx == 0 || addrIdx == 2 {
+		switch idx {
+		case 0, 2:
 			return 0
+		default:
+			return 1
 		}
-		return 1
 	case ines.MirrorSingle0:
 		return 0
 	case ines.MirrorSingle1:

@@ -211,8 +211,8 @@ func (s *System) AudioSample() float32 {
 	return s.apu.Output()
 }
 
-// SetDebugOutput sets the writer for debug (disassembly) output.
-func (s *System) SetDebugOutput(w io.StringWriter) {
+// SetDebugWriter sets the writer for debug (disassembly) output.
+func (s *System) SetDebugWriter(w io.StringWriter) {
 	s.debugWriter = w
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"time"
 
@@ -15,90 +16,88 @@ import (
 	"github.com/maxpoletaev/dendy/ui"
 )
 
-type Checkpoint struct {
-	State       *bytes.Buffer
-	Reader      *binario.Reader
-	Writer      *binario.Writer
-	Frame       uint32
-	Crc32       uint32
-	LocalInput  uint8
-	RemoteInput uint8
-	RolledBack  bool
+type checkpoint struct {
+	state       *bytes.Buffer
+	reader      *binario.Reader
+	writer      *binario.Writer
+	frame       uint32
+	crc32       uint32
+	localInput  uint8
+	remoteInput uint8
+	rolledBack  bool
 }
 
-func newCheckpoint() *Checkpoint {
+func newCheckpoint() *checkpoint {
 	buf := bytes.NewBuffer(nil)
 
 	// NOTE: checkpoint can only be rolled back once (because bytes.Buffer is not
 	// seekable, and can only be read once). This works for now but may require a
 	// seekable bytes.Buffer implementation in the future. We need to keep the buffer
 	// global to avoid heap allocations on every frame.
-	return &Checkpoint{
-		State:  buf,
-		Reader: binario.NewReader(buf, binary.LittleEndian),
-		Writer: binario.NewWriter(buf, binary.LittleEndian),
+	return &checkpoint{
+		state:  buf,
+		reader: binario.NewReader(buf, binary.LittleEndian),
+		writer: binario.NewWriter(buf, binary.LittleEndian),
 	}
 }
 
 // Game is a network play state manager. It keeps track of the inputs from both
 // players and makes sure their state is synchronized.
 type Game struct {
-	frame uint32 // emulated frame counter, can go back on checkpoint rollback
 	nes   *system.System
+	frame uint32
 	gen   uint32
 	tick  uint64
 
-	checkpoint  *Checkpoint
-	catching    *Checkpoint
-	current     *Checkpoint
-	catchingPos int
+	syncState       *checkpoint // last known synchronized state
+	headState       *checkpoint // latest local state (before rollback)
+	catchupState    *checkpoint // state in-between sync and head states while catching up
+	catchupInputPos int         // position in the local input buffer while catching up
 
-	localInput      *ringbuf.Buffer[uint8]
-	remoteInput     *ringbuf.Buffer[uint8]
-	speculatedInput *ringbuf.Buffer[uint8]
+	localInput           *ringbuf.Buffer[uint8]
+	remoteInput          *ringbuf.Buffer[uint8]
+	predictedRemoteInput *ringbuf.Buffer[uint8]
+	lastRemoteInput      uint8
+	localJoy             *input.Joystick
+	remoteJoy            *input.Joystick
 
-	rtt                 time.Duration // round trip time
-	frameDrift          int
-	lastRemoteInput     uint8
-	sleepFrames         uint32
-	frameDuration       time.Duration // how long it takes to emulate a frame
-	frameDurationWindow *ringbuf.Buffer[time.Duration]
-	audio               *ui.AudioOut
-	audioBuffer         []float32
-	audioBufferPos      int
-	debugWriter         io.StringWriter
-	localJoy            *input.Joystick
-	remoteJoy           *input.Joystick
+	frameEmulationTime time.Duration
+	roundTripTime      time.Duration
+	driftFrames        int
+	sleepFrames        uint32
+	audioOut           *ui.AudioOut
+	audioBuffer        []float32
+	audioBufferPos     int
+	debugWriter        io.StringWriter
 }
 
 func NewGame(nes *system.System, audio *ui.AudioOut, localJoy, remoteJoy *input.Joystick) *Game {
 	return &Game{
-		nes:         nes,
-		current:     newCheckpoint(),
-		checkpoint:  newCheckpoint(),
-		catching:    newCheckpoint(),
-		audio:       audio,
-		audioBuffer: make([]float32, consts.AudioBufferSize),
-		localJoy:    localJoy,
-		remoteJoy:   remoteJoy,
+		nes:          nes,
+		headState:    newCheckpoint(),
+		syncState:    newCheckpoint(),
+		catchupState: newCheckpoint(),
+		audioOut:     audio,
+		audioBuffer:  make([]float32, consts.AudioBufferSize),
+		localJoy:     localJoy,
+		remoteJoy:    remoteJoy,
 	}
 }
 
-func (g *Game) Init(cp *Checkpoint) {
+func (g *Game) Init(cp *checkpoint) {
 	g.lastRemoteInput = 0
+	g.catchupInputPos = 0
 	g.sleepFrames = 0
-	g.catchingPos = 0
 	g.frame = 0
 
 	g.localInput = ringbuf.New[uint8](512)
 	g.remoteInput = ringbuf.New[uint8](512)
-	g.speculatedInput = ringbuf.New[uint8](512)
-	g.frameDurationWindow = ringbuf.New[time.Duration](16)
+	g.predictedRemoteInput = ringbuf.New[uint8](512)
 
 	if cp != nil {
-		g.checkpoint = cp
+		g.syncState = cp
 	} else {
-		g.save(g.checkpoint)
+		g.save(g.syncState)
 	}
 
 	g.gen++ // messages in-flight are no longer valid
@@ -113,13 +112,7 @@ func (g *Game) SleepFrames(n uint32) {
 }
 
 func (g *Game) SetRoundTripTime(t time.Duration) {
-	g.rtt = t
-}
-
-// Checkpoint returns the current checkpoint where both players are in sync. The
-// returned value should not be modified and is only valid within the current frame.
-func (g *Game) Checkpoint() *Checkpoint {
-	return g.checkpoint
+	g.roundTripTime = t
 }
 
 // Frame returns the current frame number.
@@ -138,18 +131,6 @@ func (g *Game) Sleeping() bool {
 	return g.sleepFrames > 0
 }
 
-func (g *Game) reportFrameDuration(delta time.Duration) {
-	g.frameDurationWindow.PushBackEvict(delta)
-
-	var sum time.Duration
-	for i := 0; i < g.frameDurationWindow.Len(); i++ {
-		sum += g.frameDurationWindow.At(i)
-	}
-
-	g.frameDuration = sum / time.Duration(g.frameDurationWindow.Len())
-	//log.Printf("[INFO] frame duration: %s", g.playDurationAvg)
-}
-
 func (g *Game) playFrame() {
 	start := time.Now()
 
@@ -157,14 +138,14 @@ func (g *Game) playFrame() {
 		g.nes.Tick()
 		g.tick++
 
-		if g.tick%consts.TicksPerSample == 0 {
+		if g.tick%consts.TicksPerAudioSample == 0 {
 			if g.audioBufferPos < len(g.audioBuffer) {
 				g.audioBuffer[g.audioBufferPos] = g.nes.AudioSample()
 				g.audioBufferPos++
 			}
 
-			if g.audioBufferPos == len(g.audioBuffer) && g.audio.IsStreamProcessed() {
-				g.audio.UpdateStream(g.audioBuffer)
+			if g.audioBufferPos == len(g.audioBuffer) && g.audioOut.IsStreamProcessed() {
+				g.audioOut.UpdateStream(g.audioBuffer)
 				g.audioBufferPos = 0
 			}
 		}
@@ -175,14 +156,12 @@ func (g *Game) playFrame() {
 		}
 	}
 
+	g.frameEmulationTime = time.Since(start)
+
 	// Overflow will happen after ~2 years of continuous play :)
 	// Don't think it's a problem though.
 	if g.frame == 0 {
 		panic("frame counter overflow")
-	}
-
-	if g.frame%10 == 0 {
-		g.reportFrameDuration(time.Since(start))
 	}
 }
 
@@ -192,7 +171,6 @@ func (g *Game) playFrameFast() {
 
 	for {
 		g.nes.Tick()
-
 		if g.nes.FrameReady() {
 			g.frame++
 			break
@@ -207,7 +185,7 @@ func (g *Game) playFrameFast() {
 func (g *Game) dropInputs(n int) {
 	g.localInput.TruncFront(n)
 	g.remoteInput.TruncFront(n)
-	g.speculatedInput.TruncFront(n)
+	g.predictedRemoteInput.TruncFront(n)
 }
 
 // RunFrame runs a single frame of the game.
@@ -221,36 +199,37 @@ func (g *Game) RunFrame(startTime time.Time) {
 	g.playFrame()
 }
 
-func (g *Game) FrameDrift() int {
-	return g.frameDrift
+func (g *Game) DriftFrames() int {
+	return g.driftFrames
 }
 
-func (g *Game) save(cp *Checkpoint) {
-	cp.State.Reset()
+func (g *Game) save(cp *checkpoint) {
+	cp.state.Reset()
 
-	if err := g.nes.SaveState(cp.Writer); err != nil {
+	if err := g.nes.SaveState(cp.writer); err != nil {
 		panic(fmt.Errorf("failed create checkpoint: %w", err))
 	}
 
-	cp.Frame = g.frame
-	cp.RolledBack = false
-	cp.LocalInput = g.localJoy.Buttons()
-	cp.RemoteInput = g.remoteJoy.Buttons()
+	cp.frame = g.frame
+	cp.rolledBack = false
+	cp.localInput = g.localJoy.Buttons()
+	cp.remoteInput = g.remoteJoy.Buttons()
+	cp.crc32 = crc32.ChecksumIEEE(cp.state.Bytes())
 }
 
-func (g *Game) rollback(cp *Checkpoint) {
-	if cp.RolledBack {
+func (g *Game) rollback(cp *checkpoint) {
+	if cp.rolledBack {
 		panic("checkpoint already rolled back")
 	}
 
-	if err := g.nes.LoadState(cp.Reader); err != nil {
+	if err := g.nes.LoadState(cp.reader); err != nil {
 		panic(fmt.Errorf("failed to restore checkpoint: %w", err))
 	}
 
-	g.frame = cp.Frame
-	cp.RolledBack = true
-	g.localJoy.SetButtons(cp.LocalInput)
-	g.remoteJoy.SetButtons(cp.RemoteInput)
+	g.frame = cp.frame
+	g.localJoy.SetButtons(cp.localInput)
+	g.remoteJoy.SetButtons(cp.remoteInput)
+	cp.rolledBack = true
 }
 
 // HandleLocalInput adds records and applies the input from the local player.
@@ -261,7 +240,7 @@ func (g *Game) HandleLocalInput(buttons uint8) {
 	g.remoteJoy.SetButtons(g.lastRemoteInput)
 
 	g.localInput.PushBack(buttons)
-	g.speculatedInput.PushBack(g.lastRemoteInput)
+	g.predictedRemoteInput.PushBack(g.lastRemoteInput)
 }
 
 // HandleRemoteInput adds the input from the remote player.
@@ -269,39 +248,38 @@ func (g *Game) HandleRemoteInput(buttons uint8, frame uint32) {
 	g.remoteInput.PushBack(buttons)
 	g.lastRemoteInput = buttons
 
-	if g.rtt > 0 {
+	if g.roundTripTime > 0 {
 		localFrame := g.frame
-		latencyFrames := uint32(g.rtt / 2 / consts.FrameDuration)
+		latencyFrames := uint32(g.roundTripTime / 2 / consts.FrameDuration)
 		remoteFrame := frame + latencyFrames // just a good guess
 
 		if localFrame < remoteFrame {
-			g.frameDrift = -int(remoteFrame - localFrame)
+			g.driftFrames = -int(remoteFrame - localFrame)
 		} else {
-			g.frameDrift = int(localFrame - remoteFrame)
+			g.driftFrames = int(localFrame - remoteFrame)
 		}
 	}
 }
 
 func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos int) {
 	for f := g.frame; f < endFrame; f++ {
-		timeLeft := consts.FrameDuration - time.Since(startTime)
+		remainingTime := consts.FrameDuration - time.Since(startTime)
 
-		if timeLeft < g.frameDuration*2 {
-			g.save(g.catching)
-			g.rollback(g.current)
-			g.catchingPos = inputPos
-
+		if remainingTime < g.frameEmulationTime {
+			g.save(g.catchupState)
+			g.rollback(g.headState)
+			g.catchupInputPos = inputPos
 			return
 		}
 
-		g.remoteJoy.SetButtons(g.speculatedInput.At(inputPos))
+		g.remoteJoy.SetButtons(g.predictedRemoteInput.At(inputPos))
 		g.localJoy.SetButtons(g.localInput.At(inputPos))
 		g.playFrameFast()
 
 		inputPos++
 	}
 
-	g.catchingPos = 0
+	g.catchupInputPos = 0
 }
 
 // processDelayedInput applies the input from the remote player to the local
@@ -315,29 +293,29 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 	// Continue catching up to our current frame, as we didn't have enough time
 	// during the last frame. As soon as the emulation is faster than the real
 	// time, we will catch up eventually.
-	if g.catchingPos != 0 {
-		g.save(g.current)
-		g.rollback(g.catching)
-		g.replayLocalInput(startTime, g.current.Frame, g.catchingPos)
+	if g.catchupInputPos != 0 {
+		g.save(g.headState)
+		g.rollback(g.catchupState)
+		g.replayLocalInput(startTime, g.headState.frame, g.catchupInputPos)
 
 		// If we are still behind, we will try again next frame.
 		// TODO: detect when we are not making any progress and give up.
-		if g.catchingPos != 0 {
+		if g.catchupInputPos != 0 {
 			return
 		}
 	}
 
-	inputSize := min(g.localInput.Len(), g.remoteInput.Len(), int(g.frame-g.checkpoint.Frame))
-	if inputSize == 0 {
+	numInputs := min(g.localInput.Len(), g.remoteInput.Len(), int(g.frame-g.syncState.frame))
+	if numInputs == 0 {
 		return
 	}
 
 	// Preserve the state before the rollback. We will restore it
 	// in case we do not have enough time to catch up during this frame.
-	g.save(g.current)
+	g.save(g.headState)
 
 	// Rollback to the last known synchronized state.
-	g.rollback(g.checkpoint)
+	g.rollback(g.syncState)
 
 	// Ensure we are always back to where we started.
 	defer func() {
@@ -349,17 +327,20 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 	// Enable CPU disassembly if requested. We do it only for frames where we have
 	// both local and remote inputs, so that we can compare.
 	if g.debugWriter != nil {
-		g.nes.SetDebugOutput(g.debugWriter)
+		g.nes.SetDebugWriter(g.debugWriter)
 	}
 
 	// Replay the inputs until the local and remote emulators are in sync.
-	for i := 0; i < inputSize; i++ {
-		timeLeft := consts.FrameDuration - time.Since(startTime)
-		if timeLeft < g.frameDuration*2 {
-			g.save(g.checkpoint)
-			g.rollback(g.current)
-			g.dropInputs(i)
+	for i := 0; i < numInputs; i++ {
+		remainingTime := consts.FrameDuration - time.Since(startTime)
 
+		// We only have 16ms to replay all frames. Going over this limit will create a
+		// noticeable stutter and sound glitches. When we are close to the limit, save
+		// the progress and jump back to the last known unsynchronized state.
+		if remainingTime < g.frameEmulationTime {
+			g.save(g.syncState)
+			g.rollback(g.headState)
+			g.dropInputs(i)
 			return
 		}
 
@@ -372,19 +353,19 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 	// Disable CPU disassembly, since from now on we have only the predicted input
 	// from the remote player, so this part will be rolling back eventually.
 	if g.debugWriter != nil {
-		g.nes.SetDebugOutput(nil)
+		g.nes.SetDebugWriter(nil)
 	}
 
 	// Rebuild the speculated input from this point as the last remote input could have changed.
-	for i := inputSize; i < g.speculatedInput.Len(); i++ {
-		g.speculatedInput.Set(i, g.remoteInput.At(inputSize-1))
+	for i := numInputs; i < g.predictedRemoteInput.Len(); i++ {
+		g.predictedRemoteInput.Set(i, g.remoteInput.At(numInputs-1))
 	}
 
 	// This is the last state where both emulators are in sync. Create a new checkpoint,
 	// so we can rewind to this state later, and remove the inputs that we have
 	// already processed.
-	g.save(g.checkpoint)
-	g.dropInputs(inputSize)
+	g.save(g.syncState)
+	g.dropInputs(numInputs)
 
 	// Replay the rest of the local inputs and use speculated values for the remote.
 	g.replayLocalInput(startTime, endFrame, 0)

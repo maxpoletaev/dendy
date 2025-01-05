@@ -98,7 +98,7 @@ func runAsServer(cart ines.Cartridge, opts *options, saveFile string, rom *ines.
 		}
 	}
 
-	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
+	audio := ui.CreateAudio(consts.AudioSamplesPerSecond, consts.AudioSampleSize, 1, consts.AudioBufferSize)
 	defer audio.Close()
 	audio.Mute(opts.mute)
 

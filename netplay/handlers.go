@@ -32,14 +32,11 @@ func (np *Netplay) handleMessage(msg Message) {
 }
 
 func (np *Netplay) handleWait(msg Message) {
-	frames := byteOrder.Uint32(msg.Payload.Data[:4])
-
+	frames := byteOrder.Uint32(msg.Buffer.Data[:4])
 	log.Printf("[INFO] sleeping for %d frames", frames)
 
 	np.syncFrame = np.game.Frame() + frames
-
 	np.noDriftFrames = 0
-
 	np.game.SleepFrames(frames)
 }
 
@@ -64,26 +61,25 @@ func (np *Netplay) handleBye(msg Message) {
 }
 
 func (np *Netplay) handleReset(msg Message) {
-	checkpoint := newCheckpoint()
-	checkpoint.Frame = msg.Frame
-	checkpoint.State.Write(msg.Payload.Data)
-
-	np.game.Init(checkpoint)
+	c := newCheckpoint()
+	c.frame = msg.Frame
+	c.state.Write(msg.Buffer.Data)
+	np.game.Init(c)
 }
 
 func (np *Netplay) handlePing(msg Message) {
-	payload := np.pool.Buffer(len(msg.Payload.Data))
-	copy(payload.Data, msg.Payload.Data)
+	buf := np.pool.Buffer(len(msg.Buffer.Data))
+	copy(buf.Data, msg.Buffer.Data)
 
 	np.sendMsg(Message{
 		Type:       MsgTypePong,
 		Generation: np.game.Gen(),
-		Payload:    payload,
+		Buffer:     buf,
 	})
 }
 
 func (np *Netplay) handlePong(msg Message) {
-	timeSent := time.UnixMicro(int64(byteOrder.Uint64(msg.Payload.Data[:8])))
+	timeSent := time.UnixMicro(int64(byteOrder.Uint64(msg.Buffer.Data[:8])))
 	np.rttWindow.PushBackEvict(time.Since(timeSent))
 
 	var sum time.Duration
@@ -92,10 +88,9 @@ func (np *Netplay) handlePong(msg Message) {
 	}
 
 	np.rtt = sum / time.Duration(np.rttWindow.Len())
-
 	np.game.SetRoundTripTime(np.rtt)
 }
 
 func (np *Netplay) handleInput(msg Message) {
-	np.game.HandleRemoteInput(msg.Payload.Data[0], msg.Frame)
+	np.game.HandleRemoteInput(msg.Buffer.Data[0], msg.Frame)
 }

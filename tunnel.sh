@@ -13,6 +13,7 @@ fi
 
 TARGET_PORT=3000 # port that the host will listen on
 SOURCE_PORT=3001 # port that the client will connect to
+echo "tunneling localhost:$SOURCE_PORT -> localhost:$TARGET_PORT through $SSH_HOST"
 
 ssh -N \
   -L localhost:$SOURCE_PORT:localhost:4000 \

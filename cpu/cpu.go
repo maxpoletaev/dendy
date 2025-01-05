@@ -189,7 +189,7 @@ func (cpu *CPU) Tick(mem Memory) bool {
 	)
 
 	if instr.Size == 0 {
-		panic(fmt.Sprintf("unknown opcode: %02X", opcode))
+		panic(fmt.Sprintf("unknown opcode: 0x%02X", opcode))
 	}
 
 	arg := cpu.fetchOperand(mem, instr.AddrMode)

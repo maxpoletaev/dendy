@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
-	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -76,21 +76,28 @@ func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 	nes.SetRewindEnabled(true)
 
 	if opts.disasm != "" {
-		file, err := os.Create(opts.disasm)
-		if err != nil {
-			log.Printf("[ERROR] failed to create disassembly file: %s", err)
-			os.Exit(1)
+		var file io.Writer
+
+		if opts.disasm == "-" {
+			file = os.Stdout
+		} else {
+			f, err := os.Create(opts.disasm)
+			if err != nil {
+				log.Printf("[ERROR] failed to create disassembly file: %s", err)
+				os.Exit(1)
+			}
+
+			file = f
 		}
 
 		writer := bufio.NewWriterSize(file, 1024*1024)
-		nes.SetDebugOutput(writer)
+		nes.SetDebugWriter(writer)
 
 		defer func() {
-			flushErr := writer.Flush()
-			closeErr := file.Close()
+			_ = writer.Flush()
 
-			if err := errors.Join(flushErr, closeErr); err != nil {
-				log.Printf("[ERROR] failed to close disassembly file: %s", err)
+			if f, ok := file.(*os.File); ok {
+				_ = f.Close()
 			}
 		}()
 	}
@@ -109,7 +116,7 @@ func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 		}
 	}
 
-	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
+	audio := ui.CreateAudio(consts.AudioSamplesPerSecond, consts.AudioSampleSize, 1, consts.AudioBufferSize)
 	audioBuffer := make([]float32, consts.AudioBufferSize)
 	audio.Mute(opts.mute)
 	defer audio.Close()
@@ -148,7 +155,7 @@ func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 gameloop:
 	for {
 		for i := 0; i < consts.AudioBufferSize; i++ {
-			for j := 0; j < consts.TicksPerSample; j++ {
+			for j := 0; j < consts.TicksPerAudioSample; j++ {
 				nes.Tick()
 
 				if nes.ScanlineReady() {
@@ -156,17 +163,16 @@ gameloop:
 				}
 
 				if nes.FrameReady() {
-					frame := nes.Frame()
-
 					if w.ShouldClose() {
 						break gameloop
 					}
 
 					zapper.VBlank()
+
 					w.UpdateJoystick()
 					w.HandleHotKeys()
 					w.SetGrayscale(false)
-					w.Refresh(frame)
+					w.Refresh(nes.Frame())
 
 					// Pause when not in focus.
 					for !w.InFocus() {
@@ -175,7 +181,7 @@ gameloop:
 						}
 
 						w.SetGrayscale(true)
-						w.Refresh(frame)
+						w.Refresh(nes.Frame())
 					}
 				}
 			}

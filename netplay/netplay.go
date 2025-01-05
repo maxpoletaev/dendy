@@ -21,6 +21,7 @@ const (
 	minFrameDriftWindow = 3    // should not be <3 as int(2*1.35)=2
 	driftWindowFactor   = 1.35 // factor to increase/decrease the drift window
 	maxPoolItemSize     = 8
+	maxMessageBatch     = 10
 )
 
 var (
@@ -43,6 +44,7 @@ type Netplay struct {
 	driftWindow   int
 	syncFrame     uint32
 	noDriftFrames uint32
+	pingCounter   uint32
 }
 
 func newNetplay(game *Game, conn net.Conn) *Netplay {
@@ -75,7 +77,6 @@ func (np *Netplay) startWriter() {
 		if err := writeMsg(w, &msg); err != nil {
 			log.Printf("[ERROR] failed to write message: %v", err)
 			np.shouldExit = true
-
 			break
 		}
 	}
@@ -95,9 +96,7 @@ func (np *Netplay) startReader() {
 			}
 
 			log.Printf("[ERROR] failed to read message: %v", err)
-
 			np.shouldExit = true
-
 			break
 		}
 
@@ -131,12 +130,12 @@ func (np *Netplay) ShouldExit() bool {
 // HandleMessages handles incoming messages from the remote player.
 func (np *Netplay) HandleMessages() {
 loop:
-	for i := 0; i < 10; i++ {
+	for i := 0; i < maxMessageBatch; i++ {
 		select {
 		case msg, ok := <-np.toRecv:
 			if ok {
 				np.handleMessage(msg)
-				msg.Payload.Free()
+				msg.Buffer.Free()
 			} else {
 				break loop
 			}
@@ -150,20 +149,20 @@ loop:
 // by asking the remote side to wait if it detects a difference in the frame count.
 func (np *Netplay) handleFrameDrift() {
 	localFrame := np.game.Frame()
-	drift := np.game.FrameDrift()
+	driftFrames := np.game.DriftFrames()
 
-	if drift < 0 {
-		drift = -drift
+	if driftFrames < 0 {
+		driftFrames = -driftFrames
 
-		if drift > np.driftWindow && np.syncFrame+maxFrameSyncFreq < localFrame {
-			log.Printf("[INFO] asking the remote to wait for %d frames", drift)
+		if driftFrames > np.driftWindow && np.syncFrame+maxFrameSyncFreq < localFrame {
+			log.Printf("[INFO] asking the remote to wait for %d frames", driftFrames)
 
 			// We drifted, reset the counter and set the next sync frame.
 			np.syncFrame = localFrame + uint32(rand.Int31n(maxFrameSyncFreq/10))
 			np.noDriftFrames = 0
 
 			// Ask the remote to wait if we are too far behind.
-			np.SendWait(uint32(drift))
+			np.SendWait(uint32(driftFrames))
 
 			// Gradually increase the window to avoid oscillations.
 			if np.driftWindow < maxFrameDriftWindow {
@@ -177,7 +176,6 @@ func (np *Netplay) handleFrameDrift() {
 	if np.driftWindow > minFrameDriftWindow && np.noDriftFrames > maxFrameSyncFreq*10 {
 		np.driftWindow = max(minFrameDriftWindow, int(float32(np.driftWindow)/driftWindowFactor))
 		log.Printf("[DEBUG] drift window decreased to %d", np.driftWindow)
-
 		np.noDriftFrames = 0
 	}
 

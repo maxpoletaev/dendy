@@ -71,7 +71,7 @@ func runAsClient(cart ines.Cartridge, opts *options, rom *ines.ROM) {
 	nes := system.New(cart, joy1, joy2)
 	nes.SetNoSpriteLimit(opts.noSpriteLimit)
 
-	audio := ui.CreateAudio(consts.SamplesPerSecond, consts.SampleSize, 1, consts.AudioBufferSize)
+	audio := ui.CreateAudio(consts.AudioSamplesPerSecond, consts.AudioSampleSize, 1, consts.AudioBufferSize)
 	defer audio.Close()
 	audio.Mute(opts.mute)
 

@@ -15,19 +15,30 @@ const (
 	LevelError
 )
 
-var levels = map[string]Level{
-	"DEBUG": LevelDebug,
-	"INFO":  LevelInfo,
-	"WARN":  LevelWarn,
-	"ERROR": LevelError,
+var levelNames = [5][]byte{
+	nil,
+	[]byte("DEBUG"),
+	[]byte("INFO"),
+	[]byte("WARN"),
+	[]byte("ERROR"),
 }
 
 func extractLevel(msg []byte) Level {
 	if len(msg) >= 2 && msg[0] == '[' {
 		i := bytes.IndexByte(msg, ']')
+		s := msg[1:i]
 
 		if i != -1 {
-			return levels[string(msg[1:i])]
+			switch {
+			case bytes.Equal(s, levelNames[LevelDebug]):
+				return LevelDebug
+			case bytes.Equal(s, levelNames[LevelInfo]):
+				return LevelInfo
+			case bytes.Equal(s, levelNames[LevelWarn]):
+				return LevelWarn
+			case bytes.Equal(s, levelNames[LevelError]):
+				return LevelError
+			}
 		}
 	}
 
