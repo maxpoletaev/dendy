@@ -97,7 +97,7 @@ func pla(cpu *CPU, mem Memory, arg operand) {
 
 // php pushes the processor status onto the stack.
 func php(cpu *CPU, mem Memory, arg operand) {
-	cpu.pushByte(mem, cpu.P|0x10)
+	cpu.pushByte(mem, cpu.P|0x30)
 }
 
 // plp pops a value from the stack into the processor status.

@@ -7,10 +7,6 @@ import (
 
 // SendInitialState is used by the server to send the initial state to the client.
 func (np *Netplay) SendInitialState() {
-	if np.game.Sleeping() {
-		return
-	}
-
 	np.game.Init(nil)
 	cp := np.game.syncState
 	payload := np.pool.Buffer(cp.state.Len())

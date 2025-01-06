@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log"
 	"os"
 
 	"github.com/maxpoletaev/dendy/internal/binario"
@@ -22,6 +23,15 @@ const (
 	MirrorSingle0    MirrorMode = 2
 	MirrorSingle1    MirrorMode = 3
 )
+
+var mapperNames = map[uint8]string{
+	0: "NROM",
+	1: "SxROM",
+	2: "UxROM",
+	3: "CNROM",
+	4: "TxROM",
+	7: "AxROM",
+}
 
 type ROM struct {
 	MirrorMode MirrorMode
@@ -58,7 +68,7 @@ func OpenROM(filename string) (*ROM, error) {
 	}
 
 	var (
-		mapperID   = (header[6] >> 4) | (header[7] & (1 << 4))
+		mapperID   = ((header[6] >> 4) & 0x0F) | (header[7] & 0xF0)
 		prgBanks   = int(header[4])
 		chrBanks   = int(header[5])
 		hasTrainer = header[6]&(1<<2) != 0
@@ -74,8 +84,8 @@ func OpenROM(filename string) (*ROM, error) {
 	}
 
 	// CRC32 of CHR+PRG
-	h := crc32.NewIEEE()
-	romReader := io.TeeReader(file, h)
+	hasher := crc32.NewIEEE()
+	romReader := io.TeeReader(file, hasher)
 
 	// Read PRG-ROM.
 	prgData := make([]uint8, prgBanks*16384)
@@ -96,6 +106,12 @@ func OpenROM(filename string) (*ROM, error) {
 		chrRAM = true
 	}
 
+	log.Printf("[INFO] ROM info:")
+	log.Printf("[INFO]   > mapper ID:  %d (%s)", mapperID, mapperNames[mapperID])
+	log.Printf("[INFO]   > PRG banks:  %d (%d KB)", prgBanks, prgBanks*16)
+	log.Printf("[INFO]   > CHR banks:  %d (%d KB)", chrBanks, chrBanks*8)
+	log.Printf("[INFO]   > CRC32:      %08X", hasher.Sum32())
+
 	return &ROM{
 		PRG:        prgData,
 		CHR:        chrData,
@@ -104,8 +120,8 @@ func OpenROM(filename string) (*ROM, error) {
 		MirrorMode: mirrorMode,
 		PRGBanks:   prgBanks,
 		CHRBanks:   chrBanks,
-		CRC32:      h.Sum32(),
 		chrRAM:     chrRAM,
+		CRC32:      hasher.Sum32(),
 	}, nil
 }
 

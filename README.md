@@ -162,6 +162,7 @@ felt pretty playable.
 | Battletoads | Playable ||
 | Battletoads & Double Dragon | Not Playable | Freezes |
 | Bomberman | Playable ||
+| Bomberman 2 | Playable ||
 | Captain America | Playable ||
 | Castlevania | Playable ||
 | Chip 'n Dale | Playable ||
@@ -169,6 +170,7 @@ felt pretty playable.
 | Contra Force | Playable ||
 | Contra | Playable ||
 | Darkwing Duck | Playable ||
+| Dr. Mario | Playable ||
 | Donkey Kong | Playable ||
 | Double Dragon 2 | Playable ||
 | Double Dragon 3 | Playable ||

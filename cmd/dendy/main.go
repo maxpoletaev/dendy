@@ -158,8 +158,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Printf("[INFO] loaded rom: mapper:%d crc32:%08X", rom.MapperID, rom.CRC32)
-
 	saveFile := opts.saveFile
 	romPrefix := strings.TrimSuffix(romFile, filepath.Ext(romFile))
 

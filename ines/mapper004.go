@@ -54,7 +54,6 @@ func (m *Mapper4) prgOffset(idx int) int {
 	if idx < 0 {
 		idx = m.rom.PRGBanks*2 + idx
 	}
-
 	idx %= len(m.rom.PRG) / 0x2000
 	return idx * 0x2000
 }

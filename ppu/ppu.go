@@ -178,8 +178,12 @@ func (p *PPU) Read(addr uint16) uint8 {
 func (p *PPU) Write(addr uint16, data uint8) {
 	switch addr & 0x2007 {
 	case 0x2000:
-		p.ctrl = data
+		// Setting the NMI flag during blank should immediately trigger an NMI.
+		if data&CtrlNMI != 0 && p.ctrl&CtrlNMI == 0 && p.status&StatusVBlank != 0 {
+			p.PendingNMI = true
+		}
 		p.tmpAddr.setNametable(uint16(data) & 0x03)
+		p.ctrl = data
 	case 0x2001:
 		p.mask = data
 	case 0x2003:
@@ -258,62 +262,50 @@ func (p *PPU) nameTableIdx(addr uint16) uint {
 // address, it may read from the cartridge’s CHR-ROM, PPU nametables, or
 // palette table.
 func (p *PPU) readVRAM(addr uint16) uint8 {
-	if addr <= 0x1FFF {
+	switch {
+	case addr <= 0x1FFF:
 		return p.cart.ReadCHR(addr)
-	}
-
-	if addr <= 0x3EFF {
+	case addr <= 0x3EFF:
 		addr = addr & 0x2FFF
 		idx := p.nameTableIdx(addr)
 		return p.nameTable[idx][addr%1024]
-	}
-
-	if addr <= 0x3FFF {
-		if addr == 0x3F10 || addr == 0x3F14 || addr == 0x3F18 || addr == 0x3F1C {
+	case addr <= 0x3FFF:
+		switch addr {
+		case 0x3F10, 0x3F14, 0x3F18, 0x3F1C:
 			addr -= 0x10 // mirrors $3F00/$3F04/$3F08/$3F0C
 		}
 
 		idx := (addr - 0x3F00) % 32
 		value := p.paletteTable[idx]
-
 		if p.getMask(MaskGrayscale) {
 			value &= 0x30
 		}
 
 		return value
+	default:
+		log.Printf("[WARN] read from invalid vram address: %04X", addr)
+		return 0
 	}
-
-	log.Printf("[WARN] read from invalid vram address: %04X", addr)
-
-	return 0
 }
 
 func (p *PPU) writeVRAM(addr uint16, data uint8) {
-	if addr <= 0x1FFF {
+	switch {
+	case addr <= 0x1FFF:
 		p.cart.WriteCHR(addr, data)
-		return
-	}
-
-	if addr <= 0x3EFF {
+	case addr <= 0x3EFF:
 		addr = addr & 0x2FFF
 		idx := p.nameTableIdx(addr)
 		p.nameTable[idx][addr%1024] = data
-
-		return
-	}
-
-	if addr <= 0x3FFF {
-		if addr == 0x3F10 || addr == 0x3F14 || addr == 0x3F18 || addr == 0x3F1C {
+	case addr <= 0x3FFF:
+		switch addr {
+		case 0x3F10, 0x3F14, 0x3F18, 0x3F1C:
 			addr -= 0x10 // mirrors $3F00/$3F04/$3F08/$3F0C
 		}
-
 		idx := (addr - 0x3F00) % 32
 		p.paletteTable[idx] = data
-
-		return
+	default:
+		log.Printf("[WARN] write to invalid vram address: %04X", addr)
 	}
-
-	log.Printf("[WARN] write to invalid vram address: %04X", addr)
 }
 
 // clearFrame fills the frame with the given color.

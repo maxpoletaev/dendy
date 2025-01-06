@@ -116,13 +116,13 @@ func runOffline(cart ines.Cartridge, opts *options, saveFile string) {
 		}
 	}
 
+	w := ui.CreateWindow(opts.scale, opts.verbose)
+	defer w.Close()
+
 	audio := ui.CreateAudio(consts.AudioSamplesPerSecond, consts.AudioSampleSize, 1, consts.AudioBufferSize)
 	audioBuffer := make([]float32, consts.AudioBufferSize)
 	audio.Mute(opts.mute)
 	defer audio.Close()
-
-	w := ui.CreateWindow(opts.scale, opts.verbose)
-	defer w.Close()
 
 	w.SetFrameRate(consts.FramesPerSecond)
 	w.SetTitle(windowTitle)

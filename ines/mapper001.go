@@ -62,9 +62,9 @@ func (m *Mapper1) MirrorMode() MirrorMode {
 }
 
 func (m *Mapper1) prgMode() byte {
-	// 0: switch 32 KB at $8000, ignoring low bit of bank number;
-	// 1: fix first bank at $8000 and switch 16 KB bank at $C000;
-	// 2: fix last bank at $C000 and switch 16 KB bank at $8000
+	// 0, 1: switch 32 KB at $8000, ignoring low bit of bank number;
+	// 2: fix first bank at $8000 and switch 16 KB bank at $C000;
+	// 3: fix last bank at $C000 and switch 16 KB bank at $8000
 	return (m.control >> 2) & 0x03
 }
 
@@ -108,20 +108,20 @@ func (m *Mapper1) loadRegister(addr uint16, data byte) {
 	}
 }
 
-func (m *Mapper1) prgBankIndex() (int, int) {
+func (m *Mapper1) prgBankIndex() (uint, uint) {
 	switch m.prgMode() {
 	case 0, 1: // Switch 32 KB at $8000, ignoring low bit of bank number.
-		return int(m.prgBank & 0xFE), int(m.prgBank | 0x01)
+		return uint(m.prgBank & 0xFE), uint(m.prgBank | 0x01)
 	case 2: // Fix first bank at $8000 and switch 16 KB bank at $C000.
-		return 0, int(m.prgBank)
+		return 0, uint(m.prgBank)
 	case 3: // Fix last bank at $C000 and switch 16 KB bank at $8000.
-		return int(m.prgBank), m.rom.PRGBanks - 1
+		return uint(m.prgBank), uint(m.rom.PRGBanks - 1)
 	default:
 		panic(fmt.Sprintf("mapper1: invalid prg mode: %d", m.prgMode()))
 	}
 }
 
-func (m *Mapper1) prgOffset(idx int) int {
+func (m *Mapper1) prgOffset(idx uint) uint {
 	return idx * 0x4000
 }
 
@@ -132,10 +132,10 @@ func (m *Mapper1) ReadPRG(addr uint16) byte {
 	case addr >= 0x6000 && addr <= 0x7FFF: // PRG-RAM
 		return m.sram[addr-0x6000]
 	case addr >= 0x8000 && addr <= 0xBFFF: // PRG-ROM, bank 0
-		relAddr := int((addr - 0x8000) % 0x4000)
+		relAddr := uint((addr - 0x8000) % 0x4000)
 		return m.rom.PRG[m.prgOffset(bank0)+relAddr]
 	case addr >= 0xC000 && addr <= 0xFFFF: // PRG-ROM, bank 1
-		relAddr := int((addr - 0x8000) % 0x4000)
+		relAddr := uint((addr - 0x8000) % 0x4000)
 		return m.rom.PRG[m.prgOffset(bank1)+relAddr]
 	default:
 		log.Printf("[WARN] mapper1: unhandled prg read at %04X", addr)
@@ -154,24 +154,24 @@ func (m *Mapper1) WritePRG(addr uint16, data byte) {
 	}
 }
 
-func (m *Mapper1) chrBankIndex() (int, int) {
+func (m *Mapper1) chrBankIndex() (uint, uint) {
 	switch m.chrMode() {
 	case 0: // Switch 8 KB at a time.
-		return int(m.chrBank0 & 0xFE), int(m.chrBank0 | 0x01)
+		return uint(m.chrBank0 & 0xFE), uint(m.chrBank0 | 0x01)
 	case 1: // Switch two separate 4 KB banks.
-		return int(m.chrBank0), int(m.chrBank1)
+		return uint(m.chrBank0), uint(m.chrBank1)
 	default:
 		panic(fmt.Sprintf("mapper1: invalid chr mode: %d", m.chrMode()))
 	}
 }
 
-func (m *Mapper1) chrOffset(idx int) int {
+func (m *Mapper1) chrOffset(idx uint) uint {
 	return idx * 0x1000
 }
 
 func (m *Mapper1) ReadCHR(addr uint16) byte {
 	bank0, bank1 := m.chrBankIndex()
-	relAddr := int(addr % 0x1000)
+	relAddr := uint(addr % 0x1000)
 
 	switch {
 	case addr >= 0x0000 && addr <= 0x0FFF: // CHR-RAM, bank 0
@@ -191,7 +191,7 @@ func (m *Mapper1) WriteCHR(addr uint16, data byte) {
 	}
 
 	bank0, bank1 := m.chrBankIndex()
-	relAddr := int(addr % 0x1000)
+	relAddr := uint(addr % 0x1000)
 
 	switch {
 	case addr >= 0x0000 && addr <= 0x0FFF: // CHR-RAM, bank 0

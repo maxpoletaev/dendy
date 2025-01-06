@@ -9,9 +9,9 @@ import (
 
 type Mapper3 struct {
 	rom      *ROM
-	chrBank0 int
-	prgBank0 int
-	prgBank1 int
+	chrBank0 uint
+	prgBank0 uint
+	prgBank1 uint
 }
 
 func NewMapper3(rom *ROM) *Mapper3 {
@@ -23,7 +23,7 @@ func NewMapper3(rom *ROM) *Mapper3 {
 func (m *Mapper3) Reset() {
 	m.chrBank0 = 0
 	m.prgBank0 = 0
-	m.prgBank1 = m.rom.PRGBanks - 1
+	m.prgBank1 = uint(m.rom.PRGBanks - 1)
 }
 
 func (m *Mapper3) ScanlineTick() {
@@ -40,26 +40,25 @@ func (m *Mapper3) MirrorMode() MirrorMode {
 func (m *Mapper3) ReadPRG(addr uint16) byte {
 	switch {
 	case addr >= 0x8000 && addr <= 0xBFFF:
-		idx := m.prgBank0*0x4000 + int(addr-0x8000)
-		idx %= len(m.rom.PRG)
-		return m.rom.PRG[idx]
+		idx := m.prgBank0*0x4000 + uint(addr-0x8000)
+		return m.rom.PRG[idx%uint(len(m.rom.PRG))]
 	case addr >= 0xC000 && addr <= 0xFFFF:
-		idx := m.prgBank1*0x4000 + int(addr-0xC000)
-		idx %= len(m.rom.PRG)
-		return m.rom.PRG[idx]
+		idx := m.prgBank1*0x4000 + uint(addr-0xC000)
+		return m.rom.PRG[idx%uint(len(m.rom.PRG))]
 	default:
 		return 0
 	}
 }
 
 func (m *Mapper3) WritePRG(addr uint16, data byte) {
-	m.chrBank0 = int(data & 0x03)
+	m.chrBank0 = uint(data & 0x03)
 }
 
 func (m *Mapper3) ReadCHR(addr uint16) byte {
 	switch {
 	case addr >= 0x0000 && addr <= 0x1FFF:
-		return m.rom.CHR[addr]
+		offset := m.chrBank0 * 0x2000
+		return m.rom.CHR[uint(addr)+offset]
 	default:
 		log.Printf("[WARN] mapper3: unhandled chr read at 0x%04X", addr)
 		return 0
@@ -98,9 +97,9 @@ func (m *Mapper3) LoadState(r *binario.Reader) error {
 		r.ReadUint64To(&prgBank1),
 	)
 
-	m.chrBank0 = int(chrBank0)
-	m.prgBank0 = int(prgBank0)
-	m.prgBank1 = int(prgBank1)
+	m.chrBank0 = uint(chrBank0)
+	m.prgBank0 = uint(prgBank0)
+	m.prgBank1 = uint(prgBank1)
 
 	return err
 }
