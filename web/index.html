@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dendy Emulator (WASM)</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="wasm_exec.js"></script>
+  <script src="main.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>NES Emulator</h1>
+  </div>
+
+  <div class="game-section">
+    <div class="game-window">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <div class="rom-upload">
+      Select ROM: <input type="file" id="file-input" accept=".nes">
+    </div>
+
+    <div class="controls-grid">
+      <div class="control-item">
+        <span class="control-key">WASD</span>
+        <span class="control-action">D-Pad</span>
+      </div>
+      <div class="control-item">
+        <span class="control-key">J</span>
+        <span class="control-action">A Button</span>
+      </div>
+      <div class="control-item">
+        <span class="control-key">K</span>
+        <span class="control-action">B Button</span>
+      </div>
+      <div class="control-item">
+        <span class="control-key">Enter</span>
+        <span class="control-action">Start</span>
+      </div>
+      <div class="control-item">
+        <span class="control-key">Right Shift</span>
+        <span class="control-action">Select</span>
+      </div>
+      <div class="control-item">
+        <span class="control-key">⌘+R</span>
+        <span class="control-action">Reset</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

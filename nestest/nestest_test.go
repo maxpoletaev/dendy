@@ -49,7 +49,7 @@ func disableLogger(t *testing.T) {
 func TestNestestROM(t *testing.T) {
 	disableLogger(t)
 
-	rom, err := ines.OpenROM("nestest.nes")
+	rom, err := ines.NewFromFile("nestest.nes")
 	if err != nil {
 		log.Printf("[ERROR] failed to open rom file: %s", err)
 		os.Exit(1)

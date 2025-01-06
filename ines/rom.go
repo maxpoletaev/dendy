@@ -1,6 +1,7 @@
 package ines
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -45,7 +46,11 @@ type ROM struct {
 	chrRAM     bool
 }
 
-func OpenROM(filename string) (*ROM, error) {
+func NewFromBuffer(buf []byte) (*ROM, error) {
+	return newROM(bytes.NewReader(buf))
+}
+
+func NewFromFile(filename string) (*ROM, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -55,9 +60,13 @@ func OpenROM(filename string) (*ROM, error) {
 		_ = file.Close()
 	}()
 
+	return newROM(file)
+}
+
+func newROM(file io.ReadSeeker) (*ROM, error) {
 	// Read header.
 	header := make([]uint8, 16)
-	_, err = file.Read(header)
+	_, err := file.Read(header)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +104,7 @@ func OpenROM(filename string) (*ROM, error) {
 
 	// Read CHR-ROM.
 	chrData := make([]uint8, chrBanks*8192)
-	if _, err = romReader.Read(chrData); err != nil {
+	if _, err = romReader.Read(chrData); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to read chr ROM: %w", err)
 	}
 

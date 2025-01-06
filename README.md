@@ -48,7 +48,7 @@ Just point it to a`.nes` ROM file you want to play:
 dendy romfile.nes
 ```
 
-There’s a bunch of command line flags that you can know about by running
+There’s a bunch of command line flags that you can learn about by running
 `dendy -help`. Here are some of the most useful ones:
 
  * `-scale=<n>` - Scale the window by `n` times (default: 2)
@@ -216,7 +216,6 @@ felt pretty playable.
 * [x] 8×16 sprites
 * [x] Palettes
 * [x] Scrolling
-* [ ] Color emphasis
 
 ### Input/Output
 

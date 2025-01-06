@@ -146,7 +146,7 @@ func main() {
 	romFile := flag.Arg(0)
 	log.Printf("[INFO] loading rom file: %s", romFile)
 
-	rom, err := ines.OpenROM(romFile)
+	rom, err := ines.NewFromFile(romFile)
 	if err != nil {
 		log.Printf("[ERROR] failed to open rom file: %s", err)
 		os.Exit(1)

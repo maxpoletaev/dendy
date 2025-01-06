@@ -29,6 +29,12 @@ build-x:  ## cross compile for linux_amd64 and win_amd64 targets (requires docke
 	docker buildx build -f build/Dockerfile -t dendy-builder .
 	docker run --rm -v $(PWD):/src dendy-builder build/build.sh
 
+.PHONY: build-wasm
+build-wasm: ## build wasm
+	@echo "--------- running: $@ ---------"
+	cp "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" ./web
+	GOOS=js GOARCH=wasm go build -o=web/dendy.wasm ./cmd/dendy-wasm
+
 PHONY: test
 test: ## run tests
 	@echo "--------- running: $@ ---------"

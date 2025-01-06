@@ -1,0 +1,139 @@
+body {
+  margin: 0;
+  padding: 10px;
+  min-height: 100vh;
+  background-color: #333;
+  color: #2d3748;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.container {
+  background-color: #ffffff;
+  width: 512px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.header {
+  background-color: #e53e3e;
+  color: white;
+  padding: 15px;
+  text-align: center;
+  position: relative;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5em;
+  letter-spacing: 1px;
+}
+
+.game-section {
+  position: relative;
+  background: #000;
+  width: 100%;
+}
+
+.game-window canvas {
+  display: block;
+}
+
+.upload-section {
+  padding: 20px;
+}
+
+.rom-upload {
+  font-size: 0.9em;
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #f7fafc;
+  margin-bottom: 20px;
+}
+
+.info-section {
+  padding: 20px;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.control-item {
+  background: #f7fafc;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #edf2f7;
+}
+
+.control-key {
+  font-weight: bold;
+  color: #e53e3e;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.control-action {
+  font-size: 0.9em;
+  color: #4a5568;
+}
+
+.project-info {
+  background: #f7fafc;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+.project-info h2 {
+  color: #e53e3e;
+  margin: 0 0 10px 0;
+  font-size: 1.2em;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feature-item::before {
+  content: "•";
+  color: #e53e3e;
+}
+
+@media (max-width: 640px) {
+  .container {
+    width: 100%;
+    margin: 10px;
+    border-radius: 8px;
+  }
+
+  .controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+}
