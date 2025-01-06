@@ -10,49 +10,51 @@
 </head>
 <body>
 
-<div class="container">
-  <div class="header">
-    <h1>NES Emulator</h1>
-  </div>
+  <div class="container">
+    <div class="game-section">
+      <div class="game-window">
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
 
-  <div class="game-section">
-    <div class="game-window">
-      <canvas id="canvas"></canvas>
+    <div class="info-section">
+      <div class="rom-upload">
+        Select ROM: <input type="file" id="file-input" accept=".nes">
+      </div>
+
+      <div class="controls-grid">
+        <div class="control-item">
+          <span class="control-key">WASD</span>
+          <span class="control-action">D-Pad</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">J</span>
+          <span class="control-action">B Button</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">K</span>
+          <span class="control-action">A Button</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">Enter</span>
+          <span class="control-action">Start</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">Right Shift</span>
+          <span class="control-action">Select</span>
+        </div>
+        <div class="control-item">
+          <span class="control-key">⌘+R</span>
+          <span class="control-action">Reset</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="source-link">
+      <a href="https://github.com/maxpoletaev/dendy" target="_blank">https://github.com/maxpoletaev/dendy</a>
     </div>
   </div>
 
-  <div class="info-section">
-    <div class="rom-upload">
-      Select ROM: <input type="file" id="file-input" accept=".nes">
-    </div>
-
-    <div class="controls-grid">
-      <div class="control-item">
-        <span class="control-key">WASD</span>
-        <span class="control-action">D-Pad</span>
-      </div>
-      <div class="control-item">
-        <span class="control-key">J</span>
-        <span class="control-action">A Button</span>
-      </div>
-      <div class="control-item">
-        <span class="control-key">K</span>
-        <span class="control-action">B Button</span>
-      </div>
-      <div class="control-item">
-        <span class="control-key">Enter</span>
-        <span class="control-action">Start</span>
-      </div>
-      <div class="control-item">
-        <span class="control-key">Right Shift</span>
-        <span class="control-action">Select</span>
-      </div>
-      <div class="control-item">
-        <span class="control-key">⌘+R</span>
-        <span class="control-action">Reset</span>
-      </div>
-    </div>
-  </div>
-</div>
+  <img src="https://mxp.goatcounter.com/count?p=/dendy" alt="" width="1" height="1">
 </body>
 </html>

@@ -43,7 +43,6 @@ func main() {
 
 		for {
 			nes.Tick()
-
 			if nes.FrameReady() {
 				frame := nes.Frame()
 				frameBytes := unsafe.Slice((*byte)(unsafe.Pointer(&frame[0])), len(frame)*4)

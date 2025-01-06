@@ -2,7 +2,7 @@ body {
   margin: 0;
   padding: 10px;
   min-height: 100vh;
-  background-color: #333;
+  background-color: #49414b;
   color: #2d3748;
   display: flex;
   justify-content: center;
@@ -39,6 +39,11 @@ body {
   width: 100%;
 }
 
+.game-window {
+  height: 480px;
+  border-bottom: 2px solid #2d3748;
+}
+
 .game-window canvas {
   display: block;
 }
@@ -67,7 +72,6 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  margin-bottom: 20px;
 }
 
 .control-item {
@@ -122,18 +126,13 @@ body {
   color: #e53e3e;
 }
 
-@media (max-width: 640px) {
-  .container {
-    width: 100%;
-    margin: 10px;
-    border-radius: 8px;
-  }
+.source-link {
+  position: relative;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 0.9em;
+}
 
-  .controls-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .features {
-    grid-template-columns: 1fr;
-  }
+.source-link a {
+  color: #4a5568;
 }
