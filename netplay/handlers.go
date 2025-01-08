@@ -8,7 +8,7 @@ import (
 
 func (np *Netplay) handleMessage(msg Message) {
 	if msg.Generation < np.game.Gen() {
-		log.Printf("[INFO] dropping message from old generation: %d", msg.Generation)
+		log.Printf("[INFO] dropping message from old generation: %d, current: %d", msg.Generation, np.game.Gen())
 		return
 	}
 

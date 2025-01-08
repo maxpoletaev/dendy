@@ -47,7 +47,7 @@ type Netplay struct {
 	pingCounter   uint32
 }
 
-func newNetplay(game *Game, conn net.Conn) *Netplay {
+func New(game *Game, conn net.Conn, isHost bool) *Netplay {
 	pool := bytepool.New(maxPoolItemSize)
 
 	return &Netplay{
@@ -60,6 +60,7 @@ func newNetplay(game *Game, conn net.Conn) *Netplay {
 		pool:        pool,
 		game:        game,
 		conn:        conn,
+		isHost:      isHost,
 	}
 }
 
@@ -108,7 +109,7 @@ func (np *Netplay) startReader() {
 	}
 }
 
-func (np *Netplay) start() {
+func (np *Netplay) Start() {
 	go np.startReader()
 	go np.startWriter()
 }

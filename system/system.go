@@ -100,6 +100,10 @@ func (s *System) initDMACallbacks() {
 	})
 }
 
+func (s *System) DisableAPU() {
+	s.apu.Enabled = false
+}
+
 func (s *System) Reset() {
 	// NOTE: Order matters
 	s.cart.Reset()
@@ -128,14 +132,12 @@ func (s *System) Tick() {
 	s.cycles++
 
 	if s.cycles%3 == 0 {
-		instructionComplete := s.cpu.Tick(s.bus)
-
-		if instructionComplete && s.debugWriter != nil {
+		instrDone := s.cpu.Tick(s.bus)
+		if instrDone && s.debugWriter != nil {
 			s.disassemble()
 		}
 
 		s.apu.Tick()
-
 		if s.apu.PendingIRQ {
 			s.apu.PendingIRQ = false
 			s.cpu.TriggerIRQ()
@@ -143,7 +145,6 @@ func (s *System) Tick() {
 	}
 
 	s.ppu.Tick()
-
 	if s.ppu.PendingNMI {
 		s.ppu.PendingNMI = false
 		s.cpu.TriggerNMI()
@@ -152,9 +153,7 @@ func (s *System) Tick() {
 	if s.ppu.ScanlineComplete {
 		s.ppu.ScanlineComplete = false
 		s.scanlineReady = true
-
 		s.cart.ScanlineTick()
-
 		if s.cart.PendingIRQ() {
 			s.cpu.TriggerIRQ()
 		}

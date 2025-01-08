@@ -1,3 +1,5 @@
+//go:build !wasm
+
 package netplay
 
 import (
@@ -40,9 +42,8 @@ func listenTCP(game *Game, addr string) (*Netplay, net.Addr, error) {
 		return nil, nil, fmt.Errorf("failed to accept connection: %v", err)
 	}
 
-	np := newNetplay(game, conn)
-	np.isHost = true
-	np.start()
+	np := New(game, conn, true)
+	np.Start()
 
 	return np, conn.RemoteAddr(), nil
 }
@@ -58,9 +59,8 @@ func listenUDP(game *Game, addr string) (*Netplay, net.Addr, error) {
 		return nil, nil, fmt.Errorf("failed to accept connection: %v", err)
 	}
 
-	np := newNetplay(game, conn)
-	np.isHost = true
-	np.start()
+	np := New(game, conn, true)
+	np.Start()
 
 	return np, conn.RemoteAddr(), nil
 }
@@ -71,8 +71,8 @@ func connectTCP(game *Game, addr string) (*Netplay, net.Addr, error) {
 		return nil, nil, err
 	}
 
-	np := newNetplay(game, conn)
-	np.start()
+	np := New(game, conn, false)
+	np.Start()
 
 	return np, conn.RemoteAddr(), nil
 }
@@ -93,8 +93,8 @@ func connectUDP(game *Game, lAddr, rAddr string) (*Netplay, net.Addr, error) {
 		return nil, nil, err
 	}
 
-	np := newNetplay(game, conn)
-	np.start()
+	np := New(game, conn, false)
+	np.Start()
 
 	return np, conn.RemoteAddr(), nil
 }

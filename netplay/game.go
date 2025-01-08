@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log"
 	"time"
 
 	"github.com/maxpoletaev/dendy/consts"
@@ -13,8 +14,12 @@ import (
 	"github.com/maxpoletaev/dendy/internal/binario"
 	"github.com/maxpoletaev/dendy/internal/ringbuf"
 	"github.com/maxpoletaev/dendy/system"
-	"github.com/maxpoletaev/dendy/ui"
 )
+
+type audioOut interface {
+	IsStreamProcessed() bool
+	UpdateStream([]float32)
+}
 
 type checkpoint struct {
 	state       *bytes.Buffer
@@ -61,17 +66,17 @@ type Game struct {
 	localJoy             *input.Joystick
 	remoteJoy            *input.Joystick
 
-	frameEmulationTime time.Duration
-	roundTripTime      time.Duration
-	driftFrames        int
-	sleepFrames        uint32
-	audioOut           *ui.AudioOut
-	audioBuffer        []float32
-	audioBufferPos     int
-	debugWriter        io.StringWriter
+	frameTime      time.Duration
+	roundTripTime  time.Duration
+	driftFrames    int
+	sleepFrames    uint32
+	audioOut       audioOut
+	audioBuffer    []float32
+	audioBufferPos int
+	debugWriter    io.StringWriter
 }
 
-func NewGame(nes *system.System, audio *ui.AudioOut, localJoy, remoteJoy *input.Joystick) *Game {
+func NewGame(nes *system.System, audio audioOut, localJoy, remoteJoy *input.Joystick) *Game {
 	return &Game{
 		nes:          nes,
 		headState:    newCheckpoint(),
@@ -90,9 +95,9 @@ func (g *Game) Init(cp *checkpoint) {
 	g.sleepFrames = 0
 	g.frame = 0
 
-	g.localInput = ringbuf.New[uint8](512)
-	g.remoteInput = ringbuf.New[uint8](512)
-	g.predictedRemoteInput = ringbuf.New[uint8](512)
+	g.localInput = ringbuf.New[uint8](5120)
+	g.remoteInput = ringbuf.New[uint8](5120)
+	g.predictedRemoteInput = ringbuf.New[uint8](5120)
 
 	if cp != nil {
 		g.syncState = cp
@@ -138,12 +143,11 @@ func (g *Game) playFrame() {
 		g.nes.Tick()
 		g.tick++
 
-		if g.tick%consts.TicksPerAudioSample == 0 {
+		if g.audioOut != nil && g.tick%consts.TicksPerAudioSample == 0 {
 			if g.audioBufferPos < len(g.audioBuffer) {
 				g.audioBuffer[g.audioBufferPos] = g.nes.AudioSample()
 				g.audioBufferPos++
 			}
-
 			if g.audioBufferPos == len(g.audioBuffer) && g.audioOut.IsStreamProcessed() {
 				g.audioOut.UpdateStream(g.audioBuffer)
 				g.audioBufferPos = 0
@@ -156,12 +160,16 @@ func (g *Game) playFrame() {
 		}
 	}
 
-	g.frameEmulationTime = time.Since(start)
+	g.frameTime = time.Since(start)
 
 	// Overflow will happen after ~2 years of continuous play :)
 	// Don't think it's a problem though.
 	if g.frame == 0 {
 		panic("frame counter overflow")
+	}
+
+	if g.frame%60 == 0 {
+		log.Printf("[DEBUG] frame emulation time: %v", g.frameTime)
 	}
 }
 
@@ -265,7 +273,7 @@ func (g *Game) replayLocalInput(startTime time.Time, endFrame uint32, inputPos i
 	for f := g.frame; f < endFrame; f++ {
 		remainingTime := consts.FrameDuration - time.Since(startTime)
 
-		if remainingTime < g.frameEmulationTime {
+		if remainingTime < g.frameTime {
 			g.save(g.catchupState)
 			g.rollback(g.headState)
 			g.catchupInputPos = inputPos
@@ -337,7 +345,7 @@ func (g *Game) processDelayedInput(startTime time.Time) {
 		// We only have 16ms to replay all frames. Going over this limit will create a
 		// noticeable stutter and sound glitches. When we are close to the limit, save
 		// the progress and jump back to the last known unsynchronized state.
-		if remainingTime < g.frameEmulationTime {
+		if remainingTime < g.frameTime {
 			g.save(g.syncState)
 			g.rollback(g.headState)
 			g.dropInputs(i)
