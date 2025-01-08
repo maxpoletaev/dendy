@@ -212,79 +212,71 @@ func eor(cpu *CPU, mem Memory, arg operand) {
 }
 
 func asl(cpu *CPU, mem Memory, arg operand) {
-	var (
-		write = func(v uint8) { mem.Write(arg.addr, v) }
-		read  = func() uint8 { return mem.Read(arg.addr) }
-	)
-
 	if arg.mode == AddrModeAcc {
-		write = func(v uint8) { cpu.A = v }
-		read = func() uint8 { return cpu.A }
+		data := cpu.A
+		cpu.setFlag(flagCarry, data&0x80 != 0)
+		data <<= 1
+		cpu.setZN(data)
+		cpu.A = data
+	} else {
+		data := mem.Read(arg.addr)
+		cpu.setFlag(flagCarry, data&0x80 != 0)
+		data <<= 1
+		cpu.setZN(data)
+		mem.Write(arg.addr, data)
 	}
-
-	data := read()
-	cpu.setFlag(flagCarry, data&0x80 != 0)
-	data <<= 1
-	cpu.setZN(data)
-	write(data)
 }
 
 func lsr(cpu *CPU, mem Memory, arg operand) {
-	var (
-		write = func(v uint8) { mem.Write(arg.addr, v) }
-		read  = func() uint8 { return mem.Read(arg.addr) }
-	)
-
 	if arg.mode == AddrModeAcc {
-		write = func(v uint8) { cpu.A = v }
-		read = func() uint8 { return cpu.A }
+		data := cpu.A
+		cpu.setFlag(flagCarry, data&0x01 != 0)
+		data >>= 1
+		cpu.setZN(data)
+		cpu.A = data
+	} else {
+		data := mem.Read(arg.addr)
+		cpu.setFlag(flagCarry, data&0x01 != 0)
+		data >>= 1
+		cpu.setZN(data)
+		mem.Write(arg.addr, data)
 	}
-
-	data := read()
-	cpu.setFlag(flagCarry, data&0x01 != 0)
-	data >>= 1
-	cpu.setZN(data)
-	write(data)
 }
 
 func rol(cpu *CPU, mem Memory, arg operand) {
-	var (
-		write = func(v uint8) { mem.Write(arg.addr, v) }
-		read  = func() uint8 { return mem.Read(arg.addr) }
-	)
-
 	if arg.mode == AddrModeAcc {
-		write = func(v uint8) { cpu.A = v }
-		read = func() uint8 { return cpu.A }
+		data := cpu.A
+		carr := cpu.carried()
+		cpu.setFlag(flagCarry, data&0x80 != 0)
+		data = data<<1 | carr
+		cpu.setZN(data)
+		cpu.A = data
+	} else {
+		data := mem.Read(arg.addr)
+		carr := cpu.carried()
+		cpu.setFlag(flagCarry, data&0x80 != 0)
+		data = data<<1 | carr
+		cpu.setZN(data)
+		mem.Write(arg.addr, data)
 	}
-
-	data := read()
-	carr := cpu.carried()
-
-	cpu.setFlag(flagCarry, data&0x80 != 0)
-	data = data<<1 | carr
-	cpu.setZN(data)
-	write(data)
 }
 
 func ror(cpu *CPU, mem Memory, arg operand) {
-	var (
-		write = func(v uint8) { mem.Write(arg.addr, v) }
-		read  = func() uint8 { return mem.Read(arg.addr) }
-	)
-
 	if arg.mode == AddrModeAcc {
-		write = func(v uint8) { cpu.A = v }
-		read = func() uint8 { return cpu.A }
+		data := cpu.A
+		carr := cpu.carried()
+		cpu.setFlag(flagCarry, data&0x01 != 0)
+		data = data>>1 | carr<<7
+		cpu.setZN(data)
+		cpu.A = data
+	} else {
+		data := mem.Read(arg.addr)
+		carr := cpu.carried()
+		cpu.setFlag(flagCarry, data&0x01 != 0)
+		data = data>>1 | carr<<7
+		cpu.setZN(data)
+		mem.Write(arg.addr, data)
 	}
-
-	data := read()
-	carr := cpu.carried()
-
-	cpu.setFlag(flagCarry, data&0x01 != 0)
-	data = data>>1 | carr<<7
-	cpu.setZN(data)
-	write(data)
 }
 
 func bit(cpu *CPU, mem Memory, arg operand) {

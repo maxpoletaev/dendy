@@ -1,5 +1,3 @@
-const go = new Go();
-
 const documentReady = new Promise((resolve) => {
   if (document.readyState !== "loading") {
     resolve();
@@ -8,8 +6,11 @@ const documentReady = new Promise((resolve) => {
   }
 });
 
+let wasm = null;
+const go = new Go();
 const wasmReady = WebAssembly.instantiateStreaming(fetch("dendy.wasm"), go.importObject).then((result) => {
-  go.run(result.instance);
+  wasm = result.instance;
+  go.run(wasm);
 });
 
 Promise.all([wasmReady, documentReady]).then(() => {
@@ -65,13 +66,29 @@ Promise.all([wasmReady, documentReady]).then(() => {
     }
   });
 
-  document.getElementById("file-input").addEventListener("input", function (){
+  let fileInput = document.getElementById("file-input");
+
+  fileInput.addEventListener("input", function() {
     this.files[0].arrayBuffer().then((buffer) => {
       let rom = new Uint8Array(buffer);
-      uploadROM(rom);
+      let ok = uploadROM(rom);
+      if (!ok) {
+        alert("Invalid ROM file");
+        this.value = "";
+      }
     });
     this.blur();
   });
+
+  if (fileInput.files.length > 0) {
+    fileInput.files[0].arrayBuffer().then((buffer) => {
+      let rom = new Uint8Array(buffer);
+      let ok = uploadROM(rom);
+      if (!ok) {
+        fileInput.value = "";
+      }
+    });
+  }
 
   setInterval(() => {
     runFrame(imageData.data, buttonsPressed);

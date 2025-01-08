@@ -33,7 +33,13 @@ build-x:  ## cross compile for linux_amd64 and win_amd64 targets (requires docke
 build-wasm: ## build wasm
 	@echo "--------- running: $@ ---------"
 	cp "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" ./web
-	GOOS=js GOARCH=wasm go build -o=web/dendy.wasm ./cmd/dendy-wasm
+	GOOS=js GOARCH=wasm go build -pgo=default.pgo -o=web/dendy.wasm ./cmd/dendy-wasm
+
+.PHONY: build-wasm-tinygo
+build-wasm-tinygo: ## build wasm
+	@echo "--------- running: $@ ---------"
+	cp "$(shell tinygo env TINYGOROOT)/targets/wasm_exec.js" ./web
+	tinygo build -no-debug -gc=conservative -target=wasm -opt=2 -o=web/dendy.wasm ./cmd/dendy-wasm
 
 PHONY: test
 test: ## run tests
