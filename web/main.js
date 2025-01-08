@@ -6,11 +6,9 @@ const documentReady = new Promise((resolve) => {
   }
 });
 
-let wasm = null;
 const go = new Go();
 const wasmReady = WebAssembly.instantiateStreaming(fetch("dendy.wasm"), go.importObject).then((result) => {
-  wasm = result.instance;
-  go.run(wasm);
+  go.run(result.instance);
 });
 
 Promise.all([wasmReady, documentReady]).then(() => {
@@ -28,8 +26,6 @@ Promise.all([wasmReady, documentReady]).then(() => {
 
   let ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-
-  let imageData = ctx.createImageData(width, height);
   let buttonsPressed = 0;
 
   const BUTTON_A = 1 << 0;
@@ -90,8 +86,28 @@ Promise.all([wasmReady, documentReady]).then(() => {
     });
   }
 
-  setInterval(() => {
-    runFrame(imageData.data, buttonsPressed);
-    ctx.putImageData(imageData, 0, 0);
-  }, 1000 / targetFPS);
+  function isInFocus() {
+    return document.hasFocus() && document.visibilityState === "visible";
+  }
+
+  function gameLoop() {
+    let nextFrame = () => {
+      let start = performance.now();
+
+      if (isInFocus()) {
+        let framePtr = runFrame(buttonsPressed);
+        let memPtr = go._inst.exports.mem?.buffer || go._inst.exports.memory.buffer; // latter is for TinyGo
+        let image = new ImageData(new Uint8ClampedArray(memPtr, framePtr, width * height * 4), width, height);
+        ctx.putImageData(image, 0, 0);
+      }
+
+      let elapsed = performance.now() - start;
+      let nextTimeout = Math.max(0, (1000 / targetFPS) - elapsed);
+      setTimeout(nextFrame, nextTimeout);
+    };
+
+    nextFrame();
+  }
+
+  gameLoop();
 });

@@ -21,7 +21,7 @@ const (
 //go:embed nestest.nes
 var bootROM []byte
 
-func createSystem(joy *input.Joystick, romData []byte) (*system.System, error) {
+func create(joy *input.Joystick, romData []byte) (*system.System, error) {
 	rom, err := ines.NewFromBuffer(romData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load ROM: %v", err)
@@ -38,10 +38,10 @@ func createSystem(joy *input.Joystick, romData []byte) (*system.System, error) {
 }
 
 func main() {
-	log.SetFlags(0)
+	log.SetFlags(0) // disable timestamps
 	joystick := input.NewJoystick()
 
-	nes, err := createSystem(joystick, bootROM)
+	nes, err := create(joystick, bootROM)
 	if err != nil {
 		log.Fatalf("[ERROR] failed to initialize: %v", err)
 	}
@@ -53,35 +53,35 @@ func main() {
 	)
 
 	js.Global().Set("runFrame", js.FuncOf(func(this js.Value, args []js.Value) any {
+		buttons := args[0].Int()
 		start := time.Now()
-		frameBuf := args[0]
-		buttons := args[1].Int()
+		var framePtr uintptr
 
 		for {
 			nes.Tick()
 			if nes.FrameReady() {
 				frame := nes.Frame()
-				frameBytes := unsafe.Slice((*byte)(unsafe.Pointer(&frame[0])), len(frame)*4)
-				js.CopyBytesToJS(frameBuf, frameBytes) // TODO: can we avoid copying here?
 				joystick.SetButtons(uint8(buttons))
+				framePtr = uintptr(unsafe.Pointer(&frame[0]))
 				break
 			}
 		}
 
 		if debugFrameTime {
-			frameTimeSum += time.Since(start)
+			frameTime := time.Since(start)
+			frameTimeSum += frameTime
 			frameCount++
 
 			if frameCount%120 == 0 {
 				runtime.ReadMemStats(&mem)
-				elapsed := frameTimeSum / time.Duration(frameCount)
-				log.Printf("[DEBUG] frame time: %s, memory: %d", elapsed, mem.Alloc)
+				avgFrameTime := frameTimeSum / time.Duration(frameCount)
+				log.Printf("[INFO] frame time: %v, memory: %d", avgFrameTime, mem.HeapAlloc)
 				frameTimeSum = 0
 				frameCount = 0
 			}
 		}
 
-		return nil
+		return framePtr
 	}))
 
 	js.Global().Set("uploadROM", js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -89,7 +89,7 @@ func main() {
 		romData := make([]byte, data.Length())
 		js.CopyBytesToGo(romData, data)
 
-		nes2, err := createSystem(joystick, romData)
+		nes2, err := create(joystick, romData)
 		if err != nil {
 			log.Printf("[ERROR] failed to initialize: %v", err)
 			return false
