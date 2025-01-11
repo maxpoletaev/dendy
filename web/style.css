@@ -11,133 +11,36 @@ body {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
-.container {
-  background-color: #ffffff;
-  width: 512px;
+.console {
   border-radius: 12px;
+  background: #959595;
+  padding: 20px;
+}
+
+.console__screen {
   overflow: hidden;
-  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  background: #101010;
+  margin-bottom: 15px;
 }
 
-.header {
-  background-color: #e53e3e;
-  color: white;
-  padding: 15px;
-  text-align: center;
+.console__controls {
+  /*margin-bottom: 10px;*/
+}
+
+.console__rom {
+  margin-bottom: 15px;
+}
+
+.screen {
   position: relative;
 }
 
-.header h1 {
-  margin: 0;
-  font-size: 1.5em;
-  letter-spacing: 1px;
-}
-
-.game-section {
-  position: relative;
-  background: #000;
-  width: 100%;
-}
-
-.game-window {
-  height: 480px;
-  border-bottom: 1px solid #2d3748;
-}
-
-.game-window canvas {
+.screen__canvas {
   display: block;
 }
 
-.upload-section {
-  padding: 20px;
-}
-
-.rom-upload {
-  font-size: 0.9em;
-  padding: 10px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid #edf2f7;
-  border-radius: 8px;
-  background: #f7fafc;
-  margin-bottom: 20px;
-}
-
-.info-section {
-  padding: 20px;
-}
-
-.controls-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.control-item {
-  background: #f7fafc;
-  padding: 10px;
-  border-radius: 8px;
-  text-align: center;
-  border: 1px solid #edf2f7;
-}
-
-.control-key {
-  font-weight: bold;
-  color: #e53e3e;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.control-action {
-  font-size: 0.9em;
-  color: #4a5568;
-}
-
-.project-info {
-  background: #f7fafc;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 0.9em;
-  line-height: 1.6;
-}
-
-.project-info h2 {
-  color: #e53e3e;
-  margin: 0 0 10px 0;
-  font-size: 1.2em;
-}
-
-.features {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.feature-item::before {
-  content: "•";
-  color: #e53e3e;
-}
-
-.source-link {
-  position: relative;
-  text-align: center;
-  margin-bottom: 20px;
-  font-size: 0.9em;
-}
-
-.source-link a {
-  color: #4a5568;
-}
-
-.unmute {
+.screen__unmute {
   position: absolute;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(5px);
@@ -149,4 +52,223 @@ body {
   bottom: 40px;
   font-size: 1.1em;
   white-space: nowrap;
+}
+
+/* Controls styles are inspired by
+   https://codepen.io/injectilo/pen/MYJrmm */
+
+.controls {
+  padding: 30px;
+  background: #686868;
+  display: flex;
+  position: relative;
+  flex-direction: row;
+  justify-content: space-between;
+  border: 1px solid #4e4e4e;
+  border-radius: 10px;
+}
+
+.controls__dpad {
+  position: relative;
+}
+
+.controls__center {
+  margin-top: 60px;
+}
+
+.controls__ab {
+  margin-top: 50px;
+}
+
+.dpad {
+  position: relative;
+  height: 110px;
+  width: 110px;
+  color: #000000;
+}
+
+.dpad__horizontal {
+  position: absolute;
+  width: 100%;
+  height: 38px;
+  border-radius: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #252725;
+  z-index: 1;
+}
+
+.dpad__vertical {
+  position: absolute;
+  width: 38px;
+  height: 100%;
+  left: 50%;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  background: #252725;
+  z-index: 2;
+}
+
+.dpad__button {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: bold;
+  position: absolute;
+  text-align: center;
+  line-height: 35px;
+  cursor: pointer;
+  user-select: none;
+  width: 38px;
+  height: 38px;
+  z-index: 1;
+}
+
+.dpad__button.-left {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.5);
+  z-index: 0;
+  left: 0;
+}
+
+.dpad__button.-right {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.5);
+  z-index: 0;
+  right: 0;
+}
+
+.dpad__button.-up {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.5) ;
+  z-index: 1;
+  top: 0;
+}
+
+.dpad__button.-down {
+  bottom: 0;
+}
+
+.dpad__border {
+  position: absolute;
+  background: #edece7;
+}
+
+.dpad__border.-vert {
+  width: 46px;
+  top: -3px;
+  bottom: -3px;
+  z-index: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 4px;
+}
+
+.dpad__border.-horiz {
+  height: 46px;
+  left: -3px;
+  right: -3px;
+  z-index: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 4px;
+}
+
+.dpad__circle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  margin: auto;
+  z-index: 3;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgb(22, 22, 22) 30%, rgb(58, 58, 58) 100%);
+  box-shadow: inset 0 -2px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+.center-buttons {
+  margin: auto;
+  width: 142px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: #edece7;
+  border: 4px solid #e0ded4;
+  box-shadow: inset 0 0 2px 2px rgba(0, 0, 0, 0.3);
+  z-index: 3;
+  display: flex;
+}
+
+.center-buttons__button {
+  position: relative;
+  top: 3px;
+  width: 42px;
+  height: 18px;
+  cursor: pointer;
+  user-select: none;
+  background-color: #464646;
+  border-radius: 10px;
+  border: 1px solid #272723;
+  margin: 9px 13px;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.51);
+}
+
+.center-buttons__label {
+  color: rgba(255, 255, 255, 0.6);
+  position: absolute;
+  font-weight: bold;
+  text-align: center;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -40px;
+}
+
+.ab {
+  position: relative;
+  display: flex;
+}
+
+.ab__border {
+  position: relative;
+  border-radius: 4px;
+  background-color: #edece7;
+  margin: 6px;
+  padding: 6px;
+}
+
+.ab__button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  float: left;
+  text-align: center;
+  line-height: 40px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px rgba(0, 0, 0, 0.51) solid;
+  background: linear-gradient(to bottom, #df2015 0%, #f84936 100%);
+  box-shadow: inset 0 1px 2px 0 #fbfbfb, 0 1px 1px 0 rgba(0, 0, 0, 0.71);
+}
+
+.rom-select {
+  border-radius: 12px;
+  border: 1px dashed #4e4e4e;
+  text-align: center;
+  cursor: pointer;
+  display: block;
+  padding: 15px;
+}
+
+.rom-select svg {
+  position: relative;
+  top: 3px;
+}
+
+.source-link {
+  padding: 15px 0;
+  text-align: center;
+  font-size: 0.9em;
+}
+
+.source-link a {
+  color: #a9a9a9;
 }

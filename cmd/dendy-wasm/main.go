@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	audioBufferSize = 512
+	audioBufferSize = 1024 // must be multiple 128 as JS consumes samples in 128 chunks
 )
 
 //go:embed nestest.nes

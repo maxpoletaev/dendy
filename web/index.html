@@ -2,56 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=0.6">
   <title>Dendy Emulator (WASM)</title>
   <link rel="stylesheet" href="style.css">
   <script src="wasm_exec.js"></script>
   <script src="main.js"></script>
 </head>
 <body>
-
   <div class="container">
-    <div class="game-section">
-      <div class="game-window">
-        <div class="unmute" id="unmute-button" style="display:none;">🔇 Click anywhere to unmute</div>
-        <canvas id="canvas"></canvas>
+    <div class="console">
+      <div class="console__screen">
+        <div class="screen">
+          <canvas id="canvas" class="screen__canvas"></canvas>
+          <div class="screen__unmute" id="unmute-button" style="display:none;">🔇 Click anywhere to unmute</div>
+        </div>
+      </div>
+      <div class="console__rom">
+        <label class="rom-select" for="file-input">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+          <span class="rom-select__text">Select ROM (.nes)</span>
+          <input type="file" id="file-input" accept=".nes" style="display: none;">
+        </label>
+      </div>
+      <div class="console__controls">
+        <div class="controls">
+          <div class="controls__dpad">
+            <div class="dpad">
+              <div class="dpad__vertical">
+                <div class="dpad__button -up" id="dpad-up">W</div>
+                <div class="dpad__button -down" id="dpad-down">S</div>
+              </div>
+              <div class="dpad__horizontal">
+                <div class="dpad__button -left" id="dpad-left">A</div>
+                <div class="dpad__button -right" id="dpad-right">D</div>
+              </div>
+              <div class="dpad__border -vert"></div>
+              <div class="dpad__border -horiz"></div>
+              <div class="dpad__circle"></div>
+            </div>
+          </div>
+          <div class="controls__center">
+            <div class="center-buttons">
+              <div class="center-buttons__button -select" id="button-select">
+                <div class="center-buttons__label">RShift</div>
+              </div>
+              <div class="center-buttons__button -start" id="button-start">
+                <div class="center-buttons__label">Enter</div>
+              </div>
+            </div>
+          </div>
+          <div class="controls__ab">
+            <div class="ab">
+              <div class="ab__border">
+                <div class="ab__button -b" id="button-b">J</div>
+              </div>
+              <div class="ab__border">
+                <div class="ab__button -a" id="button-a">K</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-
-    <div class="info-section">
-      <div class="rom-upload">
-        Select ROM (.nes):
-        <input type="file" id="file-input" accept=".nes">
-      </div>
-
-      <div class="controls-grid">
-        <div class="control-item">
-          <span class="control-key">WASD</span>
-          <span class="control-action">D-Pad</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">J</span>
-          <span class="control-action">B Button</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">K</span>
-          <span class="control-action">A Button</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">Enter</span>
-          <span class="control-action">Start</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">Right Shift</span>
-          <span class="control-action">Select</span>
-        </div>
-        <div class="control-item">
-          <span class="control-key">⌘+R</span>
-          <span class="control-action">Reset</span>
-        </div>
-      </div>
-    </div>
-
     <div class="source-link">
       <a href="https://github.com/maxpoletaev/dendy" target="_blank">https://github.com/maxpoletaev/dendy</a>
     </div>

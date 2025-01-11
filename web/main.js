@@ -17,9 +17,6 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   const TARGET_FPS = 60;
   const SCALE = 2;
 
-  const audioBufferSize = go.AudioBufferSize;
-  const audioSampleRate = go.AudioSampleRate;
-
   // ========================
   // Canvas setup
   // ========================
@@ -38,10 +35,10 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   //  Audio setup
   // ========================
 
+  const audioBufferSize = go.AudioBufferSize;
+  const audioSampleRate = go.AudioSampleRate;
   console.log(`[INFO] audio sample rate: ${audioSampleRate}, buffer size: ${audioBufferSize}`);
-  let audioCtx = new AudioContext({
-    sampleRate: audioSampleRate,
-  });
+  let audioCtx = new AudioContext({sampleRate: audioSampleRate});
 
   await audioCtx.audioWorklet.addModule("audio.js");
   let audioNode = new AudioWorkletNode(audioCtx, "audio-processor");
@@ -62,7 +59,6 @@ Promise.all([wasmReady, documentReady]).then(async () => {
       audioCtx.resume();
     }
   }, {once: true});
-
 
   // ========================
   //  Input handling
@@ -104,6 +100,25 @@ Promise.all([wasmReady, documentReady]).then(async () => {
     }
   });
 
+  const elementKeyMap = {
+    "dpad-up": BUTTON_UP,
+    "dpad-down": BUTTON_DOWN,
+    "dpad-left": BUTTON_LEFT,
+    "dpad-right": BUTTON_RIGHT,
+    "button-start": BUTTON_START,
+    "button-select": BUTTON_SELECT,
+    "button-b": BUTTON_B,
+    "button-a": BUTTON_A,
+  };
+
+  for (let [id, mask] of Object.entries(elementKeyMap)) {
+    let element = document.getElementById(id);
+    element.addEventListener("mousedown", () => { buttonsPressed |= mask; });
+    element.addEventListener("touchstart", () => { buttonsPressed |= mask; });
+    element.addEventListener("mouseup", () => { buttonsPressed &= ~mask; });
+    element.addEventListener("touchend", () => { buttonsPressed &= ~mask; });
+  }
+
   // ========================
   //  ROM loading
   // ========================
@@ -132,6 +147,16 @@ Promise.all([wasmReady, documentReady]).then(async () => {
     });
   }
 
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileInput.files = e.dataTransfer.files;
+    fileInput.dispatchEvent(new Event('input'));
+  });
+
   // ========================
   //  Game loop
   // ========================
@@ -152,7 +177,7 @@ Promise.all([wasmReady, documentReady]).then(async () => {
         let framePtr = go.GetFrameBufferPtr();
         let image = new ImageData(new Uint8ClampedArray(getMemoryBuffer(), framePtr, WIDTH * HEIGHT * 4), WIDTH, HEIGHT);
         ctx.putImageData(image, 0, 0);
-        return
+        return;
       }
 
       let audioBufPtr = go.GetAudioBufferPtr();
@@ -165,14 +190,14 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   const frameTime = 1000 / TARGET_FPS;
 
   function loop() {
-    requestAnimationFrame(loop)
+    requestAnimationFrame(loop);
 
-    const now = performance.now()
-    const elapsed = now - lastFrameTime
-    if (elapsed < frameTime) return
+    const now = performance.now();
+    const elapsed = now - lastFrameTime;
+    if (elapsed < frameTime) return;
 
-    const excessTime = elapsed % frameTime
-    lastFrameTime = now - excessTime
+    const excessTime = elapsed % frameTime;
+    lastFrameTime = now - excessTime;
 
     if (isInFocus()) {
       executeFrame();

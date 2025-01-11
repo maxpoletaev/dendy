@@ -15,12 +15,13 @@ network multiplayer feature, so it’s not completely useless.
 
 <img src="screenshots.png" alt="Screenshots">
 
-## WebAssembly Build
+## WebAssembly
 
-WebAssembly version for modern browsers is available at https://maxpoletaev.github.io/dendy/.
-It runs smoothly in modern browsers, though it does not support netplay in its 
-current form. (there was an [experimental][wasm-netplay] implementation of 
-netplay over WebRTC, but it was too slow and unreliable to be usable).
+The WASM-compiled version for modern browsers is available at 
+https://maxpoletaev.github.io/dendy/. It runs surprisingly smooth, though it does 
+not support netplay in its current form (there was an [experimental][wasm-netplay] 
+implementation of it over WebRTC, but it was too slow and unreliable to be 
+usable).
 
 [wasm-netplay]: https://drive.google.com/file/d/1r3ZY20L168u3djRMWA_KLMrY0eIr1ify/view?usp=sharing
 
@@ -262,42 +263,21 @@ nescartdb.com.
 
 ## Dependencies
 
- * https://github.com/gen2brain/raylib-go/raylib - Go bindings for raylib (graphics/audio)
+ * https://github.com/gen2brain/raylib-go/raylib - Go bindings for Raylib (graphics/audio)
  * https://github.com/xtaci/kcp-go - TCP-over-UDP for netplay
 
 ## Resources
 
-Although NES emulation is a pretty well-covered topic, It is still a very
-interesting and challenging project to work on. Here are some of the resources
-that I found particularly useful while writing this emulator. Big thanks to
-everyone who made them!
-
-### Documentation
-
 * [NESDev Wiki](https://www.nesdev.org/wiki/Nesdev_Wiki)
-* [MOS 6502 CPU Reference](https://web.archive.org/web/20210429110213/http://obelisk.me.uk/6502/) by Andrew Jabobs, 2009
-* [Extra Instructions of the 65xx Series CPU](http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes) by Adam Vardy, 1996
-* [NES Rendering Overview](https://austinmorlan.com/posts/nes_rendering_overview/) by Austin Morlan, 2019
-* [Making NES Games in Assembly](https://famicom.party/book/) by Kevin Zurawel, 2021
+* [MOS 6502 CPU Reference](https://web.archive.org/web/20210429110213/http://obelisk.me.uk/6502/) by Andrew Jabobs
+* [Extra Instructions of the 65xx Series CPU](http://www.ffd2.com/fridge/docs/6502-NMOS.extra.opcodes) by Adam Vardy
+* [NES Rendering Overview](https://austinmorlan.com/posts/nes_rendering_overview/) by Austin Morlan
+* [Making NES Games in Assembly](https://famicom.party/book/) by Kevin Zurawel
+* [NES Emulator from Scratch](https://www.youtube.com/playlist?list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf) series by javidx9
+* [Audio pseudo-code](https://forums.nesdev.org/viewtopic.php?t=13767) by oRBIT2002
 * [Retroarch Netplay README](https://github.com/libretro/RetroArch/blob/master/network/netplay/README)
-* [Audio pseudo-code](https://forums.nesdev.org/viewtopic.php?t=13767)
 
-### Videos
-
-* The [NES Emulator from Scratch][nesemu] series covers most of the topics from
-  the CPU to the sound, but I found the two videos about the PPU to be the most
-  useful for understanding the obscure details of the NES rendering pipeline:
-  [[1]][ppu1], [[2]][ppu2].
-
-[nesemu]: https://www.youtube.com/playlist?list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf
-[ppu1]: https://www.youtube.com/watch?v=-THeUXqR3zY&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=5
-[ppu2]: https://www.youtube.com/watch?v=cksywUTZxlY&list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf&index=6
-
-### Code
-
-During bad times, it’s always nice to look at other people’s code to see how
-they solved the same problems. Here are some of the emulators written by other
-people that I often referred to when I was stuck:
+## Referenced Projects
 
 * [github.com/OneLoneCoder/olcNES](https://github.com/OneLoneCoder/olcNES)
 * [github.com/ad-sho-loko/goones](https://github.com/ad-sho-loko/goones)
