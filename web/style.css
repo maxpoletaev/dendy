@@ -13,23 +13,23 @@ body {
 
 .console {
   border-radius: 12px;
-  background: #959595;
-  padding: 20px;
+  background: #cacaca;
+  overflow: hidden;
 }
 
 .console__screen {
-  overflow: hidden;
-  border-radius: 10px;
   background: #101010;
+  margin-bottom: 20px;
+}
+
+.console__rom {
+  padding: 0 20px;
   margin-bottom: 15px;
 }
 
 .console__controls {
-  /*margin-bottom: 10px;*/
-}
-
-.console__rom {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  padding: 0 20px;
 }
 
 .screen {
@@ -58,13 +58,12 @@ body {
    https://codepen.io/injectilo/pen/MYJrmm */
 
 .controls {
-  padding: 30px;
-  background: #686868;
+  padding: 25px 20px;
+  background: #4e4e4e;
   display: flex;
   position: relative;
   flex-direction: row;
   justify-content: space-between;
-  border: 1px solid #4e4e4e;
   border-radius: 10px;
 }
 
@@ -150,9 +149,9 @@ body {
 }
 
 .dpad__border.-vert {
-  width: 46px;
-  top: -3px;
-  bottom: -3px;
+  width: 42px;
+  top: -2px;
+  bottom: -2px;
   z-index: 0;
   left: 50%;
   transform: translateX(-50%);
@@ -160,9 +159,9 @@ body {
 }
 
 .dpad__border.-horiz {
-  height: 46px;
-  left: -3px;
-  right: -3px;
+  height: 42px;
+  left: -2px;
+  right: -2px;
   z-index: 0;
   top: 50%;
   transform: translateY(-50%);
@@ -229,7 +228,7 @@ body {
   position: relative;
   border-radius: 4px;
   background-color: #edece7;
-  margin: 6px;
+  margin-left: 6px;
   padding: 6px;
 }
 
@@ -251,6 +250,7 @@ body {
 
 .rom-select {
   border-radius: 12px;
+  background: #edece7;
   border: 1px dashed #4e4e4e;
   text-align: center;
   cursor: pointer;
