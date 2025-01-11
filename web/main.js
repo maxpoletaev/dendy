@@ -80,6 +80,7 @@ Promise.all([wasmReady, documentReady]).then(async () => {
     "KeyD": BUTTON_RIGHT,
     "Enter": BUTTON_START,
     "ShiftRight": BUTTON_SELECT,
+    "LeftShift": BUTTON_SELECT,
     "KeyJ": BUTTON_B,
     "KeyK": BUTTON_A,
   };
@@ -112,11 +113,11 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   };
 
   for (let [id, mask] of Object.entries(elementKeyMap)) {
-    let element = document.getElementById(id);
-    element.addEventListener("mousedown", () => { buttonsPressed |= mask; });
-    element.addEventListener("touchstart", () => { buttonsPressed |= mask; });
-    element.addEventListener("mouseup", () => { buttonsPressed &= ~mask; });
-    element.addEventListener("touchend", () => { buttonsPressed &= ~mask; });
+    let el = document.getElementById(id);
+    el.addEventListener("mousedown", () => { buttonsPressed |= mask; });
+    el.addEventListener("touchstart", () => { buttonsPressed |= mask; });
+    el.addEventListener("mouseup", () => { buttonsPressed &= ~mask; });
+    el.addEventListener("touchend", () => { buttonsPressed &= ~mask; });
   }
 
   // ========================
@@ -147,14 +148,14 @@ Promise.all([wasmReady, documentReady]).then(async () => {
     });
   }
 
-  document.addEventListener('dragover', (e) => {
+  document.addEventListener("dragover", (e) => {
     e.preventDefault();
   });
 
-  document.addEventListener('drop', (e) => {
+  document.addEventListener("drop", (e) => {
     e.preventDefault();
     fileInput.files = e.dataTransfer.files;
-    fileInput.dispatchEvent(new Event('input'));
+    fileInput.dispatchEvent(new Event("input"));
   });
 
   // ========================
@@ -182,7 +183,7 @@ Promise.all([wasmReady, documentReady]).then(async () => {
 
       let audioBufPtr = go.GetAudioBufferPtr();
       let audioBuf = new Float32Array(getMemoryBuffer(), audioBufPtr, go.AudioBufferSize);
-      audioNode.port.postMessage(audioBuf.slice());
+      audioNode.port.postMessage(audioBuf.slice()); // TODO: avoid copy
     }
   }
 

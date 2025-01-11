@@ -7,7 +7,7 @@ class AudioProcessor extends AudioWorkletProcessor {
 
     this.port.onmessage = (e) => {
       this.buffers.push(e.data);
-      if (this.buffers.length > 3) {
+      if (this.buffers.length > 2) {
         this.buffers.shift();
       }
     };
@@ -22,17 +22,13 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.position = 0;
 
       if (!this.current) {
-        for (let i = 0; i < channel.length; i++) {
-          channel[i] = 0;
-        }
+        channel.fill(0);
         return true;
       }
     }
 
-    for (let i = 0; i < channel.length; i++) {
-      channel[i] = this.current[this.position++];
-    }
-
+    channel.set(this.current.subarray(this.position, this.position + channel.length));
+    this.position += channel.length;
     return true;
   }
 }
