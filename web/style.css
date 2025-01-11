@@ -16,7 +16,7 @@ body {
   width: 512px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
 }
 
 .header {
@@ -41,7 +41,7 @@ body {
 
 .game-window {
   height: 480px;
-  border-bottom: 2px solid #2d3748;
+  border-bottom: 1px solid #2d3748;
 }
 
 .game-window canvas {
@@ -135,4 +135,18 @@ body {
 
 .source-link a {
   color: #4a5568;
+}
+
+.unmute {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  border-radius: 20px;
+  padding: 10px;
+  color: white;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 40px;
+  font-size: 1.1em;
+  white-space: nowrap;
 }

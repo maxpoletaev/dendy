@@ -134,7 +134,7 @@ func (a *APU) Output() float32 {
 		out = f.do(out)
 	}
 
-	return out * 5.0
+	return clamp(out, -1, 1)
 }
 
 func (a *APU) Tick() {
@@ -229,4 +229,13 @@ func (a *APU) LoadState(r *binario.Reader) error {
 		r.ReadBoolTo(&a.irqDisable),
 		r.ReadBoolTo(&a.frameIRQ),
 	)
+}
+
+func clamp(v float32, min, max float32) float32 {
+	if v < min {
+		return min
+	} else if v > max {
+		return max
+	}
+	return v
 }

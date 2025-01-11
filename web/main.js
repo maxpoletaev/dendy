@@ -6,27 +6,67 @@ const documentReady = new Promise((resolve) => {
   }
 });
 
-const go = new Go();
+window.go = new Go();
 const wasmReady = WebAssembly.instantiateStreaming(fetch("dendy.wasm"), go.importObject).then((result) => {
   go.run(result.instance);
 });
 
-Promise.all([wasmReady, documentReady]).then(() => {
-  const width = 256;
-  const height = 240;
-  const targetFPS = 60;
-  const scale = 2;
+Promise.all([wasmReady, documentReady]).then(async () => {
+  const WIDTH = 256;
+  const HEIGHT = 240;
+  const TARGET_FPS = 60;
+  const SCALE = 2;
+
+  const audioBufferSize = go.AudioBufferSize;
+  const audioSampleRate = go.AudioSampleRate;
+
+  // ========================
+  // Canvas setup
+  // ========================
 
   let canvas = document.getElementById("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  canvas.style.width = width*scale + "px";
-  canvas.style.height = height*scale + "px";
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  canvas.style.width = WIDTH * SCALE + "px";
+  canvas.style.height = HEIGHT * SCALE + "px";
   canvas.style.imageRendering = "pixelated";
 
   let ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  let buttonsPressed = 0;
+
+  // ========================
+  //  Audio setup
+  // ========================
+
+  console.log(`[INFO] audio sample rate: ${audioSampleRate}, buffer size: ${audioBufferSize}`);
+  let audioCtx = new AudioContext({
+    sampleRate: audioSampleRate,
+  });
+
+  await audioCtx.audioWorklet.addModule("audio.js");
+  let audioNode = new AudioWorkletNode(audioCtx, "audio-processor");
+  audioNode.connect(audioCtx.destination);
+
+  // ========================
+  //  Mute/unmute button
+  // ========================
+
+  let unmuteButton = document.getElementById("unmute-button");
+  if (audioCtx.state === "suspended") {
+    unmuteButton.style.display = "block";
+  }
+
+  document.addEventListener("click", function() {
+    if (audioCtx.state === "suspended") {
+      unmuteButton.style.display = "none";
+      audioCtx.resume();
+    }
+  }, {once: true});
+
+
+  // ========================
+  //  Input handling
+  // ========================
 
   const BUTTON_A = 1 << 0;
   const BUTTON_B = 1 << 1;
@@ -48,6 +88,8 @@ Promise.all([wasmReady, documentReady]).then(() => {
     "KeyK": BUTTON_A,
   };
 
+  let buttonsPressed = 0;
+
   document.addEventListener("keydown", (event) => {
     if (keyMap[event.code]) {
       event.preventDefault();
@@ -62,52 +104,80 @@ Promise.all([wasmReady, documentReady]).then(() => {
     }
   });
 
+  // ========================
+  //  ROM loading
+  // ========================
+
   let fileInput = document.getElementById("file-input");
 
-  fileInput.addEventListener("input", function() {
+  fileInput.addEventListener("input", function () {
     this.files[0].arrayBuffer().then((buffer) => {
       let rom = new Uint8Array(buffer);
-      let ok = uploadROM(rom);
+      let ok = go.LoadROM(rom);
       if (!ok) {
-        alert("Invalid ROM file");
+        alert("Invalid or unsupported ROM file");
         this.value = "";
       }
     });
-    this.blur();
+    this.blur(); // Avoid re-opening file dialog when pressing Enter
   });
 
   if (fileInput.files.length > 0) {
     fileInput.files[0].arrayBuffer().then((buffer) => {
       let rom = new Uint8Array(buffer);
-      let ok = uploadROM(rom);
+      let ok = go.LoadROM(rom);
       if (!ok) {
         fileInput.value = "";
       }
     });
   }
 
+  // ========================
+  //  Game loop
+  // ========================
+
   function isInFocus() {
     return document.hasFocus() && document.visibilityState === "visible";
   }
 
-  function gameLoop() {
-    let nextFrame = () => {
-      let start = performance.now();
-
-      if (isInFocus()) {
-        let framePtr = runFrame(buttonsPressed);
-        let memPtr = go._inst.exports.mem?.buffer || go._inst.exports.memory.buffer; // latter is for TinyGo
-        let image = new ImageData(new Uint8ClampedArray(memPtr, framePtr, width * height * 4), width, height);
-        ctx.putImageData(image, 0, 0);
-      }
-
-      let elapsed = performance.now() - start;
-      let nextTimeout = Math.max(0, (1000 / targetFPS) - elapsed);
-      setTimeout(nextFrame, nextTimeout);
-    };
-
-    nextFrame();
+  function getMemoryBuffer() {
+    return go._inst.exports.mem?.buffer || go._inst.exports.memory.buffer; // latter is for TinyGo
   }
 
-  gameLoop();
+  function executeFrame() {
+    while (true) {
+      let frameReady = go.RunFrame(buttonsPressed);
+
+      if (frameReady) {
+        let framePtr = go.GetFrameBufferPtr();
+        let image = new ImageData(new Uint8ClampedArray(getMemoryBuffer(), framePtr, WIDTH * HEIGHT * 4), WIDTH, HEIGHT);
+        ctx.putImageData(image, 0, 0);
+        return
+      }
+
+      let audioBufPtr = go.GetAudioBufferPtr();
+      let audioBuf = new Float32Array(getMemoryBuffer(), audioBufPtr, go.AudioBufferSize);
+      audioNode.port.postMessage(audioBuf.slice());
+    }
+  }
+
+  let lastFrameTime = performance.now();
+  const frameTime = 1000 / TARGET_FPS;
+
+  function loop() {
+    requestAnimationFrame(loop)
+
+    const now = performance.now()
+    const elapsed = now - lastFrameTime
+    if (elapsed < frameTime) return
+
+    const excessTime = elapsed % frameTime
+    lastFrameTime = now - excessTime
+
+    if (isInFocus()) {
+      executeFrame();
+    }
+  }
+
+  requestAnimationFrame(loop);
 });

@@ -4,22 +4,21 @@ import (
 	_ "embed"
 	"fmt"
 	"log"
-	"runtime"
 	"syscall/js"
-	"time"
 	"unsafe"
 
+	"github.com/maxpoletaev/dendy/consts"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/input"
 	"github.com/maxpoletaev/dendy/system"
 )
 
 const (
-	debugFrameTime = false
+	audioBufferSize = 512
 )
 
 //go:embed nestest.nes
-var bootROM []byte
+var nestestROM []byte
 
 func create(joy *input.Joystick, romData []byte) (*system.System, error) {
 	rom, err := ines.NewFromBuffer(romData)
@@ -40,51 +39,60 @@ func create(joy *input.Joystick, romData []byte) (*system.System, error) {
 func main() {
 	log.SetFlags(0) // disable timestamps
 	joystick := input.NewJoystick()
+	audioBuf := make([]float32, audioBufferSize)
 
-	nes, err := create(joystick, bootROM)
+	nes, err := create(joystick, nestestROM)
 	if err != nil {
 		log.Fatalf("[ERROR] failed to initialize: %v", err)
 	}
 
+	global := js.Global()
+	jsapi := global.Get("go")
+	jsapi.Set("AudioBufferSize", audioBufferSize)
+	jsapi.Set("AudioSampleRate", consts.AudioSamplesPerSecond)
+
 	var (
-		mem          runtime.MemStats
-		frameTimeSum time.Duration
-		frameCount   uint
+		ticksCount  int
+		sampleCount int
 	)
 
-	js.Global().Set("runFrame", js.FuncOf(func(this js.Value, args []js.Value) any {
+	jsapi.Set("RunFrame", js.FuncOf(func(this js.Value, args []js.Value) any {
 		buttons := args[0].Int()
-		start := time.Now()
-		var framePtr uintptr
+		frameReady := false
 
-		for {
-			nes.Tick()
-			if nes.FrameReady() {
-				frame := nes.Frame()
-				joystick.SetButtons(uint8(buttons))
-				framePtr = uintptr(unsafe.Pointer(&frame[0]))
-				break
+		for sampleCount < len(audioBuf) {
+			for ticksCount < consts.TicksPerAudioSample {
+				nes.Tick()
+				ticksCount++
+
+				if nes.FrameReady() {
+					joystick.SetButtons(uint8(buttons))
+					frameReady = true
+				}
+			}
+
+			audioBuf[sampleCount] = nes.AudioSample()
+			sampleCount++
+			ticksCount = 0
+
+			if frameReady {
+				return true
 			}
 		}
 
-		if debugFrameTime {
-			frameTime := time.Since(start)
-			frameTimeSum += frameTime
-			frameCount++
-
-			if frameCount%120 == 0 {
-				runtime.ReadMemStats(&mem)
-				avgFrameTime := frameTimeSum / time.Duration(frameCount)
-				log.Printf("[INFO] frame time: %v, memory: %d", avgFrameTime, mem.HeapAlloc)
-				frameTimeSum = 0
-				frameCount = 0
-			}
-		}
-
-		return framePtr
+		sampleCount = 0
+		return false
 	}))
 
-	js.Global().Set("uploadROM", js.FuncOf(func(this js.Value, args []js.Value) any {
+	jsapi.Set("GetFrameBufferPtr", js.FuncOf(func(this js.Value, args []js.Value) any {
+		return uintptr(unsafe.Pointer(&nes.Frame()[0]))
+	}))
+
+	jsapi.Set("GetAudioBufferPtr", js.FuncOf(func(this js.Value, args []js.Value) any {
+		return uintptr(unsafe.Pointer(&audioBuf[0]))
+	}))
+
+	jsapi.Set("LoadROM", js.FuncOf(func(this js.Value, args []js.Value) any {
 		data := js.Global().Get("Uint8Array").New(args[0])
 		romData := make([]byte, data.Length())
 		js.CopyBytesToGo(romData, data)

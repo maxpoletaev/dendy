@@ -15,6 +15,15 @@ network multiplayer feature, so it’s not completely useless.
 
 <img src="screenshots.png" alt="Screenshots">
 
+## WebAssembly Build
+
+WebAssembly version for modern browsers is available at https://maxpoletaev.github.io/dendy/.
+It runs smoothly in modern browsers, though it does not support netplay in its 
+current form. (there was an [experimental][wasm-netplay] implementation of 
+netplay over WebRTC, but it was too slow and unreliable to be usable).
+
+[wasm-netplay]: https://drive.google.com/file/d/1r3ZY20L168u3djRMWA_KLMrY0eIr1ify/view?usp=sharing
+
 ## Download
 
 You can download the latest pre-built binaries for Windows, macOS, and Linux
