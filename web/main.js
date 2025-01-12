@@ -114,7 +114,6 @@ Promise.all([wasmReady, documentReady]).then(async () => {
 
   for (let [id, mask] of Object.entries(elementKeyMap)) {
     let el = document.getElementById(id);
-    el.style.touchAction = "none";
 
     el.addEventListener("mousedown", (e) => {
       e.preventDefault();
@@ -136,6 +135,10 @@ Promise.all([wasmReady, documentReady]).then(async () => {
       buttonsPressed &= ~mask;
     });
   }
+
+  document.querySelectorAll(".controls *").forEach((el) => {
+    el.style.touchAction = "manipulation";
+  });
 
   // ========================
   //  ROM loading

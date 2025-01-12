@@ -87,6 +87,7 @@ body {
    https://codepen.io/injectilo/pen/MYJrmm */
 
 .controls {
+  touch-action: manipulation;
   padding: 25px 15px;
   background: #4e4e4e;
   display: flex;
@@ -147,6 +148,7 @@ body {
   transform: translateY(-50%);
   background: #252725;
   z-index: 1;
+  box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 .dpad__vertical {
@@ -157,6 +159,7 @@ body {
   border-radius: 4px;
   transform: translateX(-50%);
   background: #252725;
+  box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.4);
   z-index: 2;
 }
 
@@ -201,9 +204,9 @@ body {
 }
 
 .dpad__border.-vert {
-  width: 38px;
-  top: -2px;
-  bottom: -2px;
+  width: 40px;
+  top: -3px;
+  bottom: -3px;
   z-index: 0;
   left: 50%;
   transform: translateX(-50%);
@@ -211,9 +214,9 @@ body {
 }
 
 .dpad__border.-horiz {
-  height: 38px;
-  right: -2px;
-  left: -2px;
+  height: 40px;
+  right: -3px;
+  left: -3px;
   z-index: 0;
   top: 50%;
   transform: translateY(-50%);
@@ -232,7 +235,7 @@ body {
   z-index: 3;
   border-radius: 50%;
   background: linear-gradient(180deg, rgb(22, 22, 22) 30%, rgb(58, 58, 58) 100%);
-  box-shadow: inset 0 -2px 0 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2),  0 -1px rgba(0, 0, 0, 0.4);
 }
 
 .center-buttons {
@@ -256,7 +259,7 @@ body {
   user-select: none;
   background-color: #464646;
   border: 1px solid #272723;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.51);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.51), 0 1px 1px 0 rgba(0, 0, 0, 0.4)
 }
 
 .center-buttons__label {
@@ -296,7 +299,7 @@ body {
   color: rgba(255, 255, 255, 0.6);
   border: 1px rgba(0, 0, 0, 0.51) solid;
   background: linear-gradient(to bottom, #df2015 0%, #f84936 100%);
-  box-shadow: inset 0 1px 2px 0 #fbfbfb, 0 1px 1px 0 rgba(0, 0, 0, 0.71);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.5), 0 1px 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 .rom-select {
