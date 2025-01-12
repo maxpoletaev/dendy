@@ -24,8 +24,8 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   let canvas = document.getElementById("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
-  canvas.style.width = WIDTH * SCALE + "px";
-  canvas.style.height = HEIGHT * SCALE + "px";
+  // canvas.style.width = WIDTH * SCALE + "px";
+  // canvas.style.height = HEIGHT * SCALE + "px";
   canvas.style.imageRendering = "pixelated";
 
   let ctx = canvas.getContext("2d");
