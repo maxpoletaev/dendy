@@ -114,10 +114,27 @@ Promise.all([wasmReady, documentReady]).then(async () => {
 
   for (let [id, mask] of Object.entries(elementKeyMap)) {
     let el = document.getElementById(id);
-    el.addEventListener("mousedown", () => { buttonsPressed |= mask; });
-    el.addEventListener("touchstart", () => { buttonsPressed |= mask; });
-    el.addEventListener("mouseup", () => { buttonsPressed &= ~mask; });
-    el.addEventListener("touchend", () => { buttonsPressed &= ~mask; });
+    el.style.touchAction = "none";
+
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      buttonsPressed |= mask;
+    });
+
+    el.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      buttonsPressed |= mask;
+    });
+
+    el.addEventListener("mouseup", (e) => {
+      e.preventDefault();
+      buttonsPressed &= ~mask;
+    });
+
+    el.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      buttonsPressed &= ~mask;
+    });
   }
 
   // ========================
