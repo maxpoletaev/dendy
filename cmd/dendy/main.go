@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/maxpoletaev/dendy/consts"
+	"github.com/maxpoletaev/dendy/genie"
 	"github.com/maxpoletaev/dendy/ines"
 	"github.com/maxpoletaev/dendy/internal/loglevel"
 )
@@ -29,6 +30,7 @@ type options struct {
 	memprof       string
 	cpuprof       string
 	protocol      string
+	gg            string
 	mute          bool
 	noLogo        bool
 	noCRT         bool
@@ -49,6 +51,7 @@ func (o *options) parse() *options {
 	flag.BoolVar(&o.mute, "mute", false, "disable apu emulation")
 	flag.BoolVar(&o.noLogo, "nologo", false, "do not print logo")
 	flag.BoolVar(&o.noCRT, "nocrt", false, "disable CRT effect")
+	flag.StringVar(&o.gg, "gg", "", "game genie codes (comma separated)")
 
 	flag.StringVar(&o.protocol, "protocol", "tcp", "netplay protocol (tcp, udp)")
 	flag.StringVar(&o.listenAddr, "listen", "", "netplay listen address")
@@ -156,6 +159,22 @@ func main() {
 	if err != nil {
 		log.Printf("[ERROR] failed to open rom file: %s", err)
 		os.Exit(1)
+	}
+
+	// Game Genie was a cartridge pass-through device, and we emulate
+	// it as a cartridge pass-through device. How cool is that?
+	if opts.gg != "" {
+		gameGenie := genie.New(cart)
+		codes := strings.Split(opts.gg, ",")
+
+		for _, code := range codes {
+			if err := gameGenie.ApplyCode(code); err != nil {
+				log.Printf("[ERROR] failed to apply game genie code: %s", err)
+				os.Exit(1)
+			}
+		}
+
+		cart = gameGenie
 	}
 
 	saveFile := opts.saveFile

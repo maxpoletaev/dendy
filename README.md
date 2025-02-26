@@ -9,7 +9,7 @@
 
 Dendy is a NES/Famicom emulator written in Go and named after the post-soviet Famicom
 clone, that I used to have back in my childhood. It’s nothing serious, so do not 
-expect it to beat any of the existing emulators in terms of performance or accuracy. 
+expect it to beat any of the existing emulators in terms of accuracy and compatibility. 
 Yet, it is capable of running most of the games I tried, and it comes with a nice 
 network multiplayer feature, so it’s not completely useless.
 
@@ -66,6 +66,7 @@ There’s a bunch of command line flags that you can learn about by running
  * `-listen` and `-connect` - For network multiplayer (see below)
  * `-nosave` - Do not load and save the game state on exit
  * `-nocrt` - Disables the CRT effect, in case you don’t like it
+ * `-gg` - Apply Game Genie codes (comma-separated)
 
 ## Controls
 
@@ -99,6 +100,16 @@ point the mouse cursor at the right position on the screen and click to shoot.
  * `CTRL+Z` or `⌘+Z` - Undo/Rewind 5 seconds back in time
  * `F12` - Take a screenshot
  * `M` - Mute/unmute
+
+## Game Genie Codes
+
+Game Genie was a cartridge pass-through device that allowed players to modify
+the game program ROM data with special codes, creating new effects and cheats.
+The code was basically a memory address and a value it should be set to, encoded
+in a 6 or 8 character string. For example, the code `SXIOPO` for Super Mario Bros.
+
+You can use various Game Genie codes available on the iwith this emulator by 
+passing them as a comma-separated list to the `-gg` flag.
 
 ## Network Multiplayer
 
@@ -276,6 +287,7 @@ nescartdb.com.
 * [NES Emulator from Scratch](https://www.youtube.com/playlist?list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf) series by javidx9
 * [Audio pseudo-code](https://forums.nesdev.org/viewtopic.php?t=13767) by oRBIT2002
 * [Retroarch Netplay README](https://github.com/libretro/RetroArch/blob/master/network/netplay/README)
+* [GameGenie Technical Notes](https://tuxnes.sourceforge.net/gamegenie.html)
 
 ## Referenced Projects
 

@@ -51,7 +51,7 @@ func (b *Bus) Read(addr uint16) uint8 {
 		return b.port2.Read()
 	case addr >= 0x4018 && addr <= 0x401F: // Unused APU/IO registers.
 		return 0
-	default: // Cartridge space.
+	default: // 0x8000-0xFFFF: Cartridge space.
 		return b.cart.ReadPRG(addr)
 	}
 }
@@ -75,7 +75,7 @@ func (b *Bus) Write(addr uint16, data uint8) {
 		b.apu.Write(addr, data)
 	case addr >= 0x4018 && addr <= 0x401F: // Unused APU/IO registers.
 		return
-	default: // Cartridge space.
+	default: // 0x8000-0xFFFF: Cartridge space.
 		b.cart.WritePRG(addr, data)
 	}
 }

@@ -17,6 +17,7 @@
  * In the offline mode there is now a rewind feature which can be used to go back
    in time in 5 second steps to quickly recover from mistakes. Can be used by
    pressing Ctrl+Z or ⌘+Z.
+ * Game Genie codes support via the -gg flag.
 
 ## v1.0.0 - 2024-01-26
 
