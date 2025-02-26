@@ -38,11 +38,11 @@ func (gg *GameGenie) ApplyCode(code string) error {
 	case 6:
 		addr, ov := decode6(sb)
 		gg.prgOverride[addr-0x8000] = ov
-		log.Printf("[INFO] code %q applied: addr=0x%04X, data=0x%02X", code, addr, ov.data)
+		log.Printf("[INFO] code applied: %s (addr=0x%04X data=0x%02X)", code, addr, ov.data)
 	case 8:
 		addr, ov := decode8(sb)
 		gg.prgOverride[addr-0x8000] = ov
-		log.Printf("[INFO] code %q applied: addr=0x%04X, cmp=%0x02X, data=0x%02X", code, addr, ov.cmp, ov.data)
+		log.Printf("[INFO] code applied: %s (addr=0x%04X data=0x%02X cmp=0x%02X)", code, addr, ov.cmp, ov.data)
 	default:
 		return errors.New("invalid code length")
 	}

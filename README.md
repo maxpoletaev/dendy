@@ -105,11 +105,11 @@ point the mouse cursor at the right position on the screen and click to shoot.
 
 Game Genie was a cartridge pass-through device that allowed players to modify
 the game program ROM data with special codes, creating new effects and cheats.
-The code was basically a memory address and a value it should be set to, encoded
-in a 6 or 8 character string. For example, the code `SXIOPO` for Super Mario Bros.
+The code was basically a memory address:value pair that was patched in the
+game's memory when that value was read from the cartridge.
 
-You can use various Game Genie codes available on the iwith this emulator by 
-passing them as a comma-separated list to the `-gg` flag.
+You can use various Game Genie codes available on the internet with the emulator 
+by passing them as a comma-separated list to the `-gg` flag.
 
 ## Network Multiplayer
 
