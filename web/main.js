@@ -15,7 +15,6 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   const WIDTH = 256;
   const HEIGHT = 240;
   const TARGET_FPS = 60;
-  const SCALE = 2;
 
   // ========================
   // Canvas setup
@@ -24,8 +23,6 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   let canvas = document.getElementById("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
-  // canvas.style.width = WIDTH * SCALE + "px";
-  // canvas.style.height = HEIGHT * SCALE + "px";
   canvas.style.imageRendering = "pixelated";
 
   let ctx = canvas.getContext("2d");

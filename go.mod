@@ -1,8 +1,6 @@
 module github.com/maxpoletaev/dendy
 
-go 1.21
-
-toolchain go1.21.0
+go 1.24
 
 require (
 	github.com/gen2brain/raylib-go/raylib v0.0.0-20240116120507-49aab27a9ba4
