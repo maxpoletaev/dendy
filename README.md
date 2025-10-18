@@ -87,6 +87,9 @@ follows. Multiplayer on a single keyboard is not supported.
 └───────────────────────────────────────┘
 ```
 
+If a gamepad is connected, it will likely be detected automatically and can be used
+instead of the keyboard. I tested it with a PS4 controller connected via Bluetooth.
+
 ### Zapper (Light Gun)
 
 Zapper is emulated using the mouse and can be used in games like Duck Hunt. Just 

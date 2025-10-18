@@ -18,6 +18,7 @@
    in time in 5 second steps to quickly recover from mistakes. Can be used by
    pressing Ctrl+Z or ⌘+Z.
  * Game Genie codes support via the -gg flag.
+ * Gamepad support.
 
 ## v1.0.0 - 2024-01-26
 

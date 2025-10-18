@@ -27,14 +27,16 @@ type Window struct {
 	ShowFPS        bool
 	FPS            int
 
-	viewport    rl.RenderTexture2D
-	shader      *shaderFacade
-	remotePing  int64
-	shouldClose bool
-	grayscale   bool
-	scale       int
-	width       int
-	height      int
+	gamepadAvailable bool
+	viewport         rl.RenderTexture2D
+	shader           *shaderFacade
+	remotePing       int64
+	shouldClose      bool
+	grayscale        bool
+	scale            int
+	width            int
+	height           int
+	turboCounter     int
 }
 
 func CreateWindow(scale int, verbose bool) *Window {
@@ -51,12 +53,23 @@ func CreateWindow(scale int, verbose bool) *Window {
 	viewport := rl.LoadRenderTexture(ppu.FrameWidth, ppu.FrameHeight)
 	rl.SetTextureFilter(viewport.Texture, rl.FilterPoint)
 
-	return &Window{
+	w := &Window{
 		viewport: viewport,
 		scale:    scale,
 		width:    windowWidth,
 		height:   windowHeight,
 	}
+
+	// poll initial input events
+	rl.BeginDrawing()
+	rl.EndDrawing()
+
+	if rl.IsGamepadAvailable(gamepadIndex) {
+		log.Printf("[INFO] gamepad detected: %s", rl.GetGamepadName(gamepadIndex))
+		w.gamepadAvailable = true
+	}
+
+	return w
 }
 
 func (w *Window) EnableCRT() {
@@ -211,6 +224,11 @@ func (w *Window) HandleHotKeys() {
 		}
 
 	case w.isModifierPressed() && rl.IsKeyPressed(rl.KeyZ):
+		if w.RewindDelegate != nil {
+			w.RewindDelegate()
+		}
+
+	case w.gamepadAvailable && rl.IsGamepadButtonPressed(gamepadIndex, rl.GamepadButtonLeftTrigger1):
 		if w.RewindDelegate != nil {
 			w.RewindDelegate()
 		}
