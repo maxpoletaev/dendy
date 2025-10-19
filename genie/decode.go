@@ -29,12 +29,14 @@ func decode6(code []byte) (uint16, override) {
 		n5 = letterMapping[code[5]]
 	)
 
-	addr := 0x8000 + ((n3 & 7) << 12) |
+	addr := 0x8000 +
+		((n3 & 7) << 12) |
 		((n5 & 7) << 8) |
 		((n4 & 8) << 8) |
 		((n2 & 7) << 4) |
 		((n1 & 8) << 4) |
-		(n4 & 7) | (n3 & 8)
+		(n4 & 7) |
+		(n3 & 8)
 
 	data := ((n1 & 7) << 4) |
 		((n0 & 8) << 4) |
@@ -63,12 +65,14 @@ func decode8(code []byte) (uint16, override) {
 		n7 = letterMapping[code[7]]
 	)
 
-	addr := 0x8000 + ((n3 & 7) << 12) |
+	addr := 0x8000 +
+		((n3 & 7) << 12) |
 		((n5 & 7) << 8) |
 		((n4 & 8) << 8) |
 		((n2 & 7) << 4) |
 		((n1 & 8) << 4) |
-		(n4 & 7) | (n3 & 8)
+		(n4 & 7) |
+		(n3 & 8)
 
 	data := ((n1 & 7) << 4) |
 		((n0 & 8) << 4) |
