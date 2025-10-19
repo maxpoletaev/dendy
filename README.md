@@ -72,16 +72,17 @@ There’s a bunch of command line flags that you can learn about by running
 
 ### Controller
 
-Player 1 controller is emulated using the keyboard. The default mapping is as
-follows. Multiplayer on a single keyboard is not supported.
+Player 1 controller is emulated using the keyboard. The default mapping follows the natural
+layout of the controller (dpad on the left, buttons on the right). Second player's controls
+are not supported on a single machine.
 
 ```
                    ┆┆
 ┌───────────────────────────────────────┐
 │                                       │
-│    [W]                                │
+│    [W]                      [U]  [I]  │   <- turbo buttons
 │ [A]   [D]                             │
-│    [S]                       [J] [K]  │
+│    [S]                      [J]  [K]  │
 │           [Enter] [RShift]            │
 │                                       │
 └───────────────────────────────────────┘
