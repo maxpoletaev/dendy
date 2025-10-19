@@ -138,6 +138,49 @@ Promise.all([wasmReady, documentReady]).then(async () => {
   });
 
   // ========================
+  //  Gamepad support
+  // ========================
+
+  const GAMEPAD_DEADZONE = 0.25;
+  const GAMEPAD_THRESHOLD = 0.5;
+
+  function readGamepadInput() {
+    const gamepads = navigator.getGamepads();
+    if (!gamepads || !gamepads[0]) return 0;
+
+    const gamepad = gamepads[0];
+    let buttons = 0;
+
+    // D-pad (buttons 12-15 on standard gamepad)
+    if (gamepad.buttons[12]?.pressed) buttons |= BUTTON_UP;
+    if (gamepad.buttons[13]?.pressed) buttons |= BUTTON_DOWN;
+    if (gamepad.buttons[14]?.pressed) buttons |= BUTTON_LEFT;
+    if (gamepad.buttons[15]?.pressed) buttons |= BUTTON_RIGHT;
+
+    // Face buttons
+    if (gamepad.buttons[0]?.pressed) buttons |= BUTTON_A;     // Cross/A
+    if (gamepad.buttons[2]?.pressed) buttons |= BUTTON_B;     // Square/X
+    if (gamepad.buttons[8]?.pressed) buttons |= BUTTON_SELECT; // Select
+    if (gamepad.buttons[9]?.pressed) buttons |= BUTTON_START;  // Start
+
+    // Left analog stick
+    let leftX = gamepad.axes[0] || 0;
+    let leftY = gamepad.axes[1] || 0;
+
+    // Apply deadzone
+    if (Math.abs(leftX) < GAMEPAD_DEADZONE) leftX = 0;
+    if (Math.abs(leftY) < GAMEPAD_DEADZONE) leftY = 0;
+
+    // Convert to digital input
+    if (leftX < -GAMEPAD_THRESHOLD) buttons |= BUTTON_LEFT;
+    if (leftX > GAMEPAD_THRESHOLD) buttons |= BUTTON_RIGHT;
+    if (leftY < -GAMEPAD_THRESHOLD) buttons |= BUTTON_UP;
+    if (leftY > GAMEPAD_THRESHOLD) buttons |= BUTTON_DOWN;
+
+    return buttons;
+  }
+
+  // ========================
   //  ROM loading
   // ========================
 
@@ -189,7 +232,8 @@ Promise.all([wasmReady, documentReady]).then(async () => {
 
   function executeFrame() {
     while (true) {
-      let frameReady = go.RunFrame(buttonsPressed);
+      let buttons = buttonsPressed | readGamepadInput();
+      let frameReady = go.RunFrame(buttons);
 
       if (frameReady) {
         let framePtr = go.GetFrameBufferPtr();
